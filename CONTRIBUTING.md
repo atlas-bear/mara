@@ -35,7 +35,7 @@ We welcome code contributions! To submit code changes, please follow these steps
 2. **Clone the Fork**: Clone your fork to your local development environment.
 
    ```sh
-   git clone https://github.com/your-username/MARA.git
+   git clone https://github.com/your-username/mara.git
    ```
 3. **Create a Branch**: Create a new branch for your changes.
 
