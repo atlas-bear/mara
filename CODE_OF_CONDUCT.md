@@ -36,4 +36,4 @@ This Code of Conduct is adapted from the Contributor Covenant, version 2.0, avai
 
 ---
 
-We expect all participants in the Atlas|Bear community to adhere to this Code of Conduct in all interactions and contributions.
+We expect all participants in the Atlas Bear community to adhere to this Code of Conduct in all interactions and contributions.
