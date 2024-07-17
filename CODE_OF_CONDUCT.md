@@ -28,7 +28,7 @@ Community leaders are responsible for clarifying and enforcing our standards of 
 
 ## Reporting Violations
 
-If you are subjected to or witness unacceptable behavior, or have any concerns, please report it by contacting us at conduct@atlasbear.com. All reports will be reviewed and investigated promptly and confidentially.
+If you are subjected to or witness unacceptable behavior, or have any concerns, please report it by contacting us at conduct@atlasbear.co. All reports will be reviewed and investigated promptly and confidentially.
 
 ## Attribution
 
