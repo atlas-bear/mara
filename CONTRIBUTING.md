@@ -33,16 +33,19 @@ We welcome code contributions! To submit code changes, please follow these steps
 
 1. **Fork the Repository**: Create a personal fork of the repository.
 2. **Clone the Fork**: Clone your fork to your local development environment.
+
    ```sh
    git clone https://github.com/your-username/MARA.git
    ```
 3. **Create a Branch**: Create a new branch for your changes.
+
    ```sh
    git checkout -b feature/your-feature-name
    ```
 4. **Make Changes**: Implement your changes in the new branch. Ensure your code adheres to the project's style guide.
 5. **Commit Changes**: Commit your changes with a descriptive commit message (see [Commit Messages](#commit-messages) below).
 6. **Push Changes**: Push your changes to your fork.
+
    ```sh
    git push origin feature/your-feature-name
    ```
