@@ -24,7 +24,7 @@ Please note that all contributors are expected to adhere to our [Code of Conduct
 
 If you encounter any issues or have suggestions for improvements, please report them using the following steps:
 
-1. **Check Existing Issues**: Before creating a new issue, please check the [issue tracker](https://github.com/AtlasBear/MARA/issues) to see if your issue has already been reported.
+1. **Check Existing Issues**: Before creating a new issue, please check the [issue tracker](https://github.com/atlas-bear/mara/issues) to see if your issue has already been reported.
 2. **Create a New Issue**: If your issue is not listed, create a new issue and provide as much detail as possible, including steps to reproduce the problem, your environment, and any relevant screenshots or logs.
 
 ### Submitting Code Changes
