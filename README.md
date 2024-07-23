@@ -1,4 +1,4 @@
-# MARA by Atlas|Bear
+![MARA Logo](https://drive.google.com/uc?id=1HZatNeCG0g5MtAXRddDrf1Cd1iCfSrF_)
 
 Welcome to the official repository for MARA, the Maritime and Security Incident Monitoring and Analysis application by Atlas|Bear. This repository holds core files, scripts, and other essential components for the application.
 
