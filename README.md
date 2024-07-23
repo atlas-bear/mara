@@ -1,4 +1,4 @@
-![MARA Logo](https://drive.google.com/uc?id=1Je02zgOn7S81ivH2SRvQtNOkR9L8Xh_p)
+![MARA Logo](https://drive.google.com/uc?id=1OB5Lwgpp03DB9vs50T_kkKzL5VV_y5Eo)
 
 Welcome to the official repository for MARA (Multi-source Analysis and Reporting Architecture), the integrated intelligence platform by Atlas|Bear. This repository holds core files, scripts, and other essential components for the application.
 
