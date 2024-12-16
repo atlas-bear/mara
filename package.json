@@ -13,8 +13,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@netlify/blobs": "^8.1.0",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
     "https": "^1.0.0"
-  }
+  },
+  "type":"module"
 }

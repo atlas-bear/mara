@@ -1,2 +1,8 @@
 [functions]
 directory = "functions"
+node_bundler = "esbuild"
+
+# Define schedule for process-incidents
+[[functions.schedule]]
+function = "process-incidents"
+cron = "*/15 * * * *"          # Every 15 minutes
