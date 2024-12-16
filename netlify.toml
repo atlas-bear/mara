@@ -1,6 +1,6 @@
 [functions]
 directory = "functions"
-node_bundler = "esbuild"
+node_bundler = "esbuild" # Ensures modern builds for functions
 
 # Define schedule for process-incidents
 [[functions.schedule]]
