@@ -3,6 +3,5 @@ directory = "functions"
 node_bundler = "esbuild" # Ensures modern builds for functions
 
 # Define schedule for process-incidents
-[[functions.schedule]]
-function = "process-incidents"
-cron = "*/15 * * * *"          # Every 15 minutes
+[functions."process-incidents"]
+schedule = "@hourly"
