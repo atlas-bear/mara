@@ -1,7 +1,7 @@
 import { cacheOps } from "./utils/cache.js";
 import { fetchWithTimeout } from "./utils/fetch.js";
 import { log } from "./utils/logger.js";
-import { hashData } from "./utils/hash.js";
+import { generateHash } from "./utils/hash.js";
 import { standardizeIncident } from "./utils/standardizer.js";
 
 const path = require("path");
@@ -37,7 +37,7 @@ export const collectUKMTO = async () => {
     });
 
     // Generate a hash of the raw data to check for changes
-    const currentHash = hashData(rawData);
+    const currentHash = generateHash(rawData);
     const cachedHash = await cacheOps.get(CACHE_KEY_HASH);
 
     if (cachedHash === currentHash) {
@@ -89,7 +89,7 @@ export const collectUKMTO = async () => {
 };
 
 // Run the collector if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && process.argv[1].endsWith("collect-ukmto.js")) {
   collectUKMTO()
     .then((result) => log.info(`${SOURCE_UPPER} collection completed`, result))
     .catch((error) => log.error(`Error in ${SOURCE_UPPER} collection`, error));
