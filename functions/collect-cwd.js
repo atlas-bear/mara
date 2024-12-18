@@ -101,6 +101,9 @@ export const handler = async (event, context) => {
     };
   } catch (error) {
     log.error("CWD incident collection failed", error);
-    return { statusCode: 500, body: "Error during collection" };
+    return {
+      statusCode: 500,
+      body: "Error during collection",
+    };
   }
 };

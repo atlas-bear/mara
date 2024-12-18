@@ -89,10 +89,10 @@ export const handler = async (event, context) => {
       }),
     };
   } catch (error) {
-    log.error(`Failed to collect ${SOURCE_UPPER} incidents`, error);
+    log.error(`${SOURCE_UPPER} incident collection failed`, error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ status: "error", message: error.message }),
+      body: "Error during collection",
     };
   }
 };
