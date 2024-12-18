@@ -4,13 +4,12 @@ import { log } from "./utils/logger.js";
 
 export default async (req, context) => {
   try {
-    console.log("Function invoked. Request method:", req.method);
+    log.info("Function invoked. Request method:", { method: req.method });
 
     // Handle POST requests (scheduled functions)
     if (req.method === "POST") {
-      const { next_run } = await req.json(); // Scheduled functions send a JSON payload
-      console.log("Scheduled function executed. Next run at:", next_run);
-
+      const { next_run } = await req.json();
+      log.info("Scheduled function executed.", { next_run });
       return new Response("Scheduled function executed successfully", {
         status: 200,
         headers: { "Content-Type": "text/plain" },
@@ -23,44 +22,87 @@ export default async (req, context) => {
     const lastProcessed = (await cacheOps.get(lastProcessedKey)) || {};
     let allIncidents = [];
     let updatedHashes = { ...lastProcessed };
+    let hasNewData = false;
 
     for (const source of sources) {
-      const cacheKey = `${source}-incidents`;
-      const cachedData = await cacheOps.get(cacheKey);
+      try {
+        const cacheKey = `${source}-incidents`;
+        const cachedData = await cacheOps.get(cacheKey);
 
-      console.log("Cache data for key:", cacheKey, cachedData);
+        log.info("Retrieved cache data", { source, cacheKey });
 
-      if (!cachedData) {
-        console.log(`No incidents found in cache for source: ${source}`);
+        if (!cachedData || !cachedData.incidents || !cachedData.hash) {
+          log.info("No valid cached data found", { source });
+          continue;
+        }
+
+        const { incidents, hash } = cachedData;
+
+        // Compare hash strings
+        if (lastProcessed[source] === hash) {
+          log.info("No new data detected", { source });
+          continue;
+        }
+
+        log.info("Processing new incidents", {
+          source,
+          count: incidents.length,
+        });
+
+        // Validate incidents before processing
+        const validIncidents = incidents.filter((incident) => {
+          try {
+            validateIncident(incident);
+            return true;
+          } catch (error) {
+            log.error("Invalid incident detected", error, { source, incident });
+            return false;
+          }
+        });
+
+        allIncidents = allIncidents.concat(validIncidents);
+        updatedHashes[source] = hash;
+        hasNewData = true;
+      } catch (error) {
+        log.error("Error processing source", error, { source });
+        // Continue with other sources even if one fails
         continue;
       }
-
-      const { incidents, hash } = cachedData;
-
-      if (lastProcessed[source] === hash) {
-        console.log(`No new data for source: ${source}`);
-        continue;
-      }
-
-      allIncidents = allIncidents.concat(incidents);
-      updatedHashes[source] = hash;
     }
 
-    if (allIncidents.length === 0) {
-      console.log("No new incidents to process.");
+    if (!hasNewData) {
+      log.info("No new incidents to process");
       return new Response("No new incidents to process", {
         status: 200,
         headers: { "Content-Type": "text/plain" },
       });
     }
 
-    console.log("Incidents processed successfully.");
+    // Process and store the incidents in Airtable
+    for (const incident of allIncidents) {
+      try {
+        const existingRecord = await checkExistingRecord(incident.sourceId);
+        await createOrUpdateRecord(incident, existingRecord);
+      } catch (error) {
+        log.error("Failed to process incident", error, {
+          sourceId: incident.sourceId,
+        });
+        // Continue processing other incidents even if one fails
+      }
+    }
+
+    // Store updated hashes only after successful processing
+    await cacheOps.store(lastProcessedKey, updatedHashes);
+    log.info("Successfully processed incidents", {
+      count: allIncidents.length,
+    });
+
     return new Response("Incidents processed successfully", {
       status: 200,
       headers: { "Content-Type": "text/plain" },
     });
   } catch (error) {
-    console.error("Failed to process incidents:", error);
+    log.error("Failed to process incidents", error);
     return new Response("Error during processing", {
       status: 500,
       headers: { "Content-Type": "text/plain" },
@@ -104,16 +146,14 @@ async function createOrUpdateRecord(incident, existingRecord) {
       data,
       { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
-    console.log("Updated record in Airtable", { sourceId: incident.sourceId });
+    log.info("Updated record in Airtable", { sourceId: incident.sourceId });
   } else {
     await axios.post(
       `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`,
       data,
       { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
-    console.log("Created new record in Airtable", {
-      sourceId: incident.sourceId,
-    });
+    log.info("Created new record in Airtable", { sourceId: incident.sourceId });
   }
 }
 
@@ -125,9 +165,15 @@ function mapToAirtableFields(incident) {
       date: incident.dateOccurred,
       reference: incident.sourceId,
       region: incident.region,
-      category: incident.category,
+      category: incident.type,
       latitude: incident.latitude,
       longitude: incident.longitude,
+      source_url: incident.sourceUrl,
+      aggressors: incident.aggressors,
+      original_source: incident.originalSource,
+      updates: incident.updates
+        ? incident.updates.map((u) => u.text).join("\n\n")
+        : null,
     },
   };
 }
