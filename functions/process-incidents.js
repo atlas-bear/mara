@@ -18,7 +18,7 @@ export default async (req, context) => {
     }
 
     // Handle GET requests (manual testing or function invocation)
-    const sources = ["cwd"];
+    const sources = ["cwd", "ukmto"];
     const lastProcessedKey = "last-processed-hashes";
     const lastProcessed = (await cacheOps.get(lastProcessedKey)) || {};
     let allIncidents = [];
