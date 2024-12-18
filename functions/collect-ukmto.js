@@ -15,23 +15,20 @@ if (parts.length !== 2) {
 const SOURCE = parts[1];
 const SOURCE_UPPER = SOURCE.toUpperCase();
 const SOURCE_URL = process.env.SOURCE_URL_UKMTO;
+log.info(`SOURCE_URL for ${SOURCE_UPPER}: ${SOURCE_URL}`);
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
 const CACHE_KEY_HASH = `${SOURCE}-hash`;
 
-export const collectUKMTO = async () => {
+export const handler = async (event, context) => {
   try {
     log.info(`Starting ${SOURCE_UPPER} incident collection...`);
 
     // Fetch new data from the source
-    const response = await fetchWithTimeout(SOURCE_URL, {
-      timeout: 10000,
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch ${SOURCE_UPPER} data. Status: ${response.status}`
-      );
+    const response = await fetchWithTimeout(SOURCE_URL, { timeout: 10000 });
+    if (!response.data) {
+      throw new Error(`No data received from ${SOURCE_UPPER} source`);
     }
-    const rawData = await response.json();
+    const rawData = response.data;
     log.info(`Fetched ${SOURCE_UPPER} data successfully`, {
       count: rawData.length,
     });
@@ -42,7 +39,13 @@ export const collectUKMTO = async () => {
 
     if (cachedHash === currentHash) {
       log.info(`No new ${SOURCE_UPPER} incidents detected.`);
-      return { status: "no-change", message: "No new incidents to process." };
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-change",
+          message: "No new incidents to process.",
+        }),
+      };
     }
 
     log.info(`New ${SOURCE_UPPER} incidents detected. Processing data...`);
@@ -78,19 +81,18 @@ export const collectUKMTO = async () => {
     log.info(`Stored new ${SOURCE_UPPER} incidents in cache`);
 
     return {
-      status: "success",
-      message: `New ${SOURCE_UPPER} incidents processed.`,
-      count: standardizedIncidents.length,
+      statusCode: 200,
+      body: JSON.stringify({
+        status: "success",
+        message: `New ${SOURCE_UPPER} incidents processed.`,
+        count: standardizedIncidents.length,
+      }),
     };
   } catch (error) {
     log.error(`Failed to collect ${SOURCE_UPPER} incidents`, error);
-    throw error;
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ status: "error", message: error.message }),
+    };
   }
 };
-
-// Run the collector if executed directly
-if (process.argv[1] && process.argv[1].endsWith("collect-ukmto.js")) {
-  collectUKMTO()
-    .then((result) => log.info(`${SOURCE_UPPER} collection completed`, result))
-    .catch((error) => log.error(`Error in ${SOURCE_UPPER} collection`, error));
-}
