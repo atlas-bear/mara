@@ -1,39 +1,73 @@
 import axios from "axios";
 import https from "https";
 
-const PROXY_CONFIG = {
-  host: process.env.BRD_HOST,
-  port: process.env.BRD_PORT,
-  auth: {
-    username: process.env.BRD_USER,
-    password: process.env.BRD_PASSWORD,
-  },
-};
-
-export const fetchWithTimeout = async (url, options = {}) => {
-  const timeout = options.timeout || 10000; // Default timeout of 10 seconds
-  const useProxy = process.env.USE_PROXY === "true"; // Enable or disable proxy via environment variable
-
-  try {
-    const agent = new https.Agent({
+// Common proxy configuration builder
+export function buildProxyConfig(additionalHeaders = {}) {
+  const proxyConfig = {
+    proxy: {
+      host: process.env.BRD_HOST,
+      port: process.env.BRD_PORT,
+      auth: {
+        username: process.env.BRD_USER,
+        password: process.env.BRD_PASSWORD,
+      },
+    },
+    httpsAgent: new https.Agent({
+      rejectUnauthorized: false,
       keepAlive: true,
-      rejectUnauthorized: useProxy ? false : true, // Skip SSL validation for proxy due to issues
-    });
+    }),
+    timeout: 10000,
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "MARA-Collector/1.0",
+      ...additionalHeaders,
+    },
+  };
 
-    const response = await axios.get(url, {
-      timeout,
-      httpsAgent: agent,
-      proxy: useProxy ? PROXY_CONFIG : undefined, // Use proxy only if enabled
-    });
-    return response;
-  } catch (error) {
-    throw new Error(`Failed to fetch ${url}: ${error.message}`);
+  return proxyConfig;
+}
+
+export async function fetchWithRetry(url, options = {}) {
+  const {
+    maxRetries = 3,
+    retryDelay = 1000,
+    headers = {},
+    timeout = 10000,
+  } = options;
+
+  const proxyConfig = buildProxyConfig(headers);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await axios({
+        method: "get",
+        url,
+        ...proxyConfig,
+        timeout,
+        validateStatus: false,
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return response;
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+
+      const delay = retryDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      console.log(`Retry ${attempt}/${maxRetries} after ${delay}ms`, {
+        error: error.message,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
-};
+}
 
-export const fetchHtmlContent = async (url, proxyConfig, log) => {
+export const fetchHtmlContent = async (url, additionalHeaders = {}, log) => {
   try {
     log.info(`Fetching content from: ${url}`);
+    const proxyConfig = buildProxyConfig(additionalHeaders);
     const response = await axios.get(url, proxyConfig);
     log.info("Content fetched successfully", { length: response.data.length });
     return response.data;
