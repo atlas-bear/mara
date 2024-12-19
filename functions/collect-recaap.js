@@ -9,6 +9,30 @@ const SOURCE_URL =
   process.env.SOURCE_URL_RECAAP ||
   "https://portal.recaap.org/OpenMap/MapSearchIncidentServlet/";
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
+const CACHE_KEY_RUNS = "function-runs";
+
+// Helper to store run information
+async function logRun(functionName, status, details = {}) {
+  try {
+    const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
+
+    cached.runs.unshift({
+      function: functionName,
+      status,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
+
+    // Keep only last 100 runs
+    if (cached.runs.length > 100) {
+      cached.runs = cached.runs.slice(0, 100);
+    }
+
+    await cacheOps.store(CACHE_KEY_RUNS, cached);
+  } catch (error) {
+    log.error("Error logging run", error);
+  }
+}
 
 // Helper function to format coordinates properly
 function formatLocation(incident) {
@@ -149,7 +173,10 @@ async function processAndCacheData(rawData) {
 }
 
 export const handler = async (event, context) => {
+  const startTime = Date.now();
+
   try {
+    await logRun(context.functionName, "started");
     log.info(`Starting ${SOURCE_UPPER} incident collection...`);
 
     const rawData = await attemptCollection();
@@ -160,9 +187,19 @@ export const handler = async (event, context) => {
     const count = Array.isArray(rawData) ? rawData.length : 0;
 
     // Start background processing without awaiting it
-    processAndCacheData(rawData).catch((error) =>
-      log.error("Background processing error", error)
-    );
+    processAndCacheData(rawData).catch((error) => {
+      log.error("Background processing error", error);
+      logRun(context.functionName, "error", {
+        error: error.message,
+        phase: "background-processing",
+        duration: Date.now() - startTime,
+      });
+    });
+
+    await logRun(context.functionName, "success", {
+      duration: Date.now() - startTime,
+      itemsProcessed: count,
+    });
 
     return {
       statusCode: 202,
@@ -174,6 +211,12 @@ export const handler = async (event, context) => {
     };
   } catch (error) {
     log.error(`${SOURCE_UPPER} incident collection failed`, error);
+
+    await logRun(context.functionName, "error", {
+      error: error.message,
+      duration: Date.now() - startTime,
+    });
+
     return {
       statusCode: 500,
       body: JSON.stringify({

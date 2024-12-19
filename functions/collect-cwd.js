@@ -1,5 +1,3 @@
-import https from "https";
-
 import { fetchHtmlContent } from "./utils/fetch.js";
 import { parseCwdHtmlContent } from "./utils/parser.js";
 import { standardizeIncident } from "./utils/standardizer.js";
@@ -8,41 +6,61 @@ import { verifyEnvironmentVariables } from "./utils/environment.js";
 import { cacheOps } from "./utils/cache.js";
 import { generateHash } from "./utils/hash.js";
 
+const SOURCE = "cwd";
+const SOURCE_UPPER = SOURCE.toUpperCase();
+const SOURCE_URL = process.env.SOURCE_URL_CWD;
+const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
+const CACHE_KEY_HASH = `${SOURCE}-hash`;
+const CACHE_KEY_RUNS = "function-runs";
+
+// Helper to store run information
+async function logRun(functionName, status, details = {}) {
+  try {
+    const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
+
+    cached.runs.unshift({
+      function: functionName,
+      status,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
+
+    // Keep only last 100 runs
+    if (cached.runs.length > 100) {
+      cached.runs = cached.runs.slice(0, 100);
+    }
+
+    await cacheOps.store(CACHE_KEY_RUNS, cached);
+  } catch (error) {
+    log.error("Error logging run", error);
+  }
+}
+
 export const handler = async (event, context) => {
-  // Verify required environment variables
-  verifyEnvironmentVariables([
-    "BRD_HOST",
-    "BRD_PORT",
-    "BRD_USER",
-    "BRD_PASSWORD",
-  ]);
-
-  const proxyConfig = {
-    proxy: {
-      host: process.env.BRD_HOST,
-      port: process.env.BRD_PORT,
-      auth: {
-        username: process.env.BRD_USER,
-        password: process.env.BRD_PASSWORD,
-      },
-    },
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-    timeout: 5000,
-  };
-
-  const url = process.env.SOURCE_URL_CWD;
-  const cacheKey = "cwd-incidents"; // Cache key for incidents
+  const startTime = Date.now();
 
   try {
-    log.info("Fetching content from:", url);
-    const htmlContent = await fetchHtmlContent(url, proxyConfig, log);
+    await logRun(context.functionName, "started");
+    log.info(`Starting ${SOURCE_UPPER} incident collection...`);
+
+    // Verify required environment variables
+    verifyEnvironmentVariables([
+      "BRD_HOST",
+      "BRD_PORT",
+      "BRD_USER",
+      "BRD_PASSWORD",
+      "SOURCE_URL_CWD",
+    ]);
+
+    log.info(`Fetching content from: ${SOURCE_URL}`);
+    const htmlContent = await fetchHtmlContent(SOURCE_URL, {}, log);
 
     // Parse raw incidents
     const rawIncidents = parseCwdHtmlContent(htmlContent, log);
 
     // Standardize incidents for downstream processing
     const standardizedIncidents = rawIncidents.map((incident) =>
-      standardizeIncident(incident, "Clearwater Dynamics", url)
+      standardizeIncident(incident, "Clearwater Dynamics", SOURCE_URL)
     );
 
     // Serialize only relevant fields for hashing
@@ -57,53 +75,73 @@ export const handler = async (event, context) => {
       })
     );
     const serializedData = JSON.stringify(hashableIncidents);
-    log.info("Serialized data for hash:", serializedData);
+    log.info("Generated serialized data for hashing");
 
     // Generate new hash based on serialized data
-    const newHash = generateHash(serializedData);
-    log.info("Generated new hash:", newHash); // Log the newly generated hash
+    const currentHash = generateHash(serializedData);
+    const cachedHash = await cacheOps.get(CACHE_KEY_HASH);
 
-    // Retrieve cached data
-    const cachedData = await cacheOps.get(cacheKey);
-    if (cachedData) {
-      const cachedHash = cachedData.hash;
-      log.info("Cached hash:", cachedHash); // Log the cached hash
+    if (cachedHash === currentHash) {
+      log.info(`No new ${SOURCE_UPPER} incidents detected.`);
 
-      // Compare hashes to determine if the data has changed
-      if (newHash === cachedHash) {
-        log.info("Hashes match: No new data detected."); // Log when hashes match
-        return {
-          statusCode: 200,
-          body: JSON.stringify({
-            message: "Collection successful (from cache)",
-            incidents: cachedData.incidents,
-          }),
-        };
-      }
+      await logRun(context.functionName, "success", {
+        duration: Date.now() - startTime,
+        itemsProcessed: 0,
+        status: "no-change",
+        source: SOURCE_UPPER,
+      });
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-change",
+          message: "No new incidents to process.",
+        }),
+      };
     }
 
-    // If hashes differ, store the new data and hash in the cache
-    log.info("New data detected: parsing and standardizing incidents", {
-      cacheKey,
-    });
-    await cacheOps.store(cacheKey, {
+    log.info(`New ${SOURCE_UPPER} incidents detected. Processing data...`);
+
+    await cacheOps.store(CACHE_KEY_INCIDENTS, {
       incidents: standardizedIncidents,
-      hash: newHash,
+      hash: currentHash,
+      timestamp: new Date().toISOString(),
     });
-    log.info("Data stored in cache", { cacheKey });
+    await cacheOps.store(CACHE_KEY_HASH, currentHash);
+
+    log.info(`Stored new ${SOURCE_UPPER} incidents in cache`);
+
+    await logRun(context.functionName, "success", {
+      duration: Date.now() - startTime,
+      itemsProcessed: standardizedIncidents.length,
+      status: "new-data",
+      source: SOURCE_UPPER,
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        message: "Collection successful",
-        incidents: standardizedIncidents,
+        status: "success",
+        message: `New ${SOURCE_UPPER} incidents processed.`,
+        count: standardizedIncidents.length,
       }),
     };
   } catch (error) {
-    log.error("CWD incident collection failed", error);
+    log.error(`${SOURCE_UPPER} incident collection failed`, error);
+
+    await logRun(context.functionName, "error", {
+      error: error.message,
+      duration: Date.now() - startTime,
+      source: SOURCE_UPPER,
+    });
+
     return {
       statusCode: 500,
-      body: "Error during collection",
+      body: JSON.stringify({
+        status: "error",
+        message: "Error during collection",
+        error: error.message,
+      }),
     };
   }
 };

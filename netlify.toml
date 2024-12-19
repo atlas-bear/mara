@@ -2,6 +2,18 @@
 directory = "functions"
 node_bundler = "esbuild" # Ensures modern builds for functions
 
-# Define schedule for process-incidents
+# Collectors and processor run at different times to spread the load
+[functions."collect-recaap"]
+schedule = "0,30 * * * *" # Run at :00 and :30 of every hour
+
+[functions."collect-ukmto"]
+schedule = "5,35 * * * *" # Run at :05 and :35 of every hour
+
+[functions."collect-cwd"]
+schedule = "10,40 * * * *" # Run at :10 and :40 of every hour
+
+[functions."collect-mdat"]
+schedule = "15,45 * * * *" # Run at :15 and :45 of every hour
+
 [functions."process-incidents"]
-schedule = "@hourly"
+schedule = "20,50 * * * *" # Run at :20 and :50 of every hour
