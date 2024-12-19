@@ -19,7 +19,7 @@ export function buildProxyConfig(additionalHeaders = {}) {
     timeout: 10000,
     headers: {
       Accept: "application/json",
-      "User-Agent": "MARA-Collector/1.0",
+      "User-Agent": "Collector/1.0",
       ...additionalHeaders,
     },
   };
@@ -33,19 +33,29 @@ export async function fetchWithRetry(url, options = {}) {
     retryDelay = 1000,
     headers = {},
     timeout = 10000,
+    method = "get",
+    body = null,
   } = options;
 
   const proxyConfig = buildProxyConfig(headers);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await axios({
-        method: "get",
+      const requestConfig = {
+        method,
         url,
         ...proxyConfig,
         timeout,
         validateStatus: false,
-      });
+      };
+
+      // Add body for POST requests
+      if (method.toLowerCase() === "post" && body) {
+        requestConfig.data =
+          typeof body === "string" ? body : JSON.stringify(body);
+      }
+
+      const response = await axios(requestConfig);
 
       if (response.status !== 200) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
