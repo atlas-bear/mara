@@ -16,6 +16,30 @@ const SOURCE_URL = process.env.SOURCE_URL_UKMTO;
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
 const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_METRICS = `${SOURCE}-metrics`;
+const CACHE_KEY_RUNS = "function-runs";
+
+// Helper to store run information
+async function logRun(functionName, status, details = {}) {
+  try {
+    const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
+
+    cached.runs.unshift({
+      function: functionName,
+      status,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
+
+    // Keep only last 100 runs
+    if (cached.runs.length > 100) {
+      cached.runs = cached.runs.slice(0, 100);
+    }
+
+    await cacheOps.store(CACHE_KEY_RUNS, cached);
+  } catch (error) {
+    log.error("Error logging run", error);
+  }
+}
 
 // Constants for monitoring and retry logic
 const EXPECTED_INCIDENT_RANGE = {
@@ -120,7 +144,11 @@ async function validateIncidentCount(newCount) {
 }
 
 export const handler = async (event, context) => {
+  const startTime = Date.now();
+
   try {
+    await logRun(context.functionName, "started");
+
     verifyEnvironmentVariables([
       "BRD_HOST",
       "BRD_PORT",
@@ -241,6 +269,20 @@ export const handler = async (event, context) => {
       invalidCount: invalidIncidents.length,
     });
 
+    await logRun(context.functionName, "success", {
+      duration: Date.now() - startTime,
+      itemsProcessed: standardizedIncidents.length,
+      validCount: validIncidents.length,
+      invalidCount: invalidIncidents.length,
+      isCountNormal: isCountValid,
+      metrics: {
+        expectedRange: EXPECTED_INCIDENT_RANGE,
+        isWithinRange:
+          standardizedIncidents.length >= EXPECTED_INCIDENT_RANGE.min &&
+          standardizedIncidents.length <= EXPECTED_INCIDENT_RANGE.max,
+      },
+    });
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -260,6 +302,13 @@ export const handler = async (event, context) => {
     };
   } catch (error) {
     log.error(`${SOURCE_UPPER} incident collection failed`, error);
+
+    await logRun(context.functionName, "error", {
+      error: error.message,
+      duration: Date.now() - startTime,
+      details: error.response?.data || "No additional details available",
+    });
+
     return {
       statusCode: 500,
       body: JSON.stringify({
