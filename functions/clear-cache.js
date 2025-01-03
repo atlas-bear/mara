@@ -21,7 +21,7 @@ export const handler = async (event, context) => {
       };
     } else {
       // Clear all known source caches
-      const sources = ["recaap", "ukmto", "cwd"];
+      const sources = ["recaap", "ukmto", "cwd", "mdat"];
       for (const src of sources) {
         await cacheOps.delete(`${src}-incidents`);
         log.info(`Cleared cache for: ${src}-incidents`);

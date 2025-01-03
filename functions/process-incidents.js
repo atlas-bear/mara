@@ -287,24 +287,82 @@ async function createOrUpdateRecord(incident, existingRecord) {
 }
 
 function mapToAirtableFields(incident) {
-  return {
-    fields: {
-      title: incident.title,
-      description: incident.description,
-      date: incident.dateOccurred || incident.date,
-      reference: incident.sourceId,
-      region: incident.region,
-      incident_type_name: incident.type || incident.title.split(" - ")[0],
-      latitude: incident.latitude,
-      longitude: incident.longitude,
-      source: incident.source,
-      location: `${incident.latitude}, ${incident.longitude}`,
-      update: incident.updates
-        ? incident.updates.map((u) => u.text).join("\n\n")
-        : null,
-      aggressor: incident.aggressors || null,
-      original_source: incident.originalSource || null,
-      raw_json: JSON.stringify(incident),
-    },
+  // Helper function to clean empty objects/arrays
+  const cleanValue = (value) => {
+    if (!value) return null;
+    if (typeof value === "object") {
+      if (Object.keys(value).length === 0) return null;
+      if (Array.isArray(value) && value.length === 0) return null;
+    }
+    return value;
   };
+
+  // Process updates if present
+  const updatesText =
+    incident.updates && incident.updates.length > 0
+      ? incident.updates
+          .map((u) => u.text)
+          .filter((t) => t)
+          .join("\n\n")
+      : null;
+
+  const raw = incident.raw || {};
+  const vessel = incident.vessel || {};
+
+  let location = incident.location?.place;
+  if (!location) {
+    if (incident.source === "RECAAP") {
+      location = raw.areaDescription;
+    } else if (incident.source === "UKMTO") {
+      location = raw.place;
+    } else if (incident.source === "MDAT-GOG") {
+      location = raw.properties?.location || "Gulf of Guinea";
+    }
+  }
+
+  const fields = {
+    // Core incident fields
+    title: incident.title,
+    description: incident.description,
+    update: cleanValue(updatesText),
+    date: incident.dateOccurred || incident.date,
+    reference: incident.sourceId,
+
+    // Location data
+    region: incident.region,
+    location: location,
+    latitude: incident.latitude,
+    longitude: incident.longitude,
+
+    // Incident classification
+    incident_type_name: incident.category || incident.type,
+    incident_type_level: String(incident.severity || ""),
+
+    // Aggressor/source information
+    aggressor: cleanValue(incident.aggressors),
+    source: incident.source,
+    original_source: incident.originalSource || incident.source,
+
+    // Vessel information
+    vessel_name: vessel.name,
+    vessel_type: vessel.type,
+    vessel_flag: vessel.flag,
+    vessel_imo: vessel.imo,
+
+    // Timestamps
+    //created_at: incident.created_at || new Date().toISOString(),
+    //modified_at: incident.modified_at || new Date().toISOString(),
+
+    // Complete raw data
+    raw_json: JSON.stringify(incident),
+  };
+
+  // Clean undefined/null values
+  Object.keys(fields).forEach((key) => {
+    if (fields[key] === undefined || fields[key] === null) {
+      delete fields[key];
+    }
+  });
+
+  return { fields };
 }

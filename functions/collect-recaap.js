@@ -2,6 +2,8 @@ import { cacheOps } from "./utils/cache.js";
 import { fetchWithRetry } from "./utils/fetch.js";
 import { log } from "./utils/logger.js";
 import { generateHash } from "./utils/hash.js";
+import { standardizeIncident } from "./utils/standardizer.js";
+import { validateIncident } from "./utils/validation.js";
 
 const SOURCE = "recaap";
 const SOURCE_UPPER = SOURCE.toUpperCase();
@@ -9,13 +11,14 @@ const SOURCE_URL =
   process.env.SOURCE_URL_RECAAP ||
   "https://portal.recaap.org/OpenMap/MapSearchIncidentServlet/";
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
+const CACHE_KEY_HASH = `${SOURCE}-hash`;
+const CACHE_KEY_METRICS = `${SOURCE}-metrics`;
 const CACHE_KEY_RUNS = "function-runs";
 
 // Helper to store run information
 async function logRun(functionName, status, details = {}) {
   try {
     const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
-
     cached.runs.unshift({
       function: functionName,
       status,
@@ -23,7 +26,6 @@ async function logRun(functionName, status, details = {}) {
       ...details,
     });
 
-    // Keep only last 100 runs
     if (cached.runs.length > 100) {
       cached.runs = cached.runs.slice(0, 100);
     }
@@ -34,32 +36,107 @@ async function logRun(functionName, status, details = {}) {
   }
 }
 
-// Helper function to format coordinates properly
-function formatLocation(incident) {
-  // Ensure numeric values are properly formatted
-  const latDeg = parseFloat(incident.latDegree).toFixed(0);
-  const latMin = parseFloat(incident.latMinute).toFixed(2);
-  const longDeg = parseFloat(incident.longDegree).toFixed(0);
-  const longMin = parseFloat(incident.longMinute).toFixed(2);
+// Debug helper
+const debugLog = (stage, data) => {
+  log.info(`DEBUG - ${stage}`, {
+    stage,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    length: Array.isArray(data) ? data.length : null,
+    sample: Array.isArray(data) ? data[0] : null,
+  });
+};
 
-  return `${latDeg}°${latMin}'${incident.latOption} ${longDeg}°${longMin}'${incident.longOption}`;
+// Helper function to format coordinates in standard format
+function formatLocation(incident) {
+  const latDeg = parseFloat(incident.latDegree || 0).toFixed(0);
+  const latMin = parseFloat(incident.latMinute || 0).toFixed(2);
+  const longDeg = parseFloat(incident.longDegree || 0).toFixed(0);
+  const longMin = parseFloat(incident.longMinute || 0).toFixed(2);
+
+  return {
+    formatted: `${latDeg}°${latMin}'${incident.latOption} ${longDeg}°${longMin}'${incident.longOption}`,
+    decimal: {
+      latitude:
+        parseFloat(latDeg) +
+        (parseFloat(latMin) / 60) * (incident.latOption === "S" ? -1 : 1),
+      longitude:
+        parseFloat(longDeg) +
+        (parseFloat(longMin) / 60) * (incident.longOption === "W" ? -1 : 1),
+    },
+  };
 }
 
 // Helper function to extract and compare incident numbers
 function getIncidentNumeric(incidentNo) {
   const match = incidentNo.match(/IC-(\d{4})-(\d+)/);
   if (!match) return 0;
-
   const [_, year, num] = match;
-  // Prioritize more recent years
   return parseInt(year) * 1000 + parseInt(num);
+}
+
+// Function to process raw incident data
+function processRawIncident(incident) {
+  // Get location in both formats
+  const location = formatLocation(incident);
+
+  return {
+    sourceId: `${SOURCE_UPPER}-${incident.incidentNo}`,
+    source: SOURCE_UPPER,
+    dateOccurred: new Date(incident.fullTimestampOfIncident).toISOString(),
+    title: `${incident.incidentType || "Incident"} - ${
+      incident.shipName || "Unknown Vessel"
+    } (${incident.shipType || "Unknown Type"})`,
+    description: incident.attackMethodDesc,
+    originalSource: incident.sourceOfInformation,
+
+    // Location information
+    latitude: location.decimal.latitude,
+    longitude: location.decimal.longitude,
+    region: "southeast_asia",
+    location: {
+      place: location.formatted,
+      description: incident.areaDescription,
+      coordinates: {
+        decimal: location.decimal,
+        dms: {
+          latitude: `${incident.latDegree}°${incident.latMinute}'${incident.latOption}`,
+          longitude: `${incident.longDegree}°${incident.longMinute}'${incident.longOption}`,
+        },
+      },
+    },
+
+    // Vessel information
+    vessel: {
+      name: incident.shipName || null,
+      type: incident.shipType || null,
+      imo: incident.shipImoNumber || null,
+      flag: incident.shipFlag || null,
+    },
+
+    // Incident classification
+    category: incident.incidentType || "other",
+    severity: incident.classification || null,
+
+    // Status information
+    status: "active",
+    isAlert: false,
+    isAdvisory: false,
+
+    // Metadata
+    reportedBy: "ReCAAP ISC",
+    lastUpdated: new Date(incident.fullTimestampOfIncident).toISOString(),
+
+    // Original data
+    raw: incident,
+  };
 }
 
 // Function to attempt data collection with timeout handling
 async function attemptCollection(retryCount = 0, maxRetries = 3) {
   try {
     const requestBody = {
-      incidentDateFrom: "", // Empty to get all incidents
+      incidentDateFrom: "",
       incidentDateTo: "",
       shipName: "",
       shipImoNumber: "",
@@ -78,16 +155,33 @@ async function attemptCollection(retryCount = 0, maxRetries = 3) {
       referer: "https://portal.recaap.org/OpenMap",
     };
 
+    debugLog("collection-attempt", { attempt: retryCount + 1, maxRetries });
+
     const response = await fetchWithRetry(SOURCE_URL, {
       method: "post",
       headers,
       body: requestBody,
-      maxRetries: 2, // Per-request retries
-      retryDelay: 2000, // Start with 2 second delay
-      timeout: 8000, // Keep under Netlify's limit
+      maxRetries: 2,
+      retryDelay: 2000,
+      timeout: 8000,
     });
 
-    return response.data;
+    if (!response.data) {
+      throw new Error("No data received from the source");
+    }
+
+    // Get current date and date 30 days ago
+    const currentDate = new Date();
+    const past30DaysDate = new Date();
+    past30DaysDate.setDate(currentDate.getDate() - 30);
+
+    // Filter incidents based on dateOccurred field
+    const filteredIncidents = response.data.filter((incident) => {
+      const incidentDate = new Date(incident.fullTimestampOfIncident);
+      return incidentDate >= past30DaysDate && incidentDate <= currentDate;
+    });
+
+    return filteredIncidents;
   } catch (error) {
     if (error.message?.includes("timeout") && retryCount < maxRetries) {
       log.info(
@@ -104,41 +198,114 @@ async function attemptCollection(retryCount = 0, maxRetries = 3) {
   }
 }
 
-// Background processing function
-async function processAndCacheData(rawData) {
+export const handler = async (event, context) => {
+  const startTime = Date.now();
+
   try {
+    await logRun(context.functionName, "started");
+    log.info(`Starting ${SOURCE_UPPER} incident collection...`);
+
+    debugLog("pre-collection", { url: SOURCE_URL });
+
+    const rawData = await attemptCollection();
+    if (!rawData) {
+      throw new Error(`No data received from ${SOURCE_UPPER} source`);
+    }
+
+    debugLog("post-collection", rawData);
+
+    const count = Array.isArray(rawData) ? rawData.length : 0;
+    log.info(`Fetched ${count} incidents from ${SOURCE_UPPER}`);
+
+    if (count === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-data",
+          message: "No incidents received from source",
+        }),
+      };
+    }
+
     // Get existing incidents from cache
     const existingData = await cacheOps.get(CACHE_KEY_INCIDENTS);
     const existingIncidents = existingData?.incidents || [];
-
-    // Create a Set of existing incident numbers for quick lookup
     const existingIds = new Set(existingIncidents.map((i) => i.sourceId));
 
-    // Process new incidents
-    const newIncidents = rawData
-      .map((incident) => ({
-        sourceId: `${SOURCE_UPPER}-${incident.incidentNo}`,
-        source: SOURCE_UPPER,
-        dateOccurred: new Date(incident.fullTimestampOfIncident).toISOString(),
-        title: `${incident.incidentType} - ${incident.shipName} (${incident.shipType})`,
-        description: incident.attackMethodDesc,
-        latitude: incident.positionLatitude,
-        longitude: incident.positionLongitude,
-        region: incident.areaDescription,
-        vesselName: incident.shipName,
-        vesselType: incident.shipType,
-        category: incident.classification,
-        place: formatLocation(incident),
-      }))
-      .filter((incident) => !existingIds.has(incident.sourceId));
+    debugLog("existing-data", {
+      count: existingIncidents.length,
+      oldestId: existingIncidents[existingIncidents.length - 1]?.sourceId,
+      newestId: existingIncidents[0]?.sourceId,
+    });
 
-    if (newIncidents.length === 0) {
-      log.info("No new incidents to add");
-      return 0;
+    // Generate hash of raw data for change detection
+    const currentHash = generateHash(JSON.stringify(rawData));
+    const cachedHash = await cacheOps.get(CACHE_KEY_HASH);
+
+    if (cachedHash === currentHash) {
+      log.info(`No new ${SOURCE_UPPER} incidents detected.`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-change",
+          message: "No new incidents to process.",
+        }),
+      };
     }
 
-    // Combine and sort all incidents by incident number (year and sequence)
-    const allIncidents = [...existingIncidents, ...newIncidents].sort(
+    // Process and validate new incidents
+    const processedIncidents = [];
+    const skippedIncidents = [];
+
+    for (const incident of rawData) {
+      const sourceId = `${SOURCE_UPPER}-${incident.incidentNo}`;
+
+      // Skip if we already have this incident
+      if (existingIds.has(sourceId)) {
+        continue;
+      }
+
+      try {
+        const processedIncident = processRawIncident(incident);
+        const validation = validateIncident(processedIncident, SOURCE_UPPER);
+
+        if (validation.errors.length > 0) {
+          log.info("Validation warnings for incident", {
+            sourceId,
+            warnings: validation.errors,
+          });
+        }
+
+        const standardized = standardizeIncident(
+          validation.normalized,
+          SOURCE_UPPER,
+          SOURCE_URL
+        );
+        processedIncidents.push(standardized);
+      } catch (error) {
+        log.error("Error processing incident", error, { sourceId });
+        skippedIncidents.push({ incident, error: error.message });
+      }
+    }
+
+    debugLog("processing-results", {
+      processed: processedIncidents.length,
+      skipped: skippedIncidents.length,
+    });
+
+    if (processedIncidents.length === 0) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-change",
+          message: "No new incidents to process",
+          skipped: skippedIncidents.length,
+        }),
+      };
+    }
+
+    // Combine and sort all incidents
+    const allIncidents = [...processedIncidents, ...existingIncidents].sort(
       (a, b) => {
         const aNum = getIncidentNumeric(
           a.sourceId.replace(`${SOURCE_UPPER}-`, "")
@@ -150,63 +317,42 @@ async function processAndCacheData(rawData) {
       }
     );
 
-    const hash = generateHash(JSON.stringify(allIncidents));
+    debugLog("pre-cache", {
+      totalIncidents: allIncidents.length,
+      newIncidents: processedIncidents.length,
+    });
+
+    // Store processed data
     await cacheOps.store(CACHE_KEY_INCIDENTS, {
       incidents: allIncidents,
-      hash,
+      hash: currentHash,
       timestamp: new Date().toISOString(),
+      metadata: {
+        totalCount: allIncidents.length,
+        newCount: processedIncidents.length,
+        skippedCount: skippedIncidents.length,
+        lastProcessed: new Date().toISOString(),
+      },
     });
 
-    // Log new incident numbers
-    const newIncidentNumbers = newIncidents
-      .map((i) => i.sourceId.replace(`${SOURCE_UPPER}-`, ""))
-      .join(", ");
-    log.info(
-      `Added ${newIncidents.length} new incidents: ${newIncidentNumbers}`
-    );
+    await cacheOps.store(CACHE_KEY_HASH, currentHash);
 
-    return newIncidents.length;
-  } catch (error) {
-    log.error("Background processing failed", error);
-    throw error;
-  }
-}
-
-export const handler = async (event, context) => {
-  const startTime = Date.now();
-
-  try {
-    await logRun(context.functionName, "started");
-    log.info(`Starting ${SOURCE_UPPER} incident collection...`);
-
-    const rawData = await attemptCollection();
-    if (!rawData) {
-      throw new Error(`No data received from ${SOURCE_UPPER} source`);
-    }
-
-    const count = Array.isArray(rawData) ? rawData.length : 0;
-
-    // Start background processing without awaiting it
-    processAndCacheData(rawData).catch((error) => {
-      log.error("Background processing error", error);
-      logRun(context.functionName, "error", {
-        error: error.message,
-        phase: "background-processing",
-        duration: Date.now() - startTime,
-      });
-    });
+    debugLog("post-cache", { success: true });
 
     await logRun(context.functionName, "success", {
       duration: Date.now() - startTime,
-      itemsProcessed: count,
+      itemsProcessed: processedIncidents.length,
+      totalIncidents: allIncidents.length,
     });
 
     return {
-      statusCode: 202,
+      statusCode: 200,
       body: JSON.stringify({
-        status: "accepted",
-        message: `Processing ${count} incidents from ${SOURCE_UPPER}`,
-        count,
+        status: "success",
+        message: `Processed ${processedIncidents.length} new incidents`,
+        total: allIncidents.length,
+        new: processedIncidents.length,
+        skipped: skippedIncidents.length,
       }),
     };
   } catch (error) {

@@ -1,5 +1,22 @@
 import { log } from "./logger.js";
 
+// High-level regions
+export const HIGH_LEVEL_REGIONS = [
+  "west_africa",
+  "indian_ocean",
+  "southeast_asia",
+  "americas",
+  "europe",
+  "other",
+];
+
+// Simple helper to clean location strings
+export function cleanLocation(location) {
+  if (!location) return null;
+  if (typeof location !== "string") return null;
+  return location.trim() || null;
+}
+
 export function validateDateFormat(dateString) {
   const date = new Date(dateString);
   const now = new Date();
@@ -67,4 +84,61 @@ export function validateFields(data, requiredFields, optionalFields = {}) {
   }
 
   return errors;
+}
+
+// Validate the entire incident
+export function validateIncident(incident, source) {
+  const errors = [];
+  const normalized = { ...incident }; // Start with a copy of the original
+
+  // Get core validation errors
+  const fieldErrors = validateFields(
+    incident,
+    {
+      sourceId: "string",
+      title: "string",
+      description: "string",
+    },
+    {
+      source: "string",
+      category: "string",
+      region: "string",
+    }
+  );
+
+  // Add any field validation errors
+  errors.push(...fieldErrors);
+
+  // Validate and clean location if present
+  if (incident.location || incident.place) {
+    normalized.location = cleanLocation(incident.location || incident.place);
+  }
+
+  // Validate region if present
+  if (incident.region) {
+    const normalizedRegion = incident.region.toLowerCase().trim();
+    if (!HIGH_LEVEL_REGIONS.includes(normalizedRegion)) {
+      normalized.region = "other";
+      log.info(
+        `Non-standard region detected: ${incident.region}, defaulting to 'other'`
+      );
+    } else {
+      normalized.region = normalizedRegion;
+    }
+  }
+
+  // Add metadata
+  normalized._metadata = {
+    validatedAt: new Date().toISOString(),
+    source,
+    validationErrors: errors,
+    processingNotes: [],
+  };
+
+  // Return valid even with errors, but include them in metadata
+  return {
+    isValid: true, // We'll allow all data through but track errors
+    errors,
+    normalized,
+  };
 }

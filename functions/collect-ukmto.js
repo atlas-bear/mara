@@ -4,11 +4,7 @@ import { log } from "./utils/logger.js";
 import { generateHash } from "./utils/hash.js";
 import { standardizeIncident } from "./utils/standardizer.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
-import {
-  validateDateFormat,
-  validateCoordinates,
-  validateFields,
-} from "./utils/validation.js";
+import { validateIncident, validateDateFormat } from "./utils/validation.js";
 
 const SOURCE = "ukmto";
 const SOURCE_UPPER = SOURCE.toUpperCase();
@@ -18,11 +14,20 @@ const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_METRICS = `${SOURCE}-metrics`;
 const CACHE_KEY_RUNS = "function-runs";
 
+// Constants for monitoring and validation
+const INCIDENT_METRICS = {
+  EXPECTED_RANGE: {
+    min: 4,
+    max: 10,
+  },
+  MAX_DELTA: 3, // Maximum acceptable change between checks
+  RETENTION_DAYS: 30, // How long to keep incidents
+};
+
 // Helper to store run information
 async function logRun(functionName, status, details = {}) {
   try {
     const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
-
     cached.runs.unshift({
       function: functionName,
       status,
@@ -30,7 +35,6 @@ async function logRun(functionName, status, details = {}) {
       ...details,
     });
 
-    // Keep only last 100 runs
     if (cached.runs.length > 100) {
       cached.runs = cached.runs.slice(0, 100);
     }
@@ -41,113 +45,139 @@ async function logRun(functionName, status, details = {}) {
   }
 }
 
-// Constants for monitoring and retry logic
-const EXPECTED_INCIDENT_RANGE = {
-  min: 4, // Minimum expected incidents
-  max: 10, // Maximum expected incidents
-};
-
-// Validation schemas
-const requiredFields = {
-  incidentNumber: "number",
-  utcDateOfIncident: "string",
-  incidentTypeName: "string",
-  otherDetails: "string",
-  locationLatitude: "number",
-  locationLongitude: "number",
-  region: "string",
-};
-
-const optionalFields = {
-  incidentIssuer: "string",
-  sitecoreId: "string",
-  utcDateCreated: "string",
-  incidentTypeLevel: "number",
-  locationLatitudeDDDMMSS: "string",
-  locationLongitudeDDDMMSS: "string",
-  place: "string",
-  vesselName: "string",
-  vesselType: "string",
-  vesselUnderPirateControl: "boolean",
-  dateVesselTaken: ["object", "null"],
-  crewHeld: "number",
-  hideFromTicker: "boolean",
-  extendTickerTime: "boolean",
-};
-
-// Helper function to validate incident structure
-function validateIncident(incident) {
-  const errors = validateFields(incident, requiredFields, optionalFields);
-
-  const dateValidation = validateDateFormat(incident.utcDateOfIncident);
-  if (!dateValidation.isValid) {
-    errors.push(dateValidation.error);
-  }
-
-  const coordValidation = validateCoordinates(
-    incident.locationLatitude,
-    incident.locationLongitude
-  );
-  if (!coordValidation.isValid) {
-    errors.push(...coordValidation.errors);
-  }
-
-  return errors;
-}
-
-// Helper function to check incident count for UKMTO's rolling feed
-async function validateIncidentCount(newCount) {
+// Helper function to check incident count metrics
+async function validateIncidentMetrics(newCount) {
   try {
     const metrics = (await cacheOps.get(CACHE_KEY_METRICS)) || {
       updates: [],
       lastCount: newCount,
     };
 
-    // For UKMTO, we're mainly concerned if:
-    // 1. The count falls outside our expected range
-    // 2. We suddenly get 0 incidents
-    // 3. The count changes dramatically from the last check
     const isWithinRange =
-      newCount >= EXPECTED_INCIDENT_RANGE.min &&
-      newCount <= EXPECTED_INCIDENT_RANGE.max;
+      newCount >= INCIDENT_METRICS.EXPECTED_RANGE.min &&
+      newCount <= INCIDENT_METRICS.EXPECTED_RANGE.max;
     const hasIncidents = newCount > 0;
     const countDelta = Math.abs(newCount - metrics.lastCount);
-    const hasReasonableChange = countDelta <= 3; // Allow for small changes between checks
+    const hasReasonableChange = countDelta <= INCIDENT_METRICS.MAX_DELTA;
+
+    // Update metrics history
+    metrics.updates.push({
+      timestamp: new Date().toISOString(),
+      count: newCount,
+      isWithinRange,
+      delta: countDelta,
+    });
+    metrics.updates = metrics.updates.slice(-10); // Keep last 10 updates
+    metrics.lastCount = newCount;
+
+    await cacheOps.store(CACHE_KEY_METRICS, metrics);
 
     if (!isWithinRange || !hasIncidents || !hasReasonableChange) {
-      log.info(`Incident count anomaly detected`, {
+      log.info("Incident count anomaly detected", {
         newCount,
         lastCount: metrics.lastCount,
         isWithinRange,
         hasIncidents,
         countDelta,
-        expectedRange: EXPECTED_INCIDENT_RANGE,
+        expectedRange: INCIDENT_METRICS.EXPECTED_RANGE,
       });
     }
 
-    // Update metrics with rolling window of last 10 checks
-    metrics.updates.push({
-      timestamp: new Date().toISOString(),
-      count: newCount,
-    });
-    metrics.updates = metrics.updates.slice(-10);
-    metrics.lastCount = newCount;
-
-    await cacheOps.store(CACHE_KEY_METRICS, metrics);
-
-    // Return true if everything looks normal
-    return isWithinRange && hasIncidents && hasReasonableChange;
+    return {
+      isValid: isWithinRange && hasIncidents && hasReasonableChange,
+      metrics: {
+        count: newCount,
+        expectedRange: INCIDENT_METRICS.EXPECTED_RANGE,
+        delta: countDelta,
+        history: metrics.updates,
+      },
+    };
   } catch (error) {
-    log.error("Error validating incident count", error);
-    return true; // Continue processing despite metrics error
+    log.error("Error validating incident metrics", error);
+    return { isValid: true }; // Continue processing despite metrics error
   }
 }
 
+function processRawIncident(incident) {
+  return {
+    sourceId: `${SOURCE_UPPER}-${incident.incidentNumber}`,
+    source: SOURCE_UPPER,
+    dateOccurred: incident.utcDateOfIncident,
+    title: incident.incidentTypeName,
+    description: incident.otherDetails,
+
+    // Location information
+    latitude: incident.locationLatitude,
+    longitude: incident.locationLongitude,
+    region: "indian_ocean",
+    location: {
+      place: incident.place || null,
+      coordinates: {
+        decimal: {
+          latitude: incident.locationLatitude,
+          longitude: incident.locationLongitude,
+        },
+        dms: {
+          latitude: incident.locationLatitudeDDDMMSS,
+          longitude: incident.locationLongitudeDDDMMSS,
+        },
+      },
+    },
+
+    // Vessel information
+    vessel: {
+      name: incident.vesselName || null,
+      type: incident.vesselType || null,
+      status: incident.vesselUnderPirateControl
+        ? "under_pirate_control"
+        : "normal",
+      captureDate: incident.dateVesselTaken,
+      crewHeld: incident.crewHeld,
+    },
+
+    // Incident classification
+    category: incident.incidentTypeName,
+    type: "UKMTO Alert",
+    severity: incident.incidentTypeLevel,
+
+    // Status information
+    status: incident.vesselUnderPirateControl ? "active_piracy" : "active",
+    isAlert: !incident.hideFromTicker,
+    isAdvisory: Boolean(incident.extendTickerTime),
+
+    // Additional metadata
+    reportedBy: incident.incidentIssuer || SOURCE_UPPER,
+    lastUpdated: incident.utcDateCreated || incident.utcDateOfIncident,
+    created_at: incident.utcDateCreated,
+    modified_at: new Date().toISOString(),
+
+    // Store complete raw incident
+    raw: incident,
+  };
+}
+
+// Debug helper
+const debugLog = (stage, data) => {
+  log.info(`DEBUG - ${stage}`, {
+    stage,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    length: Array.isArray(data) ? data.length : null,
+    sample: Array.isArray(data) ? data[0] : null,
+  });
+};
+
+// Update the handler function with these debug points
 export const handler = async (event, context) => {
   const startTime = Date.now();
 
   try {
     await logRun(context.functionName, "started");
+    log.info("Environment check", {
+      SOURCE_URL: SOURCE_URL,
+      NODE_ENV: process.env.NODE_ENV,
+      NETLIFY_DEV: process.env.NETLIFY_DEV,
+    });
 
     verifyEnvironmentVariables([
       "BRD_HOST",
@@ -159,7 +189,9 @@ export const handler = async (event, context) => {
 
     log.info(`Starting ${SOURCE_UPPER} incident collection...`);
 
-    // Fetch data with retry logic
+    // Debug - Pre-fetch
+    debugLog("pre-fetch", { url: SOURCE_URL });
+
     const response = await fetchWithRetry(SOURCE_URL, {
       headers: {
         Origin: "https://www.ukmto.org",
@@ -167,68 +199,100 @@ export const handler = async (event, context) => {
       },
     });
 
+    // Debug - Post-fetch
+    debugLog("post-fetch", response.data);
+
     const rawData = response.data;
-    log.info("Raw incident data example:", {
-      sampleIncident: rawData[0],
-      dataTypes: Object.entries(rawData[0]).reduce((acc, [key, value]) => {
-        acc[key] = typeof value;
-        return acc;
-      }, {}),
-    });
     if (!Array.isArray(rawData)) {
       throw new Error(
         `Invalid response format: expected array, got ${typeof rawData}`
       );
     }
 
-    log.info(`Fetched ${SOURCE_UPPER} data`, { count: rawData.length });
+    // Debug - Raw Data
+    debugLog("raw-data", rawData);
 
     // Validate incident count
-    const isCountValid = await validateIncidentCount(rawData.length);
-    if (!isCountValid) {
-      log.error("Unusual incident count detected", { count: rawData.length });
-    }
+    const metricsValidation = await validateIncidentMetrics(rawData.length);
 
-    // Validate and filter incidents
+    // Debug - Metrics Validation
+    debugLog("metrics-validation", metricsValidation);
+
     const validIncidents = [];
     const invalidIncidents = [];
 
-    for (const incident of rawData) {
-      const errors = validateIncident(incident);
-      if (errors.length === 0) {
-        validIncidents.push(incident);
-      } else {
-        // Add detailed logging for each invalid incident
-        log.info("Validation failed for incident", {
-          incidentNumber: incident.incidentNumber,
-          errors: errors,
-          incidentData: {
-            utcDateOfIncident: incident.utcDateOfIncident,
-            incidentTypeName: incident.incidentTypeName,
-            region: incident.region,
-            locationLatitude: incident.locationLatitude,
-            locationLongitude: incident.locationLongitude,
-          },
+    // Process and validate each incident
+    for (const rawIncident of rawData) {
+      try {
+        // Debug - Process Raw Incident
+        debugLog("processing-incident", rawIncident);
+
+        const processedIncident = processRawIncident(rawIncident);
+
+        // Debug - Processed Incident
+        debugLog("processed-incident", processedIncident);
+
+        const validation = validateIncident(processedIncident, SOURCE_UPPER);
+
+        // Debug - Validation Result
+        debugLog("validation-result", validation);
+
+        if (validation.isValid) {
+          validIncidents.push(validation.normalized);
+        } else {
+          log.info("Validation failed for incident", {
+            incidentNumber: rawIncident.incidentNumber,
+            errors: validation.errors,
+          });
+          invalidIncidents.push({
+            incident: rawIncident,
+            errors: validation.errors,
+          });
+        }
+      } catch (error) {
+        log.error("Error processing incident", error, {
+          incidentNumber: rawIncident.incidentNumber,
         });
-        invalidIncidents.push({ incident, errors });
+        invalidIncidents.push({
+          incident: rawIncident,
+          errors: [error.message],
+        });
       }
     }
 
-    if (invalidIncidents.length > 0) {
-      log.error("Invalid incidents detected", {
-        totalCount: rawData.length,
-        validCount: validIncidents.length,
+    // Debug - Validation Summary
+    debugLog("validation-summary", {
+      validCount: validIncidents.length,
+      invalidCount: invalidIncidents.length,
+    });
+
+    if (validIncidents.length === 0) {
+      log.error("No valid incidents found", {
+        totalProcessed: rawData.length,
         invalidCount: invalidIncidents.length,
-        invalidIncidents: invalidIncidents.map(({ incident, errors }) => ({
-          incidentNumber: incident.incidentNumber,
-          errors: errors,
-        })),
+        sampleErrors: invalidIncidents.slice(0, 3),
       });
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "no-data",
+          message: "No valid incidents found.",
+          invalidCount: invalidIncidents.length,
+          sampleErrors: invalidIncidents.slice(0, 3),
+        }),
+      };
     }
 
-    // Process only valid incidents
+    // Check for changes using hash
     const currentHash = generateHash(JSON.stringify(validIncidents));
     const cachedHash = await cacheOps.get(CACHE_KEY_HASH);
+
+    // Debug - Hash Check
+    debugLog("hash-check", {
+      currentHash,
+      cachedHash,
+      matches: currentHash === cachedHash,
+    });
 
     if (cachedHash === currentHash) {
       log.info(`No new ${SOURCE_UPPER} incidents detected.`);
@@ -241,33 +305,42 @@ export const handler = async (event, context) => {
       };
     }
 
+    // Standardize valid incidents
     const standardizedIncidents = validIncidents.map((incident) =>
-      standardizeIncident(
-        {
-          reference: incident.incidentNumber,
-          source: incident.incidentIssuer,
-          date: incident.utcDateOfIncident,
-          title: incident.incidentTypeName,
-          description: incident.otherDetails,
-          latitude: incident.locationLatitude,
-          longitude: incident.locationLongitude,
-          region: incident.region,
-          category: incident.incidentTypeName,
-          updates: [],
-          aggressors: null,
-          raw: incident,
-        },
-        SOURCE_UPPER,
-        SOURCE_URL
-      )
+      standardizeIncident(incident, SOURCE_UPPER, SOURCE_URL)
     );
 
-    await cacheOps.store(CACHE_KEY_INCIDENTS, {
-      incidents: standardizedIncidents,
-      hash: currentHash,
-      timestamp: new Date().toISOString(),
-      validCount: validIncidents.length,
-      invalidCount: invalidIncidents.length,
+    // Debug - Pre-Cache
+    debugLog("pre-cache", {
+      incidentCount: standardizedIncidents.length,
+      cacheKey: CACHE_KEY_INCIDENTS,
+    });
+
+    // Store processed data
+    try {
+      await cacheOps.store(CACHE_KEY_INCIDENTS, {
+        incidents: standardizedIncidents,
+        hash: currentHash,
+        timestamp: new Date().toISOString(),
+        validCount: validIncidents.length,
+        invalidCount: invalidIncidents.length,
+        metrics: metricsValidation.metrics,
+      });
+
+      // Debug - Post-Cache Store
+      debugLog("post-cache-store", { success: true });
+
+      await cacheOps.store(CACHE_KEY_HASH, currentHash);
+    } catch (cacheError) {
+      log.error("Cache storage failed", cacheError);
+      throw cacheError;
+    }
+
+    // Verify cache storage
+    const cachedData = await cacheOps.get(CACHE_KEY_INCIDENTS);
+    debugLog("cache-verification", {
+      retrieved: Boolean(cachedData),
+      incidentCount: cachedData?.incidents?.length,
     });
 
     await logRun(context.functionName, "success", {
@@ -275,13 +348,7 @@ export const handler = async (event, context) => {
       itemsProcessed: standardizedIncidents.length,
       validCount: validIncidents.length,
       invalidCount: invalidIncidents.length,
-      isCountNormal: isCountValid,
-      metrics: {
-        expectedRange: EXPECTED_INCIDENT_RANGE,
-        isWithinRange:
-          standardizedIncidents.length >= EXPECTED_INCIDENT_RANGE.min &&
-          standardizedIncidents.length <= EXPECTED_INCIDENT_RANGE.max,
-      },
+      metrics: metricsValidation.metrics,
     });
 
     return {
@@ -292,13 +359,7 @@ export const handler = async (event, context) => {
         count: standardizedIncidents.length,
         valid: validIncidents.length,
         invalid: invalidIncidents.length,
-        isCountNormal: isCountValid,
-        metrics: {
-          expectedRange: EXPECTED_INCIDENT_RANGE,
-          isWithinRange:
-            standardizedIncidents.length >= EXPECTED_INCIDENT_RANGE.min &&
-            standardizedIncidents.length <= EXPECTED_INCIDENT_RANGE.max,
-        },
+        metrics: metricsValidation.metrics,
       }),
     };
   } catch (error) {
