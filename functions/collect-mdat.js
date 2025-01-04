@@ -18,10 +18,10 @@ const CACHE_KEY_RUNS = "function-runs";
 
 // Configuration constants for date handling
 const DATE_CONFIG = {
-  COLLECTION_WINDOW_DAYS: 30,
+  COLLECTION_WINDOW_DAYS: 60,
   OVERLAP_DAYS: 2,
   MAX_FUTURE_DAYS: 1,
-  MAX_PAST_DAYS: 60,
+  MAX_PAST_DAYS: 90,
 };
 
 // Helper to store run information
