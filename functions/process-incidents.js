@@ -26,7 +26,7 @@ export default async (req, context) => {
       });
     }
 
-    const sources = ["cwd", "ukmto", "recaap", "mdat"];
+    const sources = ["cwd", "ukmto", "recaap", "mdat", "icc"];
     const lastProcessedKey = "last-processed-hashes";
     const lastProcessed = (await cacheOps.get(lastProcessedKey)) || {};
 

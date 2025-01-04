@@ -15,5 +15,8 @@ schedule = "10,40 * * * *" # Run at :10 and :40 of every hour
 [functions."collect-mdat"]
 schedule = "15,45 * * * *" # Run at :15 and :45 of every hour
 
-[functions."process-incidents"]
+[functions."collect-icc"]
 schedule = "20,50 * * * *" # Run at :20 and :50 of every hour
+
+[functions."process-incidents"]
+schedule = "25,55 * * * *" # Run at :25 and :55 of every hour
