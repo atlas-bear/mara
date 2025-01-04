@@ -15,6 +15,37 @@ const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_METRICS = `${SOURCE}-metrics`;
 const CACHE_KEY_RUNS = "function-runs";
 
+// Configuration constants for date handling
+const DATE_CONFIG = {
+  COLLECTION_WINDOW_DAYS: 30, // Base collection window
+  OVERLAP_DAYS: 2, // Extra days for overlap to prevent missing incidents
+  MAX_FUTURE_DAYS: 1, // Maximum days in the future to accept
+  MAX_PAST_DAYS: 60, // Maximum days in the past to accept
+};
+
+// Add helper function for date handling
+function generateDateRange() {
+  const now = new Date();
+  const windowStart = new Date();
+  windowStart.setDate(
+    windowStart.getDate() -
+      (DATE_CONFIG.COLLECTION_WINDOW_DAYS + DATE_CONFIG.OVERLAP_DAYS)
+  );
+
+  // Format dates in "DD Month YYYY" format (ReCAAP's expected format)
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date.toLocaleString("en-US", { month: "long" });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  return {
+    startDate: formatDate(windowStart),
+    endDate: formatDate(now),
+  };
+}
+
 // Helper to store run information
 async function logRun(functionName, status, details = {}) {
   try {
@@ -135,9 +166,13 @@ function processRawIncident(incident) {
 // Function to attempt data collection with timeout handling
 async function attemptCollection(retryCount = 0, maxRetries = 3) {
   try {
+    const { startDate, endDate } = generateDateRange();
+
+    debugLog("collection-dates", { startDate, endDate });
+
     const requestBody = {
-      incidentDateFrom: "",
-      incidentDateTo: "",
+      incidentDateFrom: startDate,
+      incidentDateTo: endDate,
       shipName: "",
       shipImoNumber: "",
       shipFlag: "",
@@ -155,7 +190,11 @@ async function attemptCollection(retryCount = 0, maxRetries = 3) {
       referer: "https://portal.recaap.org/OpenMap",
     };
 
-    debugLog("collection-attempt", { attempt: retryCount + 1, maxRetries });
+    debugLog("collection-attempt", {
+      attempt: retryCount + 1,
+      maxRetries,
+      requestBody,
+    });
 
     const response = await fetchWithRetry(SOURCE_URL, {
       method: "post",
@@ -166,22 +205,7 @@ async function attemptCollection(retryCount = 0, maxRetries = 3) {
       timeout: 8000,
     });
 
-    if (!response.data) {
-      throw new Error("No data received from the source");
-    }
-
-    // Get current date and date 30 days ago
-    const currentDate = new Date();
-    const past30DaysDate = new Date();
-    past30DaysDate.setDate(currentDate.getDate() - 30);
-
-    // Filter incidents based on dateOccurred field
-    const filteredIncidents = response.data.filter((incident) => {
-      const incidentDate = new Date(incident.fullTimestampOfIncident);
-      return incidentDate >= past30DaysDate && incidentDate <= currentDate;
-    });
-
-    return filteredIncidents;
+    return response.data;
   } catch (error) {
     if (error.message?.includes("timeout") && retryCount < maxRetries) {
       log.info(
