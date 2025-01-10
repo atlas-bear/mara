@@ -9,9 +9,7 @@ import { load } from "cheerio";
 
 const SOURCE = "icc";
 const SOURCE_UPPER = SOURCE.toUpperCase();
-const SOURCE_URL =
-  process.env.SOURCE_URL_ICC ||
-  "https://www.icc-ccs.org/index.php/piracy-reporting-centre/live-piracy-report";
+const SOURCE_URL = process.env.SOURCE_URL_ICC;
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
 const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_RUNS = "function-runs";
