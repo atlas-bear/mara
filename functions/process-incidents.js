@@ -3,6 +3,35 @@ import axios from "axios";
 import { log } from "./utils/logger.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
 
+const BATCH_SIZE = 10; // Process 10 incidents at a time
+
+// Helper function to process a batch of incidents
+async function processIncidentBatch(incidents, startIndex, batchSize) {
+  const endIndex = Math.min(startIndex + batchSize, incidents.length);
+  const batch = incidents.slice(startIndex, endIndex);
+  let processedCount = 0;
+  let errorCount = 0;
+  let updateCount = 0;
+  let createCount = 0;
+
+  for (const incident of batch) {
+    try {
+      const existingRecord = await checkExistingRecord(incident.sourceId);
+      await createOrUpdateRecord(incident, existingRecord);
+      processedCount++;
+      existingRecord ? updateCount++ : createCount++;
+    } catch (error) {
+      errorCount++;
+      log.error("Failed to process incident", {
+        error: error.message,
+        sourceId: incident.sourceId,
+      });
+    }
+  }
+
+  return { processedCount, errorCount, updateCount, createCount };
+}
+
 export default async (req, context) => {
   const startTime = Date.now();
   try {
@@ -26,7 +55,7 @@ export default async (req, context) => {
       });
     }
 
-    const sources = ["cwd", "ukmto", "recaap", "mdat", "icc"];
+    const sources = ["icc", "cwd", "ukmto", "recaap", "mdat"];
     const lastProcessedKey = "last-processed-hashes";
     const lastProcessed = (await cacheOps.get(lastProcessedKey)) || {};
 
@@ -39,7 +68,14 @@ export default async (req, context) => {
     let updatedHashes = { ...lastProcessed };
     let hasNewData = false;
     let sourceStats = {};
+    let totalStats = {
+      processedCount: 0,
+      errorCount: 0,
+      updateCount: 0,
+      createCount: 0,
+    };
 
+    // Collect all incidents from sources
     for (const source of sources) {
       try {
         const cacheKey = `${source}-incidents`;
@@ -101,10 +137,7 @@ export default async (req, context) => {
         updatedHashes[source] = hash;
         hasNewData = true;
       } catch (error) {
-        log.error(`Error processing source: ${source}`, {
-          error: error.message,
-          stack: error.stack,
-        });
+        log.error(`Error processing source: ${source}`, error);
         continue;
       }
     }
@@ -119,46 +152,53 @@ export default async (req, context) => {
       });
     }
 
-    // Process and store the incidents in Airtable
-    let processedCount = 0;
-    let errorCount = 0;
-    let updateCount = 0;
-    let createCount = 0;
-
-    for (const incident of allIncidents) {
+    // Process incidents in batches
+    for (let i = 0; i < allIncidents.length; i += BATCH_SIZE) {
       try {
-        // Add timeout check
+        // Check for remaining time
         if (Date.now() - startTime > 8000) {
-          // Leave 2s buffer
-          log.info("Approaching timeout limit, stopping processing", {
-            processedCount,
-            remainingCount: allIncidents.length - processedCount,
+          log.info("Time limit approaching, saving progress", {
+            processedSoFar: totalStats.processedCount,
+            remaining: allIncidents.length - i,
           });
           break;
         }
 
-        const existingRecord = await checkExistingRecord(incident.sourceId);
-        await createOrUpdateRecord(incident, existingRecord);
-        processedCount++;
-        existingRecord ? updateCount++ : createCount++;
+        const batchStats = await processIncidentBatch(
+          allIncidents,
+          i,
+          BATCH_SIZE
+        );
+
+        // Accumulate statistics
+        totalStats.processedCount += batchStats.processedCount;
+        totalStats.errorCount += batchStats.errorCount;
+        totalStats.updateCount += batchStats.updateCount;
+        totalStats.createCount += batchStats.createCount;
+
+        log.info("Batch processed", {
+          batchStart: i,
+          batchSize: BATCH_SIZE,
+          batchStats,
+          totalProcessed: totalStats.processedCount,
+        });
       } catch (error) {
-        errorCount++;
-        log.error("Failed to process incident", {
+        log.error("Error processing batch", {
+          batchStart: i,
           error: error.message,
-          sourceId: incident.sourceId,
-          stack: error.stack,
         });
       }
     }
 
-    // Store updated hashes only after successful processing
+    // Store updated hashes
     await cacheOps.store(lastProcessedKey, updatedHashes);
 
     const summary = {
-      totalProcessed: processedCount,
-      created: createCount,
-      updated: updateCount,
-      errors: errorCount,
+      totalProcessed: totalStats.processedCount,
+      created: totalStats.createCount,
+      updated: totalStats.updateCount,
+      errors: totalStats.errorCount,
+      remainingIncidents: allIncidents.length - totalStats.processedCount,
       updatedHashes,
     };
 
@@ -186,7 +226,7 @@ export default async (req, context) => {
   }
 };
 
-// Helper functions
+// Helper functions remain the same
 function validateIncident(incident) {
   const requiredFields = [
     "sourceId",
@@ -287,50 +327,17 @@ async function createOrUpdateRecord(incident, existingRecord) {
 }
 
 function mapToAirtableFields(incident) {
-  // Helper function to clean empty objects/arrays
-  const cleanValue = (value) => {
-    if (!value) return null;
-    if (typeof value === "object") {
-      if (Object.keys(value).length === 0) return null;
-      if (Array.isArray(value) && value.length === 0) return null;
-    }
-    return value;
-  };
-
-  // Process updates if present
-  const updatesText =
-    incident.updates && incident.updates.length > 0
-      ? incident.updates
-          .map((u) => u.text)
-          .filter((t) => t)
-          .join("\n\n")
-      : null;
-
-  const raw = incident.raw || {};
-  const vessel = incident.vessel || {};
-
-  let location = incident.location?.place;
-  if (!location) {
-    if (incident.source === "RECAAP") {
-      location = raw.areaDescription;
-    } else if (incident.source === "UKMTO") {
-      location = raw.place;
-    } else if (incident.source === "MDAT-GOG") {
-      location = raw.properties?.location || "Gulf of Guinea";
-    }
-  }
-
   const fields = {
     // Core incident fields
     title: incident.title,
     description: incident.description,
-    update: cleanValue(updatesText),
+    update: incident.update,
     date: incident.dateOccurred || incident.date,
     reference: incident.sourceId,
 
     // Location data
     region: incident.region,
-    location: location,
+    location: incident.location?.place,
     latitude: incident.latitude,
     longitude: incident.longitude,
 
@@ -338,22 +345,11 @@ function mapToAirtableFields(incident) {
     incident_type_name: incident.category || incident.type,
     incident_type_level: String(incident.severity || ""),
 
-    // Aggressor/source information
-    aggressor: cleanValue(incident.aggressors),
+    // Source information
     source: incident.source,
     original_source: incident.originalSource || incident.source,
 
-    // Vessel information
-    vessel_name: vessel.name,
-    vessel_type: vessel.type,
-    vessel_flag: vessel.flag,
-    vessel_imo: vessel.imo,
-
-    // Timestamps
-    //created_at: incident.created_at || new Date().toISOString(),
-    //modified_at: incident.modified_at || new Date().toISOString(),
-
-    // Complete raw data
+    // Raw data
     raw_json: JSON.stringify(incident),
   };
 

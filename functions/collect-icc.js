@@ -11,7 +11,7 @@ const SOURCE = "icc";
 const SOURCE_UPPER = SOURCE.toUpperCase();
 const SOURCE_URL =
   process.env.SOURCE_URL_ICC ||
-  "https://r.jina.ai/https://www.icc-ccs.org/index.php/piracy-reporting-centre/live-piracy-report";
+  "https://www.icc-ccs.org/index.php/piracy-reporting-centre/live-piracy-report";
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
 const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_RUNS = "function-runs";
@@ -37,15 +37,15 @@ async function logRun(functionName, status, details = {}) {
   }
 }
 
-// Function to extract coordinates from narrative text
-function extractCoordinates(text) {
+// Function to extract coordinates and location from narrative text
+function extractLocationInfo(text) {
   const coordRegex =
     /Posn:\s*(\d{2}):(\d{2}(?:\.\d+)?)[NS]\s*[–-]\s*(\d{2,3}):(\d{2}(?:\.\d+)?)[EW]/;
   const match = text.match(coordRegex);
 
-  if (!match) return null;
+  if (!match) return { coordinates: null, place: null };
 
-  const [_, latDeg, latMin, lonDeg, lonMin] = match;
+  const [fullMatch, latDeg, latMin, lonDeg, lonMin] = match;
 
   // Convert to decimal degrees
   const latitude = parseFloat(latDeg) + parseFloat(latMin) / 60;
@@ -55,84 +55,48 @@ function extractCoordinates(text) {
   const isNorth = text.includes("N");
   const isEast = text.includes("E");
 
+  // Extract location after coordinates
+  const locationMatch = text.match(new RegExp(fullMatch + ",\\s*([^.]+)"));
+  const place = locationMatch ? locationMatch[1].trim() : null;
+
   return {
-    latitude: isNorth ? latitude : -latitude,
-    longitude: isEast ? longitude : -longitude,
+    coordinates: {
+      latitude: isNorth ? latitude : -latitude,
+      longitude: isEast ? longitude : -longitude,
+    },
+    place,
   };
 }
 
-// Function to extract date from narrative
-function extractDate(dateText) {
-  const parts = dateText.split(".");
-  if (parts.length >= 3) {
-    const [day, month, year] = parts;
-    // Add leading zeros if necessary
-    const paddedDay = day.padStart(2, "0");
-    const paddedMonth = month.padStart(2, "0");
-    return `${year}-${paddedMonth}-${paddedDay}`;
-  }
-  return null;
-}
+// Function to extract date and time from narrative
+function extractDateTime(narrative) {
+  // Extract date and time pattern: dd.mm.yyyy: HHMM UTC
+  const datetimeRegex = /(\d{2}\.\d{2}\.\d{4}):\s*(\d{4})\s*UTC/;
+  const match = narrative.match(datetimeRegex);
 
-// Function to determine region based on coordinates or location text
-function determineRegion(latitude, longitude, locationText) {
-  // Simple region determination based on coordinates
-  if (latitude && longitude) {
-    if (longitude > 40 && longitude < 100 && latitude > -10 && latitude < 25) {
-      return "indian_ocean";
-    }
-    if (longitude > 100 && longitude < 130 && latitude > -10 && latitude < 20) {
-      return "southeast_asia";
-    }
-    if (longitude < 0 && latitude < 15 && latitude > -15) {
-      return "west_africa";
-    }
-  }
+  if (!match) return null;
 
-  // Fallback to text-based determination
-  const locationLower = locationText.toLowerCase();
-  if (
-    locationLower.includes("singapore") ||
-    locationLower.includes("indonesia") ||
-    locationLower.includes("malaysia")
-  ) {
-    return "southeast_asia";
-  }
-  if (
-    locationLower.includes("nigeria") ||
-    locationLower.includes("ghana") ||
-    locationLower.includes("togo")
-  ) {
-    return "west_africa";
-  }
-  if (
-    locationLower.includes("somalia") ||
-    locationLower.includes("yemen") ||
-    locationLower.includes("oman")
-  ) {
-    return "indian_ocean";
-  }
+  const [_, dateStr, timeStr] = match;
+  const [day, month, year] = dateStr.split(".");
 
-  return "other";
+  // Extract hours and minutes from the time string
+  const hours = timeStr.substring(0, 2);
+  const minutes = timeStr.substring(2, 4);
+
+  // Construct ISO datetime string
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(
+    2,
+    "0"
+  )}T${hours}:${minutes}:00.000Z`;
 }
 
 function parseIncident(attackNumber, narrative, dateString) {
-  // Extract coordinates
-  const coordinates = extractCoordinates(narrative);
+  // Extract date and time
+  const incidentDate =
+    extractDateTime(narrative) || new Date(dateString).toISOString();
 
-  // Split narrative to get location
-  const locationMatch = narrative.match(/Posn:.*?,\s*(.*?)(?=\.|\n)/);
-  const location = locationMatch ? locationMatch[1].trim() : "";
-
-  // Extract incident date
-  const dateMatch = narrative.match(/(\d{2}\.\d{2}\.\d{4}):/);
-  const incidentDate = dateMatch ? extractDate(dateMatch[1]) : dateString;
-
-  // Determine incident type and vessel info
-  const vesselTypeMatch = narrative.match(
-    /(?:an|a)\s+(\w+\s+\w+|\w+)\s+(?:vessel|ship|tanker|carrier)/i
-  );
-  const vesselType = vesselTypeMatch ? vesselTypeMatch[1].trim() : null;
+  // Extract location information
+  const { coordinates, place } = extractLocationInfo(narrative);
 
   return {
     sourceId: `${SOURCE_UPPER}-${attackNumber}`,
@@ -144,33 +108,10 @@ function parseIncident(attackNumber, narrative, dateString) {
     // Location information
     latitude: coordinates?.latitude,
     longitude: coordinates?.longitude,
-    region: determineRegion(
-      coordinates?.latitude,
-      coordinates?.longitude,
-      location
-    ),
     location: {
-      place: location,
+      place: place,
       coordinates: coordinates,
     },
-
-    // Vessel information (if available)
-    vessel: {
-      type: vesselType,
-    },
-
-    // Incident classification
-    category: "piracy", // Default category for ICC reports
-    type: "ICC Alert",
-
-    // Status information
-    status: "active",
-    isAlert: true,
-    isAdvisory: false,
-
-    // Metadata
-    reportedBy: "ICC",
-    lastUpdated: new Date().toISOString(),
 
     // Original data
     raw: {
@@ -182,11 +123,6 @@ function parseIncident(attackNumber, narrative, dateString) {
 }
 
 export const handler = async (event, context) => {
-  console.log("Environment variables:", {
-    SOURCE_URL_ICC: process.env.SOURCE_URL_ICC,
-    NODE_ENV: process.env.NODE_ENV,
-    NETLIFY_DEV: process.env.NETLIFY_DEV,
-  });
   const startTime = Date.now();
 
   try {
