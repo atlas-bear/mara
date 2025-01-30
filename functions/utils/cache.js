@@ -4,24 +4,32 @@ const cacheStore = getStore({
   name: "mara-cache",
   siteID: process.env.NETLIFY_SITE_ID,
   token: process.env.NETLIFY_ACCESS_TOKEN,
+  debug: true,
 });
 
 export const cacheOps = {
   // Store data in Netlify Blobs
   store: async (key, value) => {
     try {
-      const cacheData = {
-        ...value,
-        timestamp: new Date().toISOString(),
-      };
+      // Log the first few characters of the token for verification
+      const tokenPreview = process.env.NETLIFY_ACCESS_TOKEN
+        ? `${process.env.NETLIFY_ACCESS_TOKEN.substring(0, 4)}...`
+        : "none";
 
-      // Add diagnostic logging
+      // Diagnostic logging
       console.log("Cache store attempt:", {
         key,
+        siteId: process.env.NETLIFY_SITE_ID,
+        tokenPreview,
         hasNetlifySiteId: !!process.env.NETLIFY_SITE_ID,
         hasAccessToken: !!process.env.NETLIFY_ACCESS_TOKEN,
         blobsStore: !!cacheStore,
       });
+
+      const cacheData = {
+        ...value,
+        timestamp: new Date().toISOString(),
+      };
 
       await cacheStore.setJSON(key, cacheData);
       console.log(`Cache stored: ${key}`);
@@ -29,10 +37,11 @@ export const cacheOps = {
       console.error("Failed to store cache in Blobs", {
         error: error.message,
         code: error.code,
-        status: error.status,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
         key,
+        siteId: process.env.NETLIFY_SITE_ID,
       });
-      throw error; // Re-throw to handle in calling function
     }
   },
 
