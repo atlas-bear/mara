@@ -14,10 +14,25 @@ export const cacheOps = {
         ...value,
         timestamp: new Date().toISOString(),
       };
-      await cacheStore.setJSON(key, cacheData); // Correct for storing JSON data
+
+      // Add diagnostic logging
+      console.log("Cache store attempt:", {
+        key,
+        hasNetlifySiteId: !!process.env.NETLIFY_SITE_ID,
+        hasAccessToken: !!process.env.NETLIFY_ACCESS_TOKEN,
+        blobsStore: !!cacheStore,
+      });
+
+      await cacheStore.setJSON(key, cacheData);
       console.log(`Cache stored: ${key}`);
     } catch (error) {
-      console.error("Failed to store cache in Blobs", error);
+      console.error("Failed to store cache in Blobs", {
+        error: error.message,
+        code: error.code,
+        status: error.status,
+        key,
+      });
+      throw error; // Re-throw to handle in calling function
     }
   },
 
