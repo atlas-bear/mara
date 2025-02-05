@@ -1,0 +1,4 @@
+/* Hide the logo */
+a.mapboxgl-ctrl-logo {
+    display: none !important;
+}

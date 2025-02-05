@@ -1,3 +1,4 @@
+# Functions configuration
 [functions]
 directory = "functions"
 node_bundler = "esbuild" # Ensures modern builds for functions
@@ -20,3 +21,7 @@ schedule = "20,50 * * * *" # Run at :20 and :50 of every hour
 
 [functions."process-incidents"]
 schedule = "25,55 * * * *" # Run at :25 and :55 of every hour
+
+[build]
+command = "npm run build"
+publish = "src/apps/weekly-report/dist"

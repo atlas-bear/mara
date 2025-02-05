@@ -12,15 +12,12 @@ export const parseCwdHtmlContent = (html, log) => {
       title: section.find("h6").first().text().trim(),
     };
 
-    // Initialize a variable to hold description text
     let description = "";
 
-    // Loop through table rows and parse incident details
     const tableRows = section.find("table tr");
     tableRows.each((index, row) => {
       const cells = $(row).find("td, th");
 
-      // Skip rows with <i> tags (probably metadata or non-incident related rows)
       if ($(row).find("i").length > 0) return;
 
       if (cells.length === 6 && !$(cells.first()).attr("colspan")) {
@@ -32,13 +29,14 @@ export const parseCwdHtmlContent = (html, log) => {
         incident.source = processText($(cells[5]).text().trim());
       }
 
-      // Handle the description (usually spans multiple rows)
       if (cells.length === 1 && $(cells).attr("colspan") === "6") {
         description = $(cells).text().trim();
       }
     });
 
-    // Parse updates in the description (if any)
+    // Normalize description to remove unnecessary dynamic elements
+    description = description.replace(/last updated:.*$/i, "").trim();
+
     const updateRegex =
       /\b(UPDATE\s*\d*:?|Update\s*\d*:?)\s*(.*?)(?=\b(UPDATE\s*\d*:?|Update\s*\d*:?)|$)/gis;
     let updates = [];
@@ -56,7 +54,6 @@ export const parseCwdHtmlContent = (html, log) => {
       }
     }
 
-    // Organize description and updates
     if (updates.length > 0) {
       incident.description = description
         .slice(0, description.indexOf(updates[0].prefix))
@@ -66,17 +63,15 @@ export const parseCwdHtmlContent = (html, log) => {
         .join("\n\n");
     } else {
       incident.description = description.trim();
-      incident.update = null;
+      incident.update = null; // Ensure consistent null value if no updates
     }
 
-    // Extract coordinates (if available)
     const coordinates = extractCoordinates($, section);
     if (Object.keys(coordinates).length > 0) {
       incident.latitude = coordinates.latitude;
       incident.longitude = coordinates.longitude;
     }
 
-    // Only add valid incidents with a title and description
     if (incident.title && incident.description) {
       incidents.push(incident);
     }
@@ -86,7 +81,8 @@ export const parseCwdHtmlContent = (html, log) => {
   return incidents;
 };
 
-// Helper functions for processing
+// Helper functions remain unchanged
+
 function processDate(dateString) {
   let date = new Date(dateString);
 
@@ -117,38 +113,8 @@ function processDate(dateString) {
   }
 
   if (isNaN(date.getTime())) {
-    return dateString; // Return original string if date parsing fails
+    return dateString;
   }
 
-  // Normalize to a standard ISO date without seconds and milliseconds
-  const isoString = date.toISOString();
-  return isoString.slice(0, 16) + ":00.000Z";
-}
-
-function processText(text, removeSpaces = false) {
-  if (!text) return null;
-  let processed = text
-    .toLowerCase()
-    .replace(/[.,\-]/g, "")
-    .replace(/\//g, ",");
-  if (removeSpaces) {
-    processed = processed.replace(/[\s()]/g, "");
-  }
-  return processed;
-}
-
-// Function to extract coordinates from embedded scripts (if present)
-function extractCoordinates($, section) {
-  const coordinates = {};
-  section.find("script").each((_, element) => {
-    const scriptContent = $(element).html();
-    if (scriptContent && scriptContent.includes("map.setView")) {
-      const match = scriptContent.match(/setView\(\[([-\d.]+),\s*([-\d.]+)\]/);
-      if (match) {
-        coordinates.latitude = parseFloat(match[1]);
-        coordinates.longitude = parseFloat(match[2]);
-      }
-    }
-  });
-  return coordinates;
+  return date.toISOString().slice(0, 10); // Return only the date in YYYY-MM-DD format
 }
