@@ -42,6 +42,8 @@ This software and its associated documentation files (the "Software") are propri
 
 This project is proprietary and confidential to Atlas|Bear. For more details, please refer to the [Internal Licensing Agreement](INTERNAL_LICENSE.md).
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/edfdfb3b-fd14-477a-9f78-a1466953c44a/deploy-status)](https://app.netlify.com/sites/mara-v2/deploys)
+
 ## Contact
 
 For any inquiries or support, please contact us at mara@atlasbear.co.
