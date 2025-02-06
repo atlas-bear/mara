@@ -1,11 +1,11 @@
 import { cacheOps } from "./utils/cache.js";
-import { fetchHtmlContent } from "./utils/fetch.js";
+import { fetchWithRetry } from "./utils/fetch.js";
 import { log } from "./utils/logger.js";
 import { generateHash } from "./utils/hash.js";
 import { standardizeIncident } from "./utils/standardizer.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
 import { validateIncident } from "./utils/validation.js";
-import { load } from "cheerio";
+import { referenceData } from "./utils/reference-data.js";
 
 const SOURCE = "icc";
 const SOURCE_UPPER = SOURCE.toUpperCase();
@@ -35,89 +35,110 @@ async function logRun(functionName, status, details = {}) {
   }
 }
 
-// Function to extract coordinates and location from narrative text
-function extractLocationInfo(text) {
-  const coordRegex =
-    /Posn:\s*(\d{2}):(\d{2}(?:\.\d+)?)[NS]\s*[–-]\s*(\d{2,3}):(\d{2}(?:\.\d+)?)[EW]/;
-  const match = text.match(coordRegex);
-
-  if (!match) return { coordinates: null, place: null };
-
-  const [fullMatch, latDeg, latMin, lonDeg, lonMin] = match;
-
-  // Convert to decimal degrees
-  const latitude = parseFloat(latDeg) + parseFloat(latMin) / 60;
-  const longitude = parseFloat(lonDeg) + parseFloat(lonMin) / 60;
-
-  // Determine N/S and E/W
-  const isNorth = text.includes("N");
-  const isEast = text.includes("E");
-
-  // Extract location after coordinates
-  const locationMatch = text.match(new RegExp(fullMatch + ",\\s*([^.]+)"));
-  const place = locationMatch ? locationMatch[1].trim() : null;
-
-  return {
-    coordinates: {
-      latitude: isNorth ? latitude : -latitude,
-      longitude: isEast ? longitude : -longitude,
-    },
-    place,
+async function parseIncident(marker, refData) {
+  // Find the incident number, date, and sitrep from custom fields
+  const getCustomFieldValue = (fieldId) => {
+    const field = marker.custom_field_data.find((f) => f.id === fieldId);
+    return field ? field.value : null;
   };
-}
 
-// Function to extract date and time from narrative
-function extractDateTime(narrative) {
-  // Extract date and time pattern: dd.mm.yyyy: HHMM UTC
-  const datetimeRegex = /(\d{2}\.\d{2}\.\d{4}):\s*(\d{4})\s*UTC/;
-  const match = narrative.match(datetimeRegex);
+  const incidentNumber = getCustomFieldValue(9);
+  const dateString = getCustomFieldValue(75);
+  const sitrep = getCustomFieldValue(66);
 
-  if (!match) return null;
+  // Extract the UTC time and coordinates from the sitrep
+  const timeMatch = sitrep.match(/(\d{2}\.\d{2}\.\d{4}):\s*(\d{4})\s*UTC/);
+  const utcTime = timeMatch
+    ? `${timeMatch[2].slice(0, 2)}:${timeMatch[2].slice(2)}:00`
+    : "00:00:00";
 
-  const [_, dateStr, timeStr] = match;
-  const [day, month, year] = dateStr.split(".");
+  // Construct a proper ISO date string
+  const dateObj = new Date(`${dateString}T${utcTime}.000Z`);
 
-  // Extract hours and minutes from the time string
-  const hours = timeStr.substring(0, 2);
-  const minutes = timeStr.substring(2, 4);
+  // Format location data
+  const lat = parseFloat(marker.lat);
+  const lng = parseFloat(marker.lng);
 
-  // Construct ISO datetime string
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(
-    2,
-    "0"
-  )}T${hours}:${minutes}:00.000Z`;
-}
+  // Use reference data to determine region
+  const region = await referenceData.findRegionByCoordinates(lat, lng)();
 
-function parseIncident(attackNumber, narrative, dateString) {
-  // Extract date and time
-  const incidentDate =
-    extractDateTime(narrative) || new Date(dateString).toISOString();
-
-  // Extract location information
-  const { coordinates, place } = extractLocationInfo(narrative);
+  // Extract vessel information and match against reference data
+  const vesselType = await referenceData.findVesselType(sitrep)();
 
   return {
-    sourceId: `${SOURCE_UPPER}-${attackNumber}`,
+    sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
     source: SOURCE_UPPER,
-    dateOccurred: new Date(incidentDate).toISOString(),
-    title: `Maritime Incident ${attackNumber}`,
-    description: narrative.trim(),
+    dateOccurred: dateObj.toISOString(),
+    title: `Maritime Incident ${incidentNumber}`,
+    description: sitrep,
 
     // Location information
-    latitude: coordinates?.latitude,
-    longitude: coordinates?.longitude,
+    latitude: lat,
+    longitude: lng,
+    region: region?.code || "other",
     location: {
-      place: place,
-      coordinates: coordinates,
+      place: extractLocationFromSitrep(sitrep),
+      coordinates: {
+        decimal: { latitude: lat, longitude: lng },
+      },
     },
 
-    // Original data
-    raw: {
-      attackNumber,
-      narrative,
-      dateString,
+    // Vessel information
+    vessel: {
+      name: null, // Could be extracted from sitrep if needed
+      type: vesselType?.name || null,
+      category: vesselType?.category || null,
+      flag: null,
+      imo: null,
     },
+
+    // Incident classification
+    category: determineCategory(sitrep),
+    severity: determineSeverity(sitrep),
+
+    // Metadata
+    reportedBy: SOURCE_UPPER,
+    lastUpdated: new Date().toISOString(),
+
+    // Original data
+    raw: marker,
   };
+}
+
+function extractLocationFromSitrep(sitrep) {
+  // Try to extract location after coordinates
+  const locationMatch = sitrep.match(/Posn:.*?,\s*([^.]+)/);
+  return locationMatch ? locationMatch[1].trim() : null;
+}
+
+function determineCategory(sitrep) {
+  const lowerSitrep = sitrep.toLowerCase();
+  if (
+    lowerSitrep.includes("armed") ||
+    lowerSitrep.includes("weapon") ||
+    lowerSitrep.includes("gun")
+  ) {
+    return "armed_attack";
+  } else if (lowerSitrep.includes("board")) {
+    return "boarding";
+  } else if (lowerSitrep.includes("attempt")) {
+    return "attempted_boarding";
+  }
+  return "suspicious_approach";
+}
+
+function determineSeverity(sitrep) {
+  const lowerSitrep = sitrep.toLowerCase();
+  if (
+    lowerSitrep.includes("gun") ||
+    lowerSitrep.includes("weapon") ||
+    lowerSitrep.includes("hostage")
+  ) {
+    return "high";
+  } else if (lowerSitrep.includes("knife") || lowerSitrep.includes("armed")) {
+    return "medium";
+  }
+  return "low";
 }
 
 export const handler = async (event, context) => {
@@ -133,63 +154,66 @@ export const handler = async (event, context) => {
       "BRD_USER",
       "BRD_PASSWORD",
       "SOURCE_URL_ICC",
+      "AT_BASE_ID_GIDA",
+      "AT_API_KEY",
     ]);
 
-    // Fetch HTML content
-    const htmlContent = await fetchHtmlContent(
-      SOURCE_URL,
-      {
-        Accept: "text/html",
+    // Fetch reference data first
+    const refData = await referenceData.getAllReferenceData();
+    log.info("Reference data loaded", {
+      vesselTypesCount: refData.vesselTypes.length,
+      regionsCount: refData.maritimeRegions.length,
+    });
+
+    // Fetch JSON data
+    const response = await fetchWithRetry(SOURCE_URL, {
+      headers: {
+        Accept: "application/json",
         "User-Agent": "Mozilla/5.0",
       },
-      log
-    );
-
-    // Parse HTML using cheerio
-    const $ = load(htmlContent);
-    const incidents = [];
-
-    // Find and process each incident row
-    $("table tr").each((_, row) => {
-      const columns = $(row).find("td");
-      if (columns.length >= 3) {
-        const attackNumber = $(columns[0]).text().trim();
-        const narrative = $(columns[1]).text().trim();
-        const dateString = $(columns[2]).text().trim();
-
-        if (attackNumber && narrative && dateString) {
-          try {
-            const processedIncident = parseIncident(
-              attackNumber,
-              narrative,
-              dateString
-            );
-            const validation = validateIncident(
-              processedIncident,
-              SOURCE_UPPER
-            );
-
-            if (validation.isValid) {
-              incidents.push(validation.normalized);
-            } else {
-              log.info("Validation failed for incident", {
-                attackNumber,
-                errors: validation.errors,
-              });
-            }
-          } catch (error) {
-            log.error("Error processing incident", error, { attackNumber });
-          }
-        }
-      }
     });
+
+    if (!response.data?.markers) {
+      throw new Error("Invalid response format: missing markers array");
+    }
+
+    const incidents = [];
+    const errors = [];
+
+    // Process each marker
+    for (const marker of response.data.markers) {
+      try {
+        const processedIncident = await parseIncident(marker, refData);
+        const validation = validateIncident(processedIncident, SOURCE_UPPER);
+
+        if (validation.isValid) {
+          incidents.push(validation.normalized);
+        } else {
+          log.info("Validation warnings for incident", {
+            sourceId: processedIncident.sourceId,
+            warnings: validation.errors,
+          });
+          errors.push({
+            incident: marker,
+            errors: validation.errors,
+          });
+        }
+      } catch (error) {
+        log.error("Error processing incident", error, { marker });
+        errors.push({
+          incident: marker,
+          error: error.message,
+        });
+      }
+    }
 
     if (incidents.length === 0) {
       return {
         statusCode: 200,
         body: JSON.stringify({
           status: "no-data",
-          message: "No valid incidents found.",
+          message: "No valid incidents found",
+          errors: errors,
         }),
       };
     }
@@ -219,6 +243,10 @@ export const handler = async (event, context) => {
       incidents: standardizedIncidents,
       hash: currentHash,
       timestamp: new Date().toISOString(),
+      metadata: {
+        processedCount: incidents.length,
+        errorCount: errors.length,
+      },
     });
 
     await cacheOps.store(CACHE_KEY_HASH, currentHash);
@@ -226,6 +254,7 @@ export const handler = async (event, context) => {
     await logRun(context.functionName, "success", {
       duration: Date.now() - startTime,
       itemsProcessed: standardizedIncidents.length,
+      errors: errors.length,
     });
 
     return {
@@ -234,6 +263,7 @@ export const handler = async (event, context) => {
         status: "success",
         message: `New ${SOURCE_UPPER} incidents processed.`,
         count: standardizedIncidents.length,
+        errors: errors.length,
       }),
     };
   } catch (error) {

@@ -226,7 +226,6 @@ export default async (req, context) => {
   }
 };
 
-// Helper functions remain the same
 function validateIncident(incident) {
   const requiredFields = [
     "sourceId",
