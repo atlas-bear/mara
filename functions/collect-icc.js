@@ -163,6 +163,7 @@ export const handler = async (event, context) => {
     log.info("Reference data loaded", {
       vesselTypesCount: refData.vesselTypes.length,
       regionsCount: refData.maritimeRegions.length,
+      incidentTypesCount: refData.incidentTypes.length,
     });
 
     // Fetch JSON data
