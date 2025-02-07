@@ -76,7 +76,8 @@ async function parseIncident(marker, refData) {
     latitude: lat,
     longitude: lng,
     region: region?.name?.toLowerCase().replace(/\s+/g, "_") || "other",
-    location: {
+    location: extractLocationFromSitrep(sitrep),
+    locationDetails: {
       place: extractLocationFromSitrep(sitrep),
       coordinates: {
         decimal: { latitude: lat, longitude: lng },
