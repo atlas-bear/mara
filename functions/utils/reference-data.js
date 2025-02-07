@@ -36,7 +36,6 @@ class ReferenceDataManager {
       (record) => ({
         id: record.id,
         name: record.fields.name,
-        code: record.fields.code,
         bounds: {
           lat: {
             min: record.fields.lat_min,
