@@ -25,8 +25,6 @@ class ReferenceDataManager {
       (record) => ({
         id: record.id,
         name: record.fields.name.toLowerCase(),
-        category: record.fields.category,
-        subcategory: record.fields.subcategory,
       })
     );
   }
