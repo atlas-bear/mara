@@ -93,7 +93,7 @@ async function parseIncident(marker, refData) {
     },
 
     // Incident classification
-    category: determineCategory(sitrep),
+    type: await determineIncidentType(sitrep, refData.incidentTypes),
     severity: determineSeverity(sitrep),
 
     // Metadata
@@ -111,20 +111,31 @@ function extractLocationFromSitrep(sitrep) {
   return locationMatch ? locationMatch[1].trim() : null;
 }
 
-function determineCategory(sitrep) {
+async function determineIncidentType(sitrep, incidentTypes) {
   const lowerSitrep = sitrep.toLowerCase();
+
+  // Try to find matching incident type from reference data
+  const matchedType = incidentTypes.find((type) =>
+    lowerSitrep.includes(type.name.toLowerCase())
+  );
+
+  if (matchedType) {
+    return matchedType.name;
+  }
+
+  // Fallback logic if no direct match found
   if (
     lowerSitrep.includes("armed") ||
     lowerSitrep.includes("weapon") ||
     lowerSitrep.includes("gun")
   ) {
-    return "armed_attack";
+    return "Armed Attack";
+  } else if (lowerSitrep.includes("board") && lowerSitrep.includes("attempt")) {
+    return "Attempted Boarding";
   } else if (lowerSitrep.includes("board")) {
-    return "boarding";
-  } else if (lowerSitrep.includes("attempt")) {
-    return "attempted_boarding";
+    return "Boarding";
   }
-  return "suspicious_approach";
+  return "Suspicious Approach";
 }
 
 function determineSeverity(sitrep) {
