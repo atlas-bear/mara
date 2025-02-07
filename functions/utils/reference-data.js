@@ -60,8 +60,6 @@ class ReferenceDataManager {
       (record) => ({
         id: record.id,
         name: record.fields.name,
-        category: record.fields.category,
-        severity: record.fields.severity,
       }),
       process.env.AT_BASE_ID_CSER // Use CSER base for incident types
     );
