@@ -336,7 +336,7 @@ function mapToAirtableFields(incident) {
 
     // Location data
     region: incident.region,
-    location: incident.location?.place,
+    location: incident.raw.location || incident.location,
     latitude: incident.latitude,
     longitude: incident.longitude,
 
