@@ -135,15 +135,29 @@ class ReferenceDataManager {
   findRegionByCoordinates(lat, lng) {
     return async () => {
       const regions = await this.getMaritimeRegions();
-      return regions.find((region) => {
+      log.info("Checking coordinates against regions", { lat, lng });
+
+      for (const region of regions) {
         const bounds = region.bounds;
-        return (
+        const matches =
           lat >= bounds.lat.min &&
           lat <= bounds.lat.max &&
           lng >= bounds.lng.min &&
-          lng <= bounds.lng.max
-        );
-      });
+          lng <= bounds.lng.max;
+
+        log.info("Region check", {
+          region: region.name,
+          bounds,
+          matches,
+          checks: {
+            lat: `${bounds.lat.min} <= ${lat} <= ${bounds.lat.max}`,
+            lng: `${bounds.lng.min} <= ${lng} <= ${bounds.lng.max}`,
+          },
+        });
+
+        if (matches) return region;
+      }
+      return null;
     };
   }
 

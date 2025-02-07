@@ -75,7 +75,7 @@ async function parseIncident(marker, refData) {
     // Location information
     latitude: lat,
     longitude: lng,
-    region: region?.code || "other",
+    region: region?.code || "Other",
     location: {
       place: extractLocationFromSitrep(sitrep),
       coordinates: {
