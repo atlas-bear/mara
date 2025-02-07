@@ -69,7 +69,9 @@ async function parseIncident(marker, refData) {
     sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
     source: SOURCE_UPPER,
     dateOccurred: dateObj.toISOString(),
-    title: `Maritime Incident ${incidentNumber}`,
+    title: `Maritime Incident ${incidentNumber} - ${
+      vesselType?.name || "Unknown"
+    }`,
     description: sitrep,
 
     // Location information
