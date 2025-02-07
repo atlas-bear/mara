@@ -69,9 +69,7 @@ async function parseIncident(marker, refData) {
     sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
     source: SOURCE_UPPER,
     dateOccurred: dateObj.toISOString(),
-    title: `Maritime Incident ${incidentNumber} - ${
-      vesselType?.name || "Unknown"
-    }`,
+    title: `Maritime Incident ${incidentNumber}`,
     description: sitrep,
 
     // Location information
@@ -116,16 +114,64 @@ function extractLocationFromSitrep(sitrep) {
 async function determineIncidentType(sitrep, incidentTypes) {
   const lowerSitrep = sitrep.toLowerCase();
 
+  log.info("Determining incident type", {
+    availableTypes: incidentTypes.map((t) => t.name),
+    sitrep: lowerSitrep,
+  });
+
+  // Create variations of words to match
+  const wordVariations = {
+    robbery: ["robber", "robbers", "robbery"],
+    attack: ["attack", "attacked", "attacking"],
+    boarding: ["board", "boarded", "boarding"],
+    attempt: ["attempt", "attempted", "attempting"],
+    suspicious: ["suspect", "suspicious", "suspicion"],
+    approach: ["approach", "approached", "approaching"],
+    theft: ["theft", "thief", "thieves", "steal", "stole", "stolen"],
+    piracy: ["piracy", "pirate", "pirates"],
+    hijack: ["hijack", "hijacked", "hijacking"],
+    unauthorized: ["unauthorized", "unauthorised", "illegal"],
+    armed: ["arm", "armed", "arms", "weapon", "weapons"],
+  };
+
   // Try to find matching incident type from reference data
-  const matchedType = incidentTypes.find((type) =>
-    lowerSitrep.includes(type.name.toLowerCase())
-  );
+  const matchedType = incidentTypes.find((type) => {
+    const typeName = type.name.toLowerCase();
+
+    // Check direct match first
+    if (lowerSitrep.includes(typeName)) {
+      return true;
+    }
+
+    // Check word variations
+    for (const [baseWord, variations] of Object.entries(wordVariations)) {
+      if (typeName.includes(baseWord)) {
+        // If type contains this base word, check for any variations in sitrep
+        const hasVariation = variations.some((variant) =>
+          lowerSitrep.includes(variant)
+        );
+        if (hasVariation) {
+          log.info("Found variation match", {
+            type: type.name,
+            baseWord,
+            variations,
+          });
+          return true;
+        }
+      }
+    }
+
+    return false;
+  });
 
   if (matchedType) {
+    log.info("Found matching type", { type: matchedType.name });
     return matchedType.name;
   }
 
-  // Fallback logic if no direct match found
+  // Fallback logic remains the same
+  log.info("No direct match found, using fallback logic");
+
   if (
     lowerSitrep.includes("armed") ||
     lowerSitrep.includes("weapon") ||
