@@ -6,6 +6,7 @@ import { standardizeIncident } from "./utils/standardizer.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
 import { validateIncident } from "./utils/validation.js";
 import { referenceData } from "./utils/reference-data.js";
+import { extractVesselInfo } from "./utils/vessel-utils.js";
 
 const SOURCE = "icc";
 const SOURCE_UPPER = SOURCE.toUpperCase();
@@ -63,7 +64,7 @@ async function parseIncident(marker, refData) {
   const region = await referenceData.findRegionByCoordinates(lat, lng)();
 
   // Extract vessel information and match against reference data
-  const vesselType = await referenceData.findVesselType(sitrep)();
+  const vesselInfo = extractVesselInfo(sitrep, refData.vesselTypes);
 
   // Clean up the description by removing the date, time, and position
   const cleanDescription = sitrep
@@ -75,7 +76,7 @@ async function parseIncident(marker, refData) {
     source: SOURCE_UPPER,
     dateOccurred: dateObj.toISOString(),
     title: `Maritime Incident ${incidentNumber} - ${
-      vesselType?.name || "Unknown"
+      vesselInfo.type || "Unknown"
     }`,
     description: cleanDescription,
 
@@ -93,11 +94,11 @@ async function parseIncident(marker, refData) {
 
     // Vessel information
     vessel: {
-      name: null, // Could be extracted from sitrep if needed
-      type: vesselType?.name || null,
-      category: vesselType?.category || null,
-      flag: null,
-      imo: null,
+      name: vesselInfo.name,
+      type: vesselInfo.type,
+      status: vesselInfo.status,
+      flag: vesselInfo.flag,
+      imo: vesselInfo.imo,
     },
 
     // Incident classification
