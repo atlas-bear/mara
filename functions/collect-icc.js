@@ -99,6 +99,8 @@ async function parseIncident(marker, refData) {
       incidentNumber,
     });
 
+    const locationString = extractLocationFromSitrep(sitrep);
+
     return {
       sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
       source: SOURCE_UPPER,
@@ -110,9 +112,9 @@ async function parseIncident(marker, refData) {
       latitude: lat,
       longitude: lng,
       region: region?.name?.toLowerCase().replace(/\s+/g, "_") || "other",
-      location: extractLocationFromSitrep(sitrep),
+      location: locationString || null,
       locationDetails: {
-        place: extractLocationFromSitrep(sitrep),
+        place: locationString,
         coordinates: {
           decimal: { latitude: lat, longitude: lng },
         },
@@ -149,9 +151,16 @@ async function parseIncident(marker, refData) {
 }
 
 function extractLocationFromSitrep(sitrep) {
-  // Try to extract location after coordinates
+  // Try to extract location after "Posn:" and before the period
   const locationMatch = sitrep.match(/Posn:.*?,\s*([^.]+)/);
-  return locationMatch ? locationMatch[1].trim() : null;
+  if (locationMatch) {
+    // Clean up coordinates from the location string
+    return locationMatch[1]
+      .replace(/\d+:\d+\.\d+[NS]\s*[-–]\s*\d+:\d+\.\d+[EW]/g, "") // Remove "01:08.6N – 103:46.2E" format
+      .replace(/\d+°\d+'\w\s*[-–]\s*\d+°\d+'\w/g, "") // Remove "06°26.1'N – 003°18.9'E" format
+      .trim();
+  }
+  return null;
 }
 
 export const handler = async (event, context) => {
