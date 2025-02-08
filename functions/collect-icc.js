@@ -41,79 +41,111 @@ async function logRun(functionName, status, details = {}) {
 }
 
 async function parseIncident(marker, refData) {
-  // Find the incident number, date, and sitrep from custom fields
-  const getCustomFieldValue = (fieldId) => {
-    const field = marker.custom_field_data.find((f) => f.id === fieldId);
-    return field ? field.value : null;
-  };
+  try {
+    log.info("Starting parseIncident", {
+      hasRefData: !!refData,
+      hasVesselTypes: !!refData?.vesselTypes,
+      hasIncidentTypes: !!refData?.incidentTypes,
+    });
 
-  const incidentNumber = getCustomFieldValue(9);
-  const dateString = getCustomFieldValue(75);
-  const sitrep = getCustomFieldValue(66);
+    // Find the incident number, date, and sitrep from custom fields
+    const getCustomFieldValue = (fieldId) => {
+      const field = marker.custom_field_data.find((f) => f.id === fieldId);
+      return field ? field.value : null;
+    };
 
-  // Extract the UTC time and coordinates from the sitrep
-  const timeMatch = sitrep.match(/(\d{2}\.\d{2}\.\d{4}):\s*(\d{4})\s*UTC/);
-  const utcTime = timeMatch
-    ? `${timeMatch[2].slice(0, 2)}:${timeMatch[2].slice(2)}:00`
-    : "00:00:00";
+    const incidentNumber = getCustomFieldValue(9);
+    const dateString = getCustomFieldValue(75);
+    const sitrep = getCustomFieldValue(66);
 
-  // Construct a proper ISO date string
-  const dateObj = new Date(`${dateString}T${utcTime}.000Z`);
+    // Extract the UTC time and coordinates from the sitrep
+    const timeMatch = sitrep.match(/(\d{2}\.\d{2}\.\d{4}):\s*(\d{4})\s*UTC/);
+    const utcTime = timeMatch
+      ? `${timeMatch[2].slice(0, 2)}:${timeMatch[2].slice(2)}:00`
+      : "00:00:00";
 
-  // Format location data
-  const lat = parseFloat(marker.lat);
-  const lng = parseFloat(marker.lng);
+    // Construct a proper ISO date string
+    const dateObj = new Date(`${dateString}T${utcTime}.000Z`);
 
-  // Use reference data to determine region
-  const region = await referenceData.findRegionByCoordinates(lat, lng);
+    // Format location data
+    const lat = parseFloat(marker.lat);
+    const lng = parseFloat(marker.lng);
 
-  // Extract vessel information and match against reference data
-  const vesselInfo = extractVesselInfo(sitrep, refData.vesselTypes);
+    // Use reference data to determine region
+    const region = await referenceData.findRegionByCoordinates(lat, lng);
 
-  // Clean up the description by removing the date, time, and position
-  const cleanDescription = sitrep
-    .replace(/^\d{2}\.\d{2}\.\d{4}:\s*\d{4}\s*UTC:\s*Posn:.*?,\s*[^.]+\./, "")
-    .trim();
+    // Extract vessel information and match against reference data
+    const vesselInfo = extractVesselInfo(sitrep, refData.vesselTypes);
 
-  return {
-    sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
-    source: SOURCE_UPPER,
-    dateOccurred: dateObj.toISOString(),
-    title: `Maritime Incident ${incidentNumber}`,
-    description: cleanDescription,
+    // Clean up the description by removing the date, time, and position
+    const cleanDescription = sitrep
+      .replace(/^\d{2}\.\d{2}\.\d{4}:\s*\d{4}\s*UTC:\s*Posn:.*?,\s*[^.]+\./, "")
+      .trim();
 
-    // Location information
-    latitude: lat,
-    longitude: lng,
-    region: region?.name?.toLowerCase().replace(/\s+/g, "_") || "other",
-    location: extractLocationFromSitrep(sitrep),
-    locationDetails: {
-      place: extractLocationFromSitrep(sitrep),
-      coordinates: {
-        decimal: { latitude: lat, longitude: lng },
+    // Log before determining incident type
+    log.info("About to determine incident type", {
+      hasSitrep: !!sitrep,
+      hasIncidentTypes: !!refData?.incidentTypes,
+    });
+
+    const incidentType = await determineIncidentType(
+      sitrep,
+      refData.incidentTypes
+    );
+
+    // Log after determining incident type
+    log.info("Successfully determined incident type", {
+      incidentType,
+      incidentNumber,
+    });
+
+    return {
+      sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
+      source: SOURCE_UPPER,
+      dateOccurred: dateObj.toISOString(),
+      title: `Maritime Incident ${incidentNumber}`,
+      description: cleanDescription,
+
+      // Location information
+      latitude: lat,
+      longitude: lng,
+      region: region?.name?.toLowerCase().replace(/\s+/g, "_") || "other",
+      location: extractLocationFromSitrep(sitrep),
+      locationDetails: {
+        place: extractLocationFromSitrep(sitrep),
+        coordinates: {
+          decimal: { latitude: lat, longitude: lng },
+        },
       },
-    },
 
-    // Vessel information
-    vessel: {
-      name: vesselInfo.name,
-      type: vesselInfo.type,
-      status: vesselInfo.status,
-      flag: vesselInfo.flag,
-      imo: vesselInfo.imo,
-    },
+      // Vessel information
+      vessel: {
+        name: vesselInfo.name,
+        type: vesselInfo.type,
+        status: vesselInfo.status,
+        flag: vesselInfo.flag,
+        imo: vesselInfo.imo,
+      },
 
-    // Incident classification
-    type: await determineIncidentType(sitrep, refData.incidentTypes),
-    severity: determineSeverity(sitrep),
+      // Incident classification
+      type: incidentType,
+      severity: determineSeverity(sitrep),
 
-    // Metadata
-    reportedBy: SOURCE_UPPER,
-    lastUpdated: new Date().toISOString(),
+      // Metadata
+      reportedBy: SOURCE_UPPER,
+      lastUpdated: new Date().toISOString(),
 
-    // Original data
-    raw: marker,
-  };
+      // Original data
+      raw: marker,
+    };
+  } catch (error) {
+    log.error("Error in parseIncident", {
+      error: error.message,
+      stack: error.stack,
+      incidentNumber: marker?.custom_field_data?.find((f) => f.id === 9)?.value,
+    });
+    throw error;
+  }
 }
 
 function extractLocationFromSitrep(sitrep) {
