@@ -65,6 +65,11 @@ async function parseIncident(marker, refData) {
   // Extract vessel information and match against reference data
   const vesselType = await referenceData.findVesselType(sitrep)();
 
+  // Clean up the description by removing the date, time, and position
+  const cleanDescription = sitrep
+    .replace(/^\d{2}\.\d{2}\.\d{4}:\s*\d{4}\s*UTC:\s*Posn:.*?,\s*[^.]+\./, "")
+    .trim();
+
   return {
     sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
     source: SOURCE_UPPER,
@@ -72,7 +77,7 @@ async function parseIncident(marker, refData) {
     title: `Maritime Incident ${incidentNumber} - ${
       vesselType?.name || "Unknown"
     }`,
-    description: sitrep,
+    description: cleanDescription,
 
     // Location information
     latitude: lat,
