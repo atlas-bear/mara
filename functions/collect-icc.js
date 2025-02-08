@@ -61,7 +61,7 @@ async function parseIncident(marker, refData) {
   const lng = parseFloat(marker.lng);
 
   // Use reference data to determine region
-  const region = await referenceData.findRegionByCoordinates(lat, lng)();
+  const region = await referenceData.findRegionByCoordinates(lat, lng);
 
   // Extract vessel information and match against reference data
   const vesselInfo = extractVesselInfo(sitrep, refData.vesselTypes);
