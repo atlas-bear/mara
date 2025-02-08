@@ -61,7 +61,12 @@ async function parseIncident(marker, refData) {
   const lng = parseFloat(marker.lng);
 
   // Use reference data to determine region
-  const region = await referenceData.findRegionByCoordinates(lat, lng);
+  const region = await referenceData.findRegionByCoordinates(lat, lng)();
+
+  // Validate vessel types data
+  if (!refData.vesselTypes || !Array.isArray(refData.vesselTypes)) {
+    throw new Error("Vessel types data is missing or invalid");
+  }
 
   // Extract vessel information and match against reference data
   const vesselInfo = extractVesselInfo(sitrep, refData.vesselTypes);
@@ -75,9 +80,7 @@ async function parseIncident(marker, refData) {
     sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
     source: SOURCE_UPPER,
     dateOccurred: dateObj.toISOString(),
-    title: `Maritime Incident ${incidentNumber} - ${
-      vesselInfo.type || "Unknown"
-    }`,
+    title: `Maritime Incident ${incidentNumber}`,
     description: cleanDescription,
 
     // Location information
@@ -228,6 +231,21 @@ export const handler = async (event, context) => {
 
     // Fetch reference data first
     const refData = await referenceData.getAllReferenceData();
+
+    // Validate reference data
+    if (!refData || typeof refData !== "object") {
+      throw new Error("Reference data is missing or invalid");
+    }
+    if (!refData.vesselTypes || !Array.isArray(refData.vesselTypes)) {
+      throw new Error("Vessel types data is missing or invalid");
+    }
+    if (!refData.incidentTypes || !Array.isArray(refData.incidentTypes)) {
+      throw new Error("Incident types data is missing or invalid");
+    }
+    if (!refData.maritimeRegions || !Array.isArray(refData.maritimeRegions)) {
+      throw new Error("Maritime regions data is missing or invalid");
+    }
+
     log.info("Reference data loaded", {
       vesselTypesCount: refData.vesselTypes.length,
       regionsCount: refData.maritimeRegions.length,

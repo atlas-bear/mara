@@ -121,15 +121,13 @@ class ReferenceDataManager {
 
   // Helper methods for finding specific reference data
   findVesselType(name) {
-    return async () => {
-      const types = await this.getVesselTypes();
-      return types.find((type) => name.toLowerCase().includes(type.name));
-    };
+    return this.getVesselTypes().then((types) =>
+      types.find((type) => name.toLowerCase().includes(type.name))
+    );
   }
 
   findRegionByCoordinates(lat, lng) {
-    return async () => {
-      const regions = await this.getMaritimeRegions();
+    return this.getMaritimeRegions().then((regions) => {
       log.info("Checking coordinates against regions", { lat, lng });
 
       for (const region of regions) {
@@ -153,16 +151,15 @@ class ReferenceDataManager {
         if (matches) return region;
       }
       return null;
-    };
+    });
   }
 
   findIncidentType(description) {
-    return async () => {
-      const types = await this.getIncidentTypes();
-      return types.find((type) =>
+    return this.getIncidentTypes().then((types) =>
+      types.find((type) =>
         description.toLowerCase().includes(type.name.toLowerCase())
-      );
-    };
+      )
+    );
   }
 }
 
