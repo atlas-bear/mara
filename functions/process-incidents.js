@@ -335,8 +335,12 @@ function mapToAirtableFields(incident) {
     reference: incident.sourceId,
 
     // Location data
+    // Location data
     region: incident.region,
-    location: incident.location,
+    location:
+      typeof incident.location === "string"
+        ? incident.location
+        : incident.location?.place || incident.locationDetails?.place || null,
     latitude: incident.latitude,
     longitude: incident.longitude,
 
