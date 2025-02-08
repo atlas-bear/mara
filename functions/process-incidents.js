@@ -348,6 +348,13 @@ function mapToAirtableFields(incident) {
     source: incident.source,
     original_source: incident.originalSource || incident.source,
 
+    // Vessel information
+    vessel_name: incident.vessel.name,
+    vessel_type: incident.vessel.type,
+    vessel_flag: incident.vessel.flag,
+    vessel_imo: incident.vessel.imo,
+    vessel_status: incident.vessel.status,
+
     // Raw data
     raw_json: JSON.stringify(incident),
   };

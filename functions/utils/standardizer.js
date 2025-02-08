@@ -38,6 +38,7 @@ export const standardizeIncident = (incident, sourceName, sourceUrl) => {
       type: capitalizeWords(incident.vesselType || incident.vessel?.type), // Ensure vessel type is title case
       flag: capitalizeWords(incident.vesselFlag || incident.vessel?.flag), // Ensure vessel flag is title case
       imo: incident.vesselImo || incident.vessel?.imo,
+      status: incident.vesselStatus || incident.vessel?.status,
     },
 
     // Location Details
