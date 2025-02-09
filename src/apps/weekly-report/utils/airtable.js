@@ -4,7 +4,7 @@ const AIRTABLE_BASE_ID = import.meta.env.VITE_AT_BASE_ID_CSER;
 export async function fetchIncident(incidentId) {
   try {
     // Log environment variables (first few chars only for security)
-    console.log("API Key exists:", !!AIRTABLE_API_KEY);
+    console.log("API Key exists:", !!AIRTABLE_API_KEY?.substring(0, 5));
     console.log("Base ID (first 5 chars):", AIRTABLE_BASE_ID?.substring(0, 5));
 
     // First fetch the incident
