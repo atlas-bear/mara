@@ -1,9 +1,9 @@
-const AIRTABLE_API_KEY = import.meta.env.VITE_AT_API_KEY;
-const AIRTABLE_BASE_ID = import.meta.env.VITE_AT_BASE_ID_CSER;
+const AT_API_KEY = import.meta.env.VITE_AT_API_KEY;
+const AT_BASE_ID = import.meta.env.VITE_AT_BASE_ID_CSER;
 
 export async function fetchIncident(incidentId) {
   // Add this temporary check
-  if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
+  if (!AT_API_KEY || !AT_BASE_ID) {
     console.error("Environment variables not loaded");
     return;
   }
@@ -11,10 +11,10 @@ export async function fetchIncident(incidentId) {
   try {
     // First fetch the incident
     const incidentResponse = await fetch(
-      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/incident?maxRecords=1&filterByFormula={id}="${incidentId}"`,
+      `https://api.airtable.com/v0/${AT_BASE_ID}/incident?maxRecords=1&filterByFormula={id}="${incidentId}"`,
       {
         headers: {
-          Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+          Authorization: `Bearer ${AT_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
@@ -22,7 +22,7 @@ export async function fetchIncident(incidentId) {
 
     console.log(
       "Attempting to fetch:",
-      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/incident`
+      `https://api.airtable.com/v0/${AT_BASE_ID}/incident`
     );
     console.log("Looking for incident:", incidentId);
 
@@ -51,7 +51,7 @@ export async function fetchIncident(incidentId) {
 
     // Then fetch related incident_vessel records
     const incidentVesselResponse = await fetch(
-      `https://api.airtable.com/v0/${AT_BASE_ID_CSER}/incident_vessel?filterByFormula={incident_id}='${incidentId}'`,
+      `https://api.airtable.com/v0/${AT_BASE_ID}/incident_vessel?filterByFormula={incident_id}='${incidentId}'`,
       {
         headers: {
           Authorization: `Bearer ${AT_API_KEY}`,
@@ -67,7 +67,7 @@ export async function fetchIncident(incidentId) {
     if (incidentVesselData.records && incidentVesselData.records.length > 0) {
       const vesselId = incidentVesselData.records[0].fields.vessel_id;
       const vesselResponse = await fetch(
-        `https://api.airtable.com/v0/${AT_BASE_ID_CSER}/vessel?filterByFormula={id}='${vesselId}'`,
+        `https://api.airtable.com/v0/${AT_BASE_ID}/vessel?filterByFormula={id}='${vesselId}'`,
         {
           headers: {
             Authorization: `Bearer ${AT_API_KEY}`,
