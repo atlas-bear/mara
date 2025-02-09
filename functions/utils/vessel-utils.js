@@ -32,7 +32,14 @@ export function extractVesselInfo(text, vesselTypes) {
   };
 
   const lowerText = text.toLowerCase();
-  const matchedType = vesselTypes.find((type) =>
+
+  // Sort vessel types by length (longest first) to ensure we match "bulk carrier" before "carrier"
+  const sortedTypes = [...vesselTypes].sort(
+    (a, b) => b.name.length - a.name.length
+  );
+
+  // Find matching vessel type from reference data
+  const matchedType = sortedTypes.find((type) =>
     lowerText.includes(type.name.toLowerCase())
   );
 
