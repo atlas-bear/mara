@@ -81,7 +81,7 @@ export const parseCwdHtmlContent = (html, log) => {
   return incidents;
 };
 
-// Helper functions remain unchanged
+// Helper functions to process text and date fields
 
 function processDate(dateString) {
   let date = new Date(dateString);

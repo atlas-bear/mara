@@ -53,7 +53,7 @@ class ReferenceDataManager {
   async getIncidentTypes() {
     return this._getReferenceData(
       CACHE_KEYS.INCIDENT_TYPES,
-      "type",
+      "incident_type",
       (record) => ({
         id: record.id,
         name: record.fields.name,
