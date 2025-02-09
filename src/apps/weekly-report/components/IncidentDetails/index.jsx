@@ -103,7 +103,7 @@ const IncidentDetails = ({ incidentId }) => {
             <p className="text-sm text-gray-600">Location</p>
             <p className="font-semibold text-gray-900">{incident.location.name}</p>
             <p className="text-sm text-gray-600">
-              {incident.location.lat}°N, {incident.location.lng}°E
+              {incident.location.formatted}
             </p>
           </div>
         </div>

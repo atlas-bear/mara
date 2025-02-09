@@ -1,3 +1,5 @@
+import { formatLocation } from "../utils/coordinates";
+
 export async function fetchIncident(incidentId) {
   if (!incidentId) {
     throw new Error("No incident ID provided");
@@ -45,6 +47,10 @@ function formatIncidentData(incident, incidentVessel, vessel, incidentType) {
       name: incident.fields.location_name,
       lat: incident.fields.latitude,
       lng: incident.fields.longitude,
+      formatted: formatLocation(
+        incident.fields.latitude,
+        incident.fields.longitude
+      ),
     },
     description: incident.fields.description,
     analysis: incident.fields.analysis,

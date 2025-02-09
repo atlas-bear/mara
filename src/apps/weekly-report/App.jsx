@@ -8,7 +8,7 @@ function App() {
     <div className="min-h-screen bg-gray-100 py-8">
       <ExecutiveBrief />
       <RegionalBrief />
-      <IncidentDetails incidentId="2024-2662" />
+      <IncidentDetails incidentId="2025-0011" />
     </div>
   )
 }
