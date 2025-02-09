@@ -42,14 +42,17 @@ export const standardizeIncident = (incident, sourceName, sourceUrl) => {
     },
 
     // Location Details
-    location: {
-      place: incident.place,
-      description: incident.locationDescription,
-      coordinates: {
-        latitude: incident.latitude,
-        longitude: incident.longitude,
-      },
-    },
+    location:
+      typeof incident.location === "string"
+        ? incident.location
+        : {
+            place: incident.place || incident.location?.place,
+            description: incident.locationDescription,
+            coordinates: {
+              latitude: incident.latitude,
+              longitude: incident.longitude,
+            },
+          },
 
     // Status Information
     status: incident.status || "active",

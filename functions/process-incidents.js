@@ -335,7 +335,6 @@ function mapToAirtableFields(incident) {
     reference: incident.sourceId,
 
     // Location data
-    // Location data
     region: incident.region,
     location:
       typeof incident.location === "string"

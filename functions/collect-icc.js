@@ -100,6 +100,7 @@ async function parseIncident(marker, refData) {
     });
 
     const locationString = extractLocationFromSitrep(sitrep);
+    console.log("Extracted location:", locationString);
 
     return {
       sourceId: `${SOURCE_UPPER}-${incidentNumber}`,
