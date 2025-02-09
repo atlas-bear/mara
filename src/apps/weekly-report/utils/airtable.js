@@ -2,11 +2,13 @@ const AIRTABLE_API_KEY = import.meta.env.VITE_AT_API_KEY;
 const AIRTABLE_BASE_ID = import.meta.env.VITE_AT_BASE_ID_CSER;
 
 export async function fetchIncident(incidentId) {
-  try {
-    // Log environment variables (first few chars only for security)
-    console.log("API Key exists:", !!AIRTABLE_API_KEY?.substring(0, 5));
-    console.log("Base ID (first 5 chars):", AIRTABLE_BASE_ID?.substring(0, 5));
+  // Add this temporary check
+  if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
+    console.error("Environment variables not loaded");
+    return;
+  }
 
+  try {
     // First fetch the incident
     const incidentResponse = await fetch(
       `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/incident?maxRecords=1&filterByFormula={id}="${incidentId}"`,
@@ -37,6 +39,9 @@ export async function fetchIncident(incidentId) {
     }
 
     const incidentData = await incidentResponse.json();
+
+    // Add this temporary debug line
+    console.log("Records returned:", incidentData.records?.length || 0);
 
     if (!incidentData.records || incidentData.records.length === 0) {
       throw new Error("No incident found");
