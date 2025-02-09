@@ -80,7 +80,7 @@ const IncidentDetails = ({ incidentId }) => {
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              {incident.title}
+              {incident.vesselName}
             </h1>
             <p className="text-gray-600">
               {incident.vesselType} | IMO: {incident.vesselImo} | Flag: {incident.vesselFlag}

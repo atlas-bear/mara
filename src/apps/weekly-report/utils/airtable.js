@@ -1,102 +1,44 @@
-const AT_API_KEY = import.meta.env.VITE_AT_API_KEY;
-const AT_BASE_ID = import.meta.env.VITE_AT_BASE_ID_CSER;
-
 export async function fetchIncident(incidentId) {
-  // Add this temporary check
-  if (!AT_API_KEY || !AT_BASE_ID) {
-    console.error("Environment variables not loaded");
-    return;
+  if (!incidentId) {
+    throw new Error("No incident ID provided");
   }
 
   try {
-    // First fetch the incident
-    const incidentResponse = await fetch(
-      `https://api.airtable.com/v0/${AT_BASE_ID}/incident?maxRecords=1&filterByFormula={id}="${incidentId}"`,
-      {
-        headers: {
-          Authorization: `Bearer ${AT_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await fetch(
+      `/.netlify/functions/get-incident?id=${incidentId}`
     );
 
-    console.log(
-      "Attempting to fetch:",
-      `https://api.airtable.com/v0/${AT_BASE_ID}/incident`
-    );
-    console.log("Looking for incident:", incidentId);
-
-    if (!incidentResponse.ok) {
-      const errorText = await incidentResponse.text();
-      console.error(
-        "Incident response not OK:",
-        incidentResponse.status,
-        errorText
-      );
-      throw new Error(
-        `Failed to fetch incident: ${incidentResponse.status} ${errorText}`
-      );
+    if (!response.ok) {
+      throw new Error("Failed to fetch incident");
     }
 
-    const incidentData = await incidentResponse.json();
-
-    // Add this temporary debug line
-    console.log("Records returned:", incidentData.records?.length || 0);
-
-    if (!incidentData.records || incidentData.records.length === 0) {
-      throw new Error("No incident found");
-    }
-
-    const incident = incidentData.records[0];
-
-    // Then fetch related incident_vessel records
-    const incidentVesselResponse = await fetch(
-      `https://api.airtable.com/v0/${AT_BASE_ID}/incident_vessel?filterByFormula={incident_id}='${incidentId}'`,
-      {
-        headers: {
-          Authorization: `Bearer ${AT_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const incidentVesselData = await incidentVesselResponse.json();
-
-    // If we have incident_vessel records, fetch the related vessel details
-    let vesselDetails = null;
-    if (incidentVesselData.records && incidentVesselData.records.length > 0) {
-      const vesselId = incidentVesselData.records[0].fields.vessel_id;
-      const vesselResponse = await fetch(
-        `https://api.airtable.com/v0/${AT_BASE_ID}/vessel?filterByFormula={id}='${vesselId}'`,
-        {
-          headers: {
-            Authorization: `Bearer ${AT_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      const vesselData = await vesselResponse.json();
-      if (vesselData.records && vesselData.records.length > 0) {
-        vesselDetails = vesselData.records[0];
-      }
-    }
-
+    const data = await response.json();
+    // Pass the incidentType to formatIncidentData
     return formatIncidentData(
-      incident,
-      incidentVesselData.records[0],
-      vesselDetails
+      data.incident,
+      data.incidentVessel,
+      data.vessel,
+      data.incidentType
     );
   } catch (error) {
-    console.error("Detailed error:", error);
     throw error;
   }
 }
 
-function formatIncidentData(incident, incidentVessel, vessel) {
+function formatIncidentData(incident, incidentVessel, vessel, incidentType) {
+  if (!incident || !incident.fields) {
+    throw new Error("Invalid incident data received");
+  }
+
+  console.log("Formatting with incident type:", incidentType);
+
+  const formattedType = incidentType?.fields?.name || "Unknown";
+  console.log("Formatted type:", formattedType);
+
   return {
     id: incident.id,
     alertId: incident.fields.id,
-    type: incident.fields.incident_type_name,
+    type: formattedType,
     title: incident.fields.title,
     dateTime: incident.fields.date_time_utc,
     location: {
@@ -115,12 +57,13 @@ function formatIncidentData(incident, incidentVessel, vessel) {
     region: incident.fields.region,
     responseType: incident.fields.response_type,
     authoritiesNotified: incident.fields.authorities_notified,
-    // Add vessel details if available
-    vesselName: vessel?.fields.vessel_name,
-    vesselType: vessel?.fields.vessel_type,
-    vesselFlag: vessel?.fields.flag,
-    vesselImo: vessel?.fields.imo_number,
-    vesselStatus: incidentVessel?.fields.vessel_status_during_incident,
-    crewImpact: incidentVessel?.fields.crew_impact,
+    // Update these to match your actual field names in the vessel table
+    vesselName: vessel?.fields?.name,
+    vesselType: vessel?.fields?.type,
+    vesselFlag: vessel?.fields?.flag,
+    vesselImo: vessel?.fields?.imo,
+    // These come from incident_vessel
+    vesselStatus: incidentVessel?.fields?.vessel_status_during_incident,
+    crewImpact: incidentVessel?.fields?.crew_impact,
   };
 }
