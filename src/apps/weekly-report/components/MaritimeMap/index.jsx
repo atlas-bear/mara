@@ -123,7 +123,7 @@ const MaritimeMap = ({
         });
 
         // Add layers for each incident type
-        ['robbery', 'attack', 'military'].forEach(type => {
+        ['robbery', 'attack', 'military', 'piracy', 'robbery/theft', 'boarding', 'military activity'].forEach(type => {
           map.addLayer({
             id: `incidents-${type}`,
             type: 'symbol',
@@ -137,7 +137,7 @@ const MaritimeMap = ({
         });
 
         // Add popups on click
-        map.on('click', ['incidents-robbery', 'incidents-attack', 'incidents-military'], (e) => {
+        map.on('click', ['incidents-robbery', 'incidents-attack', 'incidents-military', 'incidents-piracy', 'incidents-boarding'], (e) => {
           const coordinates = e.features[0].geometry.coordinates.slice();
           const { title, description } = e.features[0].properties;
 
