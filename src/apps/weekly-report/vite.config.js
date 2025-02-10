@@ -6,11 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: "dist",
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
+    emptyOutDir: true,
   },
   server: {
     cors: true,
@@ -19,7 +15,10 @@ export default defineConfig({
     },
   },
   define: {
-    "process.env": process.env,
+    "process.env": {},
+  },
+  css: {
+    postcss: true,
   },
   base: "/",
 });
