@@ -6,9 +6,63 @@ import IncidentDetails from './components/IncidentDetails'
 import { getReportingWeek, formatDateRange } from './utils/dates'
 import { fetchWeeklyIncidents } from './utils/api'
 
+// Define regions with their display properties
+const REGIONS = {
+  'West Africa': {
+    id: 'West Africa',
+    title: 'West Africa',
+    description: 'West African VRA/HRA',
+    defaultCenter: [1, 4],
+    defaultZoom: 5,
+    threatLevel: 'SUBSTANTIAL'
+  },
+  'Southeast Asia': {
+    id: 'Southeast Asia',
+    title: 'Southeast Asia',
+    description: 'Southeast Asia Region',
+    defaultCenter: [103.8, 1.12],
+    defaultZoom: 8,
+    threatLevel: 'SUBSTANTIAL'
+  },
+  'Indian Ocean': {
+    id: 'Indian Ocean',
+    title: 'Indian Ocean',
+    description: 'Indian Ocean VRA/HRA',
+    defaultCenter: [65, 12],
+    defaultZoom: 5,
+    threatLevel: 'SUBSTANTIAL'
+  },
+  'Americas': {
+    id: 'Americas',
+    title: 'Americas',
+    description: 'Americas Region',
+    defaultCenter: [-80, 10],
+    defaultZoom: 4,
+    threatLevel: 'MODERATE'
+  },
+  'Europe': {
+    id: 'Europe',
+    title: 'Europe',
+    description: 'Europe/Black Sea Region',
+    defaultCenter: [30, 45],
+    defaultZoom: 6,
+    threatLevel: 'MODERATE'
+  }
+};
+
+// Define region display order
+const REGION_ORDER = [
+  'West Africa',
+  'Southeast Asia',
+  'Indian Ocean',
+  'Americas',
+  'Europe'
+];
+
 function App() {
   const { yearWeek } = useParams();
   const [incidents, setIncidents] = useState([]);
+  const [latestIncidents, setLatestIncidents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,12 +87,17 @@ function App() {
         console.log('Fetching data for:', { start, end });
         const response = await fetchWeeklyIncidents(start, end);
         
+        console.log('API Response:', response);
+
         if (!response || !response.incidents) {
           throw new Error('No incidents data in response');
         }
 
         if (mounted) {
           setIncidents(response.incidents);
+          if (response.latestIncidents) {
+            setLatestIncidents(response.latestIncidents);
+          }
           setLoading(false);
         }
       } catch (err) {
@@ -74,6 +133,18 @@ function App() {
     );
   }
 
+  // Group incidents by region
+  const incidentsByRegion = {};
+  incidents.forEach(incident => {
+    const region = incident.incident.fields.region;
+    if (!incidentsByRegion[region]) {
+      incidentsByRegion[region] = [];
+    }
+    incidentsByRegion[region].push(incident);
+  });
+
+  console.log('Incidents by region:', incidentsByRegion);
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto mb-8">
@@ -85,16 +156,46 @@ function App() {
         </p>
       </div>
       
-      <ExecutiveBrief incidents={incidents} start={start} end={end} />
-      <RegionalBrief incidents={incidents} start={start} end={end} />
-      
-      {/* Map over all incidents to show their details */}
-      {incidents.map(incident => (
-        <IncidentDetails 
-          key={incident.incident.fields.id} 
-          incidentId={incident.incident.fields.id} 
-        />
-      ))}
+      <ExecutiveBrief 
+        incidents={incidents} 
+        start={start} 
+        end={end} 
+      />
+
+      {/* Display each region in order */}
+      {REGION_ORDER.map(region => {
+        const regionIncidents = incidentsByRegion[region] || [];
+        const latestRegionIncident = latestIncidents[region];
+
+        return (
+          <div key={region}>
+            {/* Regional Brief Section */}
+            <RegionalBrief 
+              incidents={regionIncidents}
+              latestIncidents={{ [region]: latestRegionIncident }}
+              currentRegion={region}
+              start={start} 
+              end={end}
+            />
+
+            {/* Display incidents for this region */}
+            {regionIncidents.map(incident => (
+              <IncidentDetails 
+                key={incident.incident.id}
+                incident={incident}
+              />
+            ))}
+
+            {/* Show latest incident if no current incidents */}
+            {regionIncidents.length === 0 && latestRegionIncident && (
+              <IncidentDetails 
+                incident={latestRegionIncident}
+                isHistorical={true}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
