@@ -16,4 +16,5 @@ export default defineConfig({
   css: {
     postcss: true,
   },
+  base: "/",
 });

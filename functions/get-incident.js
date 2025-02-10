@@ -1,6 +1,6 @@
-const axios = require("axios");
+import axios from "axios";
 
-exports.handler = async function (event) {
+export const handler = async (event) => {
   if (event.httpMethod !== "GET") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -70,10 +70,6 @@ exports.handler = async function (event) {
 
     const incidentVessel = incidentVesselResponse.data.records[0];
     console.log("Incident vessel found:", !!incidentVessel);
-    console.log(
-      "Incident vessel vessel_id:",
-      incidentVessel?.fields?.vessel_id
-    );
 
     let vessel = null;
     if (incidentVessel && incidentVessel.fields.vessel_id) {
@@ -92,7 +88,6 @@ exports.handler = async function (event) {
         }
       );
       vessel = vesselResponse.data.records[0];
-      console.log("Vessel query:", vesselQuery);
       console.log("Vessel found:", !!vessel);
     }
 
@@ -102,8 +97,6 @@ exports.handler = async function (event) {
       incidentVessel,
       vessel,
     };
-
-    console.log("Final vessel data included:", !!responseData.vessel);
 
     return {
       statusCode: 200,

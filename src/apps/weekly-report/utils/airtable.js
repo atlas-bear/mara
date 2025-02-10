@@ -27,7 +27,12 @@ export async function fetchIncident(incidentId) {
   }
 }
 
-function formatIncidentData(incident, incidentVessel, vessel, incidentType) {
+export async function formatIncidentData(
+  incident,
+  incidentVessel,
+  vessel,
+  incidentType
+) {
   if (!incident || !incident.fields) {
     throw new Error("Invalid incident data received");
   }
