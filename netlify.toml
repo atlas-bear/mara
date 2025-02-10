@@ -1,27 +1,33 @@
+[build]
+command = "npm run build"
+publish = "dist"
+functions = "functions"
+
+[build.environment]
+NODE_VERSION = "18"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
 # Functions configuration
 [functions]
 directory = "functions"
-node_bundler = "esbuild" # Ensures modern builds for functions
+node_bundler = "esbuild"
 
 # Collectors and processor run at different times to spread the load
 [functions."collect-recaap"]
-schedule = "0,30 * * * *" # Run at :00 and :30 of every hour
+schedule = "0,30 * * * *"
 
 [functions."collect-ukmto"]
-schedule = "5,35 * * * *" # Run at :05 and :35 of every hour
-
-#[functions."collect-cwd"]
-#schedule = "10,40 * * * *" # Run at :10 and :40 of every hour
+schedule = "5,35 * * * *"
 
 [functions."collect-mdat"]
-schedule = "15,45 * * * *" # Run at :15 and :45 of every hour
+schedule = "15,45 * * * *"
 
 [functions."collect-icc"]
-schedule = "20,50 * * * *" # Run at :20 and :50 of every hour
+schedule = "20,50 * * * *"
 
 [functions."process-incidents"]
-schedule = "25,55 * * * *" # Run at :25 and :55 of every hour
-
-[build]
-command = "npm run build"
-publish = "src/apps/weekly-report/dist"
+schedule = "25,55 * * * *"

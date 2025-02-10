@@ -4,6 +4,14 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: "dist",
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
   server: {
     cors: true,
     headers: {
@@ -11,10 +19,7 @@ export default defineConfig({
     },
   },
   define: {
-    "process.env": {},
-  },
-  css: {
-    postcss: true,
+    "process.env": process.env,
   },
   base: "/",
 });
