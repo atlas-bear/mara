@@ -101,6 +101,10 @@ const MaritimeMap = ({
         map.addImage('pulsing-dot-robbery', pulsingDotForType('239,68,68'), { pixelRatio: 2 });
         map.addImage('pulsing-dot-attack', pulsingDotForType('249,115,22'), { pixelRatio: 2 });
         map.addImage('pulsing-dot-military', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
+        map.addImage('pulsing-dot-boarding', pulsingDotForType('239,68,68'), { pixelRatio: 2 });
+        map.addImage('pulsing-dot-piracy', pulsingDotForType('249,115,22'), { pixelRatio: 2 });
+        map.addImage('pulsing-dot-military-activity', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
+        map.addImage('pulsing-dot-robbery-theft', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
 
         // Add source and layer for incidents
         map.addSource('incidents', {
@@ -123,7 +127,7 @@ const MaritimeMap = ({
         });
 
         // Add layers for each incident type
-        ['robbery', 'attack', 'military', 'piracy', 'robbery/theft', 'boarding', 'military activity'].forEach(type => {
+        ['robbery', 'attack', 'military', 'piracy', 'robbery-theft', 'boarding', 'military-activity'].forEach(type => {
           map.addLayer({
             id: `incidents-${type}`,
             type: 'symbol',
