@@ -147,14 +147,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Weekly Maritime Security Report
-        </h1>
-        <p className="text-gray-600">
-          {formatDateRange(start, end)}
-        </p>
-      </div>
       
       <ExecutiveBrief 
         incidents={incidents} 

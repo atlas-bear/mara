@@ -40,3 +40,24 @@ export function formatDateRange(start, end) {
     options
   )} - ${end.toLocaleDateString("en-US", options)}`;
 }
+
+export function getWeekNumber(date) {
+  // Create a copy of the date to avoid modifying the input
+  const target = new Date(date.valueOf());
+
+  // Find Thursday of the current week
+  const dayNum = (date.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNum + 3);
+
+  // Get first Thursday of the year
+  const firstThursday = new Date(target.getFullYear(), 0, 1);
+  if (firstThursday.getDay() !== 4) {
+    firstThursday.setMonth(0, 1 + ((4 - firstThursday.getDay() + 7) % 7));
+  }
+
+  // Calculate week number
+  const weekNum =
+    1 + Math.ceil((target - firstThursday) / (7 * 24 * 60 * 60 * 1000));
+
+  return weekNum;
+}

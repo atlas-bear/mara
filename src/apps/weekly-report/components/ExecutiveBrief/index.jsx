@@ -1,38 +1,10 @@
 import React from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import _ from 'lodash';
 import MaritimeMap from '../MaritimeMap';
-
-// Sample incident data for the map
-const currentIncidents = [
-  {
-    latitude: 1.12,
-    longitude: 103.8,
-    title: "Singapore Strait Robbery",
-    description: "Armed robbery aboard bulk carrier",
-    type: "robbery"
-  },
-  {
-    latitude: 14.5,
-    longitude: 42.5,
-    title: "Red Sea Attack",
-    description: "Missile attack on commercial vessel",
-    type: "attack"
-  },
-  {
-    latitude: 46.48,
-    longitude: 30.75,
-    title: "Black Sea Incident",
-    description: "Military activity affecting port operations",
-    type: "military"
-  },
-  {
-    latitude: 18.37,
-    longitude: -93.82,
-    title: "Gulf of Mexico Incident",
-    description: "Armed robbery near FPSO",
-    type: "robbery"
-  }
-];
+import { formatDateRange, getWeekNumber } from '../../utils/dates';
+import { useState, useEffect } from 'react';
+import { fetchAllHistoricalTrends } from '../../utils/trend-api';
 
 // Sparkline component
 const Sparkline = ({ data }) => (
@@ -49,7 +21,89 @@ const Sparkline = ({ data }) => (
   </ResponsiveContainer>
 );
 
-export default function ExecutiveBrief() {
+// Utility function to calculate threat level based on incidents
+const calculateThreatLevel = (incidents) => {
+  // Count serious incidents (attacks, armed robberies, military activity)
+  const seriousIncidents = incidents.filter(inc => {
+    const incidentType = inc.incidentType?.fields?.name;
+    const description = inc.incident.fields.description?.toLowerCase() || '';
+    return (
+      incidentType === 'Attack' ||
+      (incidentType === 'Robbery' && description.includes('armed')) ||
+      incidentType === 'Military Activity'
+    );
+  }).length;
+  
+  if (seriousIncidents >= 5) return { level: 'Critical', icon: '⚠⚠', class: 'bg-red-100 text-red-800' };
+  if (seriousIncidents >= 3) return { level: 'Severe', icon: '⚠', class: 'bg-rose-100 text-rose-800' };
+  if (seriousIncidents >= 2) return { level: 'Substantial', icon: '▲', class: 'bg-orange-100 text-orange-800' };
+  if (seriousIncidents >= 1) return { level: 'Moderate', icon: '►', class: 'bg-yellow-100 text-yellow-800' };
+  return { level: 'Low', icon: '●', class: 'bg-green-100 text-green-800' };
+};
+
+// Utility function to identify key developments
+const identifyKeyDevelopments = (incidents) => {
+  return incidents
+    .filter(inc => {
+      const description = inc.incident.fields.description?.toLowerCase() || '';
+      const incidentType = inc.incidentType?.fields?.name;
+      return (
+        incidentType === 'Attack' ||
+        (incidentType === 'Robbery' && description.includes('armed')) ||
+        description.includes('killed') ||
+        description.includes('injured') ||
+        description.includes('damage') ||
+        incidentType === 'Military Activity'
+      );
+    })
+    .sort((a, b) => new Date(b.incident.fields.date_time_utc) - new Date(a.incident.fields.date_time_utc))
+    .slice(0, 4);
+};
+
+const ExecutiveBrief = ({ incidents, start, end }) => {
+  // Transform incidents for map
+  const mapIncidents = incidents.map(inc => ({
+    latitude: inc.incident.fields.latitude,
+    longitude: inc.incident.fields.longitude,
+    title: inc.incident.fields.title,
+    description: inc.incident.fields.description,
+    type: (inc.incidentType?.fields?.name || 'unknown').toLowerCase()
+  }));
+
+  // Group incidents by region
+  const regionData = _.groupBy(incidents, inc => inc.incident.fields.region);
+  
+  // Calculate regional stats and trends
+  const regionalStats = Object.entries(regionData).map(([region, regionIncidents]) => {
+    const threatLevel = calculateThreatLevel(regionIncidents);
+    
+    const [historicalTrends, setHistoricalTrends] = useState({});
+
+  useEffect(() => {
+    const loadTrends = async () => {
+      const trends = await fetchAllHistoricalTrends();
+      setHistoricalTrends(trends);
+    };
+    loadTrends();
+  }, []);
+
+  // Use historical trends if available, otherwise use current week data
+  const trend = historicalTrends[region] || Array.from({ length: 8 }, (_, i) => ({
+    week: -(8-i),
+    value: 0
+  }));
+
+    return {
+      region,
+      threatLevel,
+      incidents: regionIncidents.length,
+      trend
+    };
+  });
+
+  // Identify key developments
+  const keyDevelopments = identifyKeyDevelopments(incidents);
+
   return (
     <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg my-8">
       {/* Title Section */}
@@ -59,39 +113,33 @@ export default function ExecutiveBrief() {
             Maritime Security Executive Brief
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            Week 42 (Oct 14-21, 2024)
+            Week {getWeekNumber(new Date(start))} ({formatDateRange(start, end)})
           </p>
         </div>
       </div>
 
-      {/* Active Incidents Map Section */}
+      {/* Active Incidents Map */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">
           Active Incidents
         </h2>
-        <div className="rounded-lg overflow-hidden shadow-sm">
-          {import.meta.env.VITE_MAPBOX_TOKEN ? (
-            <MaritimeMap 
-              incidents={currentIncidents}
-              center={[40, 20]}
-              zoom={1}
-            />
-          ) : (
-            <div className="w-full h-[300px] bg-gray-100 flex items-center justify-center">
-              <p className="text-gray-500">MapBox token not found</p>
-            </div>
-          )}
-        </div>
+        <MaritimeMap 
+          incidents={mapIncidents}
+          center={[40, 20]}
+          zoom={1}
+        />
         <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3">
-          <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Robbery
-          </span>
-          <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> Attack
-          </span>
-          <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span> Military
-          </span>
+          {/* Only show incident types that are present on the map */}
+          {[...new Set(mapIncidents.map(inc => inc.type))].map(type => (
+            <span key={type} className="flex items-center">
+              <span className={`w-2 h-2 rounded-full mr-1 ${
+                type === 'robbery' ? 'bg-red-500' :
+                type === 'attack' ? 'bg-orange-500' :
+                type === 'military' ? 'bg-blue-500' : 'bg-gray-500'
+              }`}></span>
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -118,65 +166,32 @@ export default function ExecutiveBrief() {
       {/* Global Threat Overview Table */}
       <div className="p-6 border-b border-gray-200">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse bg-white">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">
-                  Region
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">
-                  Threat Level
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">
-                  Incidents
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">
-                  5-Week Trend
-                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Region</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Threat Level</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">Incidents</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">8-Week Trend</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              <tr className="hover:bg-gray-50">
-                <td className="px-4 py-3 border">Indian Ocean</td>
-                <td className="px-4 py-3 border">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                    ⚠⚠ Critical
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center border">5</td>
-                <td className="px-4 py-3 border">
-                  <div className="h-5">
-                    <Sparkline data={[
-                      { week: 1, value: 4 }, { week: 2, value: 1 }, 
-                      { week: 3, value: 6 }, { week: 4, value: 2 }, 
-                      { week: 5, value: 3 }
-                    ]} />
-                  </div>
-                </td>
-              </tr>
-              
-              <tr className="hover:bg-gray-50">
-                <td className="px-4 py-3 border">Europe</td>
-                <td className="px-4 py-3 border">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-rose-100 text-rose-800">
-                    ⚠ Severe
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center border">4</td>
-                <td className="px-4 py-3 border">
-                  <div className="h-5">
-                    <Sparkline data={[
-                      { week: 1, value: 4 }, { week: 2, value: 5 }, 
-                      { week: 3, value: 4 }, { week: 4, value: 5 }, 
-                      { week: 5, value: 4 }
-                    ]} />
-                  </div>
-                </td>
-              </tr>
-
-              {/* Other regions as before */}
-              {/* ... */}
-
+            <tbody>
+              {regionalStats.map(({ region, threatLevel, incidents, trend }) => (
+                <tr key={region} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 border">{region}</td>
+                  <td className="px-4 py-3 border">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${threatLevel.class}`}>
+                      {threatLevel.icon} {threatLevel.level}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center border">{incidents}</td>
+                  <td className="px-4 py-3 border">
+                    <div className="h-5">
+                      <Sparkline data={trend} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -184,77 +199,56 @@ export default function ExecutiveBrief() {
 
       {/* Key Developments */}
       <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          Key Developments
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Key Developments</h2>
         <ul className="space-y-4">
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-red-600">●</span>
-            <span className="ml-2 text-gray-700">
-              Red Sea: Multiple missile attacks reported on commercial vessels in Bab el-Mandeb strait. 
-              Two vessels sustained damage, leading to major carriers rerouting around Cape of Good Hope.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
-            <span className="ml-2 text-gray-700">
-              Singapore Strait: Coordinated robberies targeting three bulk carriers within 2 hours on Oct 17. 
-              Two incidents involved armed perpetrators, indicating organized criminal activity.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
-            <span className="ml-2 text-gray-700">
-              Gulf of Mexico: Armed robbery reported near FPSO MIAMTE. Crew held at gunpoint and forced to 
-              transfer funds. First incident of 2024 involving forced banking transfers in the region.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-blue-600">●</span>
-            <span className="ml-2 text-gray-700">
-              Black Sea: Russian missile strike on Port of Odesa damaged two cargo vessels and port infrastructure. 
-              One port worker killed, insurance rates rising following repeated attacks.
-            </span>
-          </li>
+          {keyDevelopments.map((inc, index) => (
+            <li key={index} className="flex items-start">
+              <span className={`flex-shrink-0 h-5 w-5 ${
+                inc.incidentType?.fields?.name === 'Attack' ? 'text-red-600' :
+                inc.incidentType?.fields?.name === 'Robbery' ? 'text-orange-600' :
+                'text-blue-600'
+              }`}>●</span>
+              <span className="ml-2 text-gray-700">
+                <strong>{inc.incident.fields.region}:</strong> {inc.incident.fields.description}
+              </span>
+            </li>
+          ))}
         </ul>
       </div>
 
       {/* 7-Day Forecast */}
       <div className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          7-Day Forecast
-        </h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">7-Day Forecast</h2>
         <ul className="space-y-4">
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-red-600">↗</span>
-            <span className="ml-2 text-gray-700">
-              Red Sea: High likelihood of continued attacks on commercial shipping. 
-              Vessels advised to maintain maximum distance from Yemen coastline or consider Cape routing.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">↗</span>
-            <span className="ml-2 text-gray-700">
-              Singapore Strait: Elevated risk of night-time robbery attempts. 
-              Enhanced vigilance recommended during hours of darkness.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-blue-600">→</span>
-            <span className="ml-2 text-gray-700">
-              Black Sea: Sustained threat to shipping in Ukrainian ports from missile strikes. 
-              Further insurance rate increases expected.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-yellow-600">↘</span>
-            <span className="ml-2 text-gray-700">
-              Gulf of Guinea: Reduced activity expected due to weather conditions. 
-              Standard precautions should be maintained.
-            </span>
-          </li>
+          {regionalStats.map(({ region, threatLevel, trend }) => {
+            const trendDirection = trend[trend.length - 1].value > trend[0].value ? '↗' :
+                                 trend[trend.length - 1].value < trend[0].value ? '↘' : '→';
+            return (
+              <li key={region} className="flex items-start">
+                <span className={`flex-shrink-0 h-5 w-5 ${
+                  threatLevel.level === 'Critical' ? 'text-red-600' :
+                  threatLevel.level === 'Severe' ? 'text-rose-600' :
+                  threatLevel.level === 'Substantial' ? 'text-orange-600' :
+                  'text-yellow-600'
+                }`}>{trendDirection}</span>
+                <span className="ml-2 text-gray-700">
+                  <strong>{region}:</strong> {generateForecast(region, threatLevel, trend)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
   );
-}
+};
+
+// Utility function to generate forecast text
+const generateForecast = (region, threatLevel, trend) => {
+  const trendValue = trend[trend.length - 1].value - trend[0].value;
+  const trendDescription = trendValue > 0 ? 'increasing' : trendValue < 0 ? 'decreasing' : 'stable';
+  
+  return `Incident rate ${trendDescription}. Maintain ${threatLevel.level.toLowerCase()} level precautions.`;
+};
+
+export default ExecutiveBrief;
