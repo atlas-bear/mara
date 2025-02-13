@@ -1,18 +1,11 @@
 import React from 'react';
-import { NovuProvider } from '@novu/notification-center';
-import EmailTemplate from './components/EmailTemplate';
 import PreviewMode from './components/PreviewMode';
 
-const FlashReport = () => {
+const FlashReport = ({ incident }) => {
   return (
-    <NovuProvider
-      applicationIdentifier={process.env.NOVU_APP_IDENTIFIER}
-      subscriberId={/* TODO: Add subscriber ID logic */}
-    >
-      <div>
-        {/* TODO: Add main flash report logic */}
-      </div>
-    </NovuProvider>
+    <div className="container mx-auto px-4">
+      <PreviewMode incident={incident} />
+    </div>
   );
 };
 
