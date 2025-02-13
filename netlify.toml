@@ -1,29 +1,11 @@
 [build]
-command = """
-  cd src/apps/weekly-report && npm run build && \
-  cd ../flash-report && npm run build
-"""
-publish = "src/apps/dist"
+command = "cd src/apps/weekly-report && npm run build"
+publish = "src/apps/weekly-report/dist"
 functions = "functions"
 
 [build.environment]
 NODE_VERSION = "18"
 
-# Handle flash report routes
-[[redirects]]
-from = "/flash-report/*"
-to = "/flash-report/index.html"
-status = 200
-force = true
-
-# Handle weekly report routes
-[[redirects]]
-from = "/weekly-report/*"
-to = "/weekly-report/index.html"
-status = 200
-force = true
-
-# Handle root routes
 [[redirects]]
 from = "/*"
 to = "/index.html"
