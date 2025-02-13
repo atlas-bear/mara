@@ -1,24 +1,11 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/weekly-report/',
   build: {
-    outDir: "dist",
+    outDir: '../dist/weekly-report',
     emptyOutDir: true,
   },
-  server: {
-    cors: true,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-    },
-  },
-  define: {
-    "process.env": {},
-  },
-  css: {
-    postcss: true,
-  },
-  base: "/",
-});
+})

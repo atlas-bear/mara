@@ -1,10 +1,23 @@
 [build]
-command = "cd src/apps/weekly-report && npm run build"
-publish = "src/apps/weekly-report/dist"
+command = """
+  cd src/apps/weekly-report && npm run build && \
+  cd ../flash-report && npm run build
+"""
+publish = "src/apps/dist"
 functions = "functions"
 
 [build.environment]
 NODE_VERSION = "18"
+
+[[redirects]]
+from = "/weekly-report/*"
+to = "/weekly-report/index.html"
+status = 200
+
+[[redirects]]
+from = "/flash-report/*"
+to = "/flash-report/index.html"
+status = 200
 
 [[redirects]]
 from = "/*"
