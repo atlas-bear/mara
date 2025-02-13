@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useParams, Navigate } from 'react-router-dom'
 import FlashReport from './index'
 
 // Sample incident data for testing
@@ -58,9 +58,10 @@ function FlashReportPage() {
 
 function App() {
   return (
-    <Router>
+    <Router basename="/flash-report">
       <Routes>
-        <Route path="/flash-report/:incidentId" element={<FlashReportPage />} />
+        <Route path="/" element={<Navigate to="/2024-2662" replace />} />
+        <Route path="/:incidentId" element={<FlashReportPage />} />
       </Routes>
     </Router>
   )

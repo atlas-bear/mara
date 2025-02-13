@@ -9,16 +9,21 @@ functions = "functions"
 [build.environment]
 NODE_VERSION = "18"
 
-[[redirects]]
-from = "/weekly-report/*"
-to = "/weekly-report/index.html"
-status = 200
-
+# Handle flash report routes
 [[redirects]]
 from = "/flash-report/*"
 to = "/flash-report/index.html"
 status = 200
+force = true
 
+# Handle weekly report routes
+[[redirects]]
+from = "/weekly-report/*"
+to = "/weekly-report/index.html"
+status = 200
+force = true
+
+# Handle root routes
 [[redirects]]
 from = "/*"
 to = "/index.html"
