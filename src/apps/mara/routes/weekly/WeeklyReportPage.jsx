@@ -66,6 +66,10 @@ function WeeklyReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    document.title = 'MARA Weekly Report';
+  }, []);
+
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
   const activeYearWeek = yearWeek || testYearWeek;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import PreviewMode from '../../components/FlashReport/PreviewMode';
 
@@ -36,6 +36,10 @@ const sampleIncidents = {
 function FlashReportPage() {
   const { incidentId } = useParams();
   const incident = sampleIncidents[incidentId];
+
+  useEffect(() => {
+    document.title = 'MARA Flash Report';
+  }, []);
 
   if (!incident) {
     return (
