@@ -9,12 +9,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "cd src/apps/weekly-report && vite build",
-    "build:flash": "cd src/apps/flash-report && vite build",
-    "dev": "cd src/apps/weekly-report && vite",
-    "dev:flash": "cd src/apps/flash-report && vite",
-    "preview": "cd src/apps/weekly-report && vite preview",
-    "preview:flash": "cd src/apps/flash-report && vite preview"
+    "build": "cd src/apps/mara && vite build",
+    "dev": "cd src/apps/mara && vite",
+    "preview": "cd src/apps/mara && vite preview"
   },
   "keywords": [],
   "author": "",

@@ -1,6 +1,6 @@
 [build]
-command = "cd src/apps/weekly-report && npm run build"
-publish = "src/apps/weekly-report/dist"
+command = "cd src/apps/mara && npm run build"
+publish = "src/apps/mara/dist"
 functions = "functions"
 
 [build.environment]

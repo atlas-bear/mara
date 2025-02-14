@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
-import ExecutiveBrief from './components/ExecutiveBrief'
-import RegionalBrief from './components/RegionalBrief'
-import IncidentDetails from './components/IncidentDetails'
-import { getReportingWeek, formatDateRange } from './utils/dates'
-import { fetchWeeklyIncidents } from './utils/api'
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
+import ExecutiveBrief from '../../components/WeeklyReport/ExecutiveBrief';
+import RegionalBrief from '../../components/WeeklyReport/RegionalBrief';
+import IncidentDetails from '../../components/WeeklyReport/IncidentDetails';
+import { getReportingWeek, formatDateRange } from '../../utils/dates';
+import { fetchWeeklyIncidents } from '../../utils/api';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -59,7 +59,7 @@ const REGION_ORDER = [
   'Europe'
 ];
 
-function App() {
+function WeeklyReportPage() {
   const { yearWeek } = useParams();
   const [incidents, setIncidents] = useState([]);
   const [latestIncidents, setLatestIncidents] = useState({});
@@ -192,4 +192,4 @@ function App() {
   );
 }
 
-export default App;
+export default WeeklyReportPage;

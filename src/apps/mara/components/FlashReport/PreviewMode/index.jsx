@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
-import MaritimeMap from '../../../../shared/components/MaritimeMap';
+import MaritimeMap from '../../../components/shared/MaritimeMap';
 
 const PreviewMode = ({ incident }) => {
   return (

@@ -25,10 +25,19 @@ Atlas|Bear is committed to providing a cutting-edge platform for all users, from
 
 ## Repository Structure
 
-- **/src**: Core application source code.
-- **/scripts**: Automation and utility scripts.
-- **/data**: Sample data and datasets used for development and testing.
-- **/docs**: Documentation and guides.
+- **/src**
+  - **/apps**
+    - **/mara**: Main application containing both weekly and flash reports
+  - **/shared**: Shared utilities and components used across the application
+- **/functions**: Netlify serverless functions for backend operations
+- **/scripts**: Automation and utility scripts
+- **/data**: Sample data and datasets used for development and testing
+- **/docs**: Documentation and guides
+  - **ARCHITECTURE.md**: Detailed technical architecture documentation
+
+## Technical Architecture
+
+For a detailed understanding of MARA's technical architecture, including component structure, routing, and key features, please refer to our [Architecture Documentation](docs/ARCHITECTURE.md).
 
 ## Contributing
 
@@ -45,6 +54,5 @@ This project is proprietary and confidential to Atlas|Bear. For more details, pl
 ## Contact
 
 For any inquiries or support, please contact us at mara@atlasbear.co.
-
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/edfdfb3b-fd14-477a-9f78-a1466953c44a/deploy-status)](https://app.netlify.com/sites/mara-v2/deploys)

@@ -1,4 +1,4 @@
-import { formatLocation } from "../utils/coordinates";
+import { formatLocation } from "./coordinates";
 
 export async function fetchIncident(incidentId) {
   if (!incidentId) {
