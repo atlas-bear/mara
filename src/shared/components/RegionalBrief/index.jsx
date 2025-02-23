@@ -1,6 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
-import MaritimeMap from '@shared/MaritimeMap';
+import MaritimeMap from '@shared/components/MaritimeMap';
 
 // Define regions info
 const REGIONS = {
