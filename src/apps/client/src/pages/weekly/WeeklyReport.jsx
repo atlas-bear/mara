@@ -1,4 +1,7 @@
-import { ExecutiveBrief, RegionalBrief, IncidentDetails } from '@mara/components'
+import { ExecutiveBrief } from '@components/WeeklyReport/ExecutiveBrief'
+import { RegionalBrief } from '@components/WeeklyReport/RegionalBrief'
+import { IncidentDetails } from '@components/WeeklyReport/IncidentDetails'
+import { MaritimeMap } from '@shared/components/MaritimeMap'
 
 export default function WeeklyReport() {
   return (

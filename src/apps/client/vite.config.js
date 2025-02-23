@@ -6,8 +6,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@mara": path.resolve(__dirname, "../mara/src"),
+      "@client": path.resolve(__dirname, "./src"),
+      "@mara": path.resolve(__dirname, "../mara"),
+      "@shared": path.resolve(__dirname, "../../shared"),
+      "@components": path.resolve(__dirname, "../mara/components"),
     },
   },
 });

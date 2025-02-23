@@ -1,4 +1,4 @@
-import { ExecutiveBrief as MaraExecutiveBrief } from '@mara/components'
+import { ExecutiveBrief as MaraExecutiveBrief } from '@components'
 
 export function CustomExecutiveBrief({ ...props }) {
   return (

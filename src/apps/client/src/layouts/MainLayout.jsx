@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { useBranding } from '../hooks/useBranding'
+import { useBranding } from '@client/hooks/useBranding'
 
 export default function MainLayout() {
   const { branding } = useBranding()
