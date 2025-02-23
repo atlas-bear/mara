@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["mapbox-gl", "mapbox-gl/dist/mapbox-gl.css"],
+    include: ["mapbox-gl"],
   },
   build: {
     rollupOptions: {
@@ -24,6 +24,7 @@ export default defineConfig({
         "lucide-react",
         "recharts",
         "mapbox-gl",
+        "mapbox-gl/dist/mapbox-gl.css",
         "lodash",
         "d3",
         "d3-array",
