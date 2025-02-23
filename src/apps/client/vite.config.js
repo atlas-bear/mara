@@ -4,6 +4,12 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 3000,
+  },
+  preview: {
+    port: 3000,
+  },
   resolve: {
     alias: {
       "@client": path.resolve(__dirname, "./src"),
@@ -13,18 +19,15 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["mapbox-gl"],
+    include: ["mapbox-gl", "react", "react-dom"],
   },
   build: {
     rollupOptions: {
       external: [
-        "react",
-        "react-dom",
-        "react-router-dom",
-        "lucide-react",
-        "recharts",
         "mapbox-gl",
         "mapbox-gl/dist/mapbox-gl.css",
+        "lucide-react",
+        "recharts",
         "lodash",
         "d3",
         "d3-array",
@@ -37,12 +40,9 @@ export default defineConfig({
       ],
       output: {
         globals: {
-          react: "React",
-          "react-dom": "ReactDOM",
-          "react-router-dom": "ReactRouterDOM",
+          "mapbox-gl": "mapboxgl",
           "lucide-react": "LucideReact",
           recharts: "Recharts",
-          "mapbox-gl": "mapboxgl",
           lodash: "_",
           d3: "d3",
           "d3-array": "d3Array",
@@ -55,8 +55,5 @@ export default defineConfig({
         },
       },
     },
-  },
-  server: {
-    port: 5173,
   },
 });
