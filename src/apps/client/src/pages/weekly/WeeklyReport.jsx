@@ -1,6 +1,6 @@
-import { ExecutiveBrief } from '@components/WeeklyReport/ExecutiveBrief'
-import { RegionalBrief } from '@components/WeeklyReport/RegionalBrief'
-import { IncidentDetails } from '@components/WeeklyReport/IncidentDetails'
+import { ExecutiveBrief } from '@shared/components/ExecutiveBrief'
+import { RegionalBrief } from '@shared/components/RegionalBrief'
+import { IncidentDetails } from '@shared/components/IncidentDetails'
 import { MaritimeMap } from '@shared/components/MaritimeMap'
 
 export default function WeeklyReport() {

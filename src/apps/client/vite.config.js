@@ -12,4 +12,21 @@ export default defineConfig({
       "@components": path.resolve(__dirname, "../mara/components"),
     },
   },
+  build: {
+    rollupOptions: {
+      // Make sure these dependencies are available during build
+      external: ["react", "react-dom", "react-router-dom"],
+      output: {
+        globals: {
+          react: "React",
+          "react-dom": "ReactDOM",
+          "react-router-dom": "ReactRouterDOM",
+        },
+      },
+    },
+    commonjsOptions: {
+      // Include these packages in the bundle
+      include: ["node_modules/**", "../mara/components/**"],
+    },
+  },
 });
