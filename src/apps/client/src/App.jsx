@@ -5,7 +5,7 @@ import WeeklyReport from './pages/weekly/WeeklyReport'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<MainLayout />}>
+      <Route path="/:yearWeek" element={<MainLayout />}>
         <Route index element={<WeeklyReport />} />
         {/* Future routes can be added here */}
         {/* <Route path="/analysis" element={<Analysis />} /> */}
