@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import MaritimeMap from '../../shared/MaritimeMap';
+import MaritimeMap from '@shared/MaritimeMap';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },
