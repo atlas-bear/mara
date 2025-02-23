@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["mapbox-gl"],
+    include: ["mapbox-gl", "mapbox-gl/dist/mapbox-gl.css"],
   },
   build: {
     rollupOptions: {
