@@ -14,19 +14,24 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // Make sure these dependencies are available during build
-      external: ["react", "react-dom", "react-router-dom", "lucide-react"],
+      external: [
+        "react",
+        "react-dom",
+        "react-router-dom",
+        "lucide-react",
+        "recharts",
+        "mapbox-gl",
+      ],
       output: {
         globals: {
           react: "React",
           "react-dom": "ReactDOM",
           "react-router-dom": "ReactRouterDOM",
+          "lucide-react": "LucideReact",
+          recharts: "Recharts",
+          "mapbox-gl": "mapboxgl",
         },
       },
-    },
-    commonjsOptions: {
-      // Include these packages in the bundle
-      include: ["node_modules/**", "../mara/components/**"],
     },
   },
 });
