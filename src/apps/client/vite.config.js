@@ -12,6 +12,14 @@ export default defineConfig({
       "@components": path.resolve(__dirname, "../mara/components"),
     },
   },
+  css: {
+    postcss: {
+      plugins: [require("autoprefixer")],
+    },
+  },
+  optimizeDeps: {
+    include: ["mapbox-gl"],
+  },
   build: {
     rollupOptions: {
       external: [
