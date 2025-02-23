@@ -15,7 +15,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       // Make sure these dependencies are available during build
-      external: ["react", "react-dom", "react-router-dom"],
+      external: ["react", "react-dom", "react-router-dom", "lucide-react"],
       output: {
         globals: {
           react: "React",
