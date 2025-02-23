@@ -2,9 +2,9 @@ import React from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import _ from 'lodash';
 import MaritimeMap from '@shared/MaritimeMap';
-import { formatDateRange, getWeekNumber } from '../../../utils/dates';
+import { formatDateRange, getWeekNumber } from '@mara/utils/dates';
 import { useState, useEffect } from 'react';
-import { fetchAllHistoricalTrends } from '../../../utils/trend-api';
+import { fetchAllHistoricalTrends } from '@mara/utils/trend-api';
 
 // Sparkline component
 const Sparkline = ({ data }) => (
