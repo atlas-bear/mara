@@ -2,6 +2,7 @@ import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import MaritimeMap from '@shared/components/MaritimeMap';
+import { formatCoordinates, formatlocation } from '@shared/features/weekly-report';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },
@@ -73,7 +74,7 @@ const IncidentDetails = ({ incident, isHistorical = false }) => {
             <p className="text-sm text-gray-600">Location</p>
             <p className="font-semibold text-gray-900">{fields.location_name}</p>
             <p className="text-sm text-gray-600">
-              {fields.latitude}°N, {fields.longitude}°E
+              {formatCoordinates(fields.latitude, true)}, {formatCoordinates(fields.longitude, false)}
             </p>
           </div>
         </div>

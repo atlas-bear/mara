@@ -1,43 +1,52 @@
 {
-  "name": "mara",
+  "name": "mara-monorepo",
   "version": "1.0.0",
-  "description": "![MARA Logo](https://drive.google.com/uc?id=1OB5Lwgpp03DB9vs50T_kkKzL5VV_y5Eo)",
+  "description": "MARA: Multi-source Analysis and Reporting Architecture",
+  "private": true,
   "main": "index.js",
   "type": "module",
+  "workspaces": [
+    "src/apps/*",
+    "src/shared"
+  ],
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "cd src/apps/mara && vite build",
-    "dev": "cd src/apps/mara && vite",
-    "preview": "cd src/apps/mara && vite preview"
+    "install-all": "npm install",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "preview": "turbo run preview",
+    "clean": "rm -rf node_modules package-lock.json && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
-    "@vitejs/plugin-react": "^4.2.1",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
-    "https": "^1.0.0",
     "lucide-react": "^0.263.1",
     "mapbox-gl": "^2.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.1.5",
     "recharts": "^2.12.0",
-    "vite": "^5.0.12",
     "@novu/notification-center": "^0.22.0",
     "@novu/node": "^0.22.0"
   },
   "devDependencies": {
+    "vite": "^5.0.12",
+    "@vitejs/plugin-react": "^4.2.1",
     "@tailwindcss/forms": "^0.5.7",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "eslint": "^8.56.0",
+    "prettier": "^3.0.0",
+    "turbo": "^1.12.0"
   }
 }

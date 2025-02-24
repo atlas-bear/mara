@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import ExecutiveBrief from '@shared/components/ExecutiveBrief';
-import RegionalBrief from '@shared/components/RegionalBrief';
-import IncidentDetails from '@shared/components/IncidentDetails';
-import { getReportingWeek, formatDateRange } from '@mara/utils/dates';
-import { fetchWeeklyIncidents } from '@mara/utils/api';
+import { 
+  ExecutiveBrief, 
+  RegionalBrief, 
+  IncidentDetails,
+  getReportingWeek,
+  formatDateRange,
+  fetchWeeklyIncidents
+} from '@shared/features/weekly-report';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -88,6 +91,16 @@ function WeeklyReport() {
     
     const fetchData = async () => {
       try {
+        console.log("Debug before API call:", typeof start, start, typeof end, end);
+
+        console.log('Year-Week:', activeYearWeek);
+        console.log('Parsed dates:', {
+          start: start.toISOString(),
+          end: end.toISOString(),
+          startDay: start.getDay(),
+          endDay: end.getDay()
+        });
+
         console.log('Fetching data for:', { start, end });
         const response = await fetchWeeklyIncidents(start, end);
         

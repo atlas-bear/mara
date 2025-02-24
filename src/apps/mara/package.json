@@ -1,5 +1,5 @@
 {
-  "name": "@mara/client",
+  "name": "@mara/app",
   "version": "1.0.0",
   "private": true,
   "main": "index.js",

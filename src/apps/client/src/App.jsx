@@ -7,7 +7,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/:yearWeek" element={<MainLayout />}>
+        <Route path=":yearWeek" element={<MainLayout />}>
           <Route index element={<WeeklyReport />} />
           {/* Future routes can be added here */}
           {/* <Route path="/analysis" element={<Analysis />} /> */}

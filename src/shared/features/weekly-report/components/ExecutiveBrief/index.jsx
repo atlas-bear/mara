@@ -1,10 +1,10 @@
 import React from 'react';
+import { useState, useEffect } from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import _ from 'lodash';
-import MaritimeMap from '../../shared/MaritimeMap';
-import { formatDateRange, getWeekNumber } from '../../../utils/dates';
-import { useState, useEffect } from 'react';
-import { fetchAllHistoricalTrends } from '../../../utils/trend-api';
+import MaritimeMap from '@shared/components/MaritimeMap';
+import { formatDateRange, getWeekNumber } from '@shared/features/weekly-report/utils/dates';
+import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 
 // Sparkline component
 const Sparkline = ({ data }) => (

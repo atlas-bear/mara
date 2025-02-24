@@ -1,8 +1,12 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useParams } from 'react-router-dom';
 import { useBranding } from '@client/hooks/useBranding'
 
 export default function MainLayout() {
   const { branding } = useBranding()
+  const params = useParams(); // Get route parameters
+
+  console.log("🚀 MainLayout mounted!");
+  console.log("Params received:", params); // Debugging output
   
   return (
     <div className="min-h-screen bg-gray-100">
