@@ -1,9 +1,15 @@
 [build]
 publish = "dist"
 command = "npm run build"
+functions = "functions"
 
 [build.environment]
 NODE_VERSION = "18"
+
+[dev]
+command = "turbo run dev --filter @mara/client"
+framework = "#custom"
+targetPort = 3000
 
 [[redirects]]
 from = "/*"

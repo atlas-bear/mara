@@ -1,4 +1,3 @@
-// Mock historical incidents data for 8-week trends
 export const mockHistoricalTrends = {
   "West Africa": [
     { week: -8, value: 3 },

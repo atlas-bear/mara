@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
-import MaritimeMap from '../../../components/shared/MaritimeMap';
+import MaritimeMap from '@shared/components/MaritimeMap';
+import { formatCoordinates, formatlocation } from '@shared/features/weekly-report';
 
 const PreviewMode = ({ incident }) => {
   return (
@@ -41,7 +42,7 @@ const PreviewMode = ({ incident }) => {
             <p className="text-sm text-gray-600">Location</p>
             <p className="font-semibold text-gray-900">{incident.location}</p>
             <p className="text-sm text-gray-600">
-              {incident.coordinates.latitude}°N, {incident.coordinates.longitude}°E
+              {formatCoordinates(incident.coordinates.latitude, true)}, {formatCoordinates(incident.coordinates.longitude, false)}
             </p>
           </div>
         </div>

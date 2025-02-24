@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import ExecutiveBrief from '../../components/WeeklyReport/ExecutiveBrief';
-import RegionalBrief from '../../components/WeeklyReport/RegionalBrief';
-import IncidentDetails from '../../components/WeeklyReport/IncidentDetails';
-import { getReportingWeek, formatDateRange } from '../../utils/dates';
-import { fetchWeeklyIncidents } from '../../utils/api';
+import { 
+  ExecutiveBrief, 
+  RegionalBrief, 
+  IncidentDetails,
+  getReportingWeek,
+  formatDateRange,
+  fetchWeeklyIncidents 
+} from '@shared/features/weekly-report';
 
 // Define regions with their display properties
 const REGIONS = {
