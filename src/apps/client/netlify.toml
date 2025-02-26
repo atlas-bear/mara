@@ -15,8 +15,3 @@ targetPort = 3000
 from = "/*"
 to = "/index.html"
 status = 200
-
-# Functions configuration
-[functions]
-directory = "functions"
-node_bundler = "esbuild"
