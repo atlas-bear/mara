@@ -1,9 +1,0 @@
-node_modules/
-
-# Local env files
-.env
-
-# Local Netlify folder
-.netlify
-.turbo/
-src/apps/client/dist/
