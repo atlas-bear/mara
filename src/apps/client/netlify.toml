@@ -21,6 +21,7 @@ status = 200
 directory = "functions"
 node_bundler = "esbuild"
 external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
+node_bundler_file_format = "esm"
 
 [functions.generate-pdf]
 included_files = []
