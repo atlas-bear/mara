@@ -6,8 +6,8 @@ import axios from 'axios';
 const PDFDownloadButton = ({ 
   className = "",
   customReportId = null, // Allow overriding the reportId from URL params
-  apiEndpoint = '/api/get-pdf-url', // Allow customizing the API endpoint
-  generateEndpoint = '/api/generate-pdf',
+  apiEndpoint = '/.netlify/functions/get-pdf-url',
+  generateEndpoint = '/.netlify/functions/generate-pdf',
   variant = 'primary',
   label = 'Download PDF'
 }) => {
