@@ -2,10 +2,12 @@
 import chromium from "chrome-aws-lambda";
 import * as cloudinaryUtils from "./cloudinary.js";
 
-const generateReportPdf = async (reportId, baseUrl) => {
+export const generateReportPdf = async (reportId, baseUrl) => {
   let browser = null;
 
   try {
+    console.log("Initializing Chrome for PDF generation");
+
     // Check if PDF already exists in Cloudinary
     const publicId = `mara-reports/report-${reportId}`;
     const exists = await cloudinaryUtils.resourceExists(publicId);
@@ -20,10 +22,21 @@ const generateReportPdf = async (reportId, baseUrl) => {
 
     // Launch headless browser
     browser = await chromium.puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath,
       headless: true,
+      ignoreHTTPSErrors: true,
     });
 
     // Create new page and navigate to report URL with print flag
@@ -62,7 +75,11 @@ const generateReportPdf = async (reportId, baseUrl) => {
       isNew: true,
     };
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    console.error("Browser launch error:", error);
+
+    if (error.message.includes("Failed to launch")) {
+      throw new Error(`Chrome launch failed: ${error.message}`);
+    }
     throw error;
   } finally {
     if (browser !== null) {

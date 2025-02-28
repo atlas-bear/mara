@@ -22,6 +22,10 @@ directory = "functions"
 node_bundler = "esbuild"
 external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
 
+[functions.generate-pdf]
+included_files = []
+external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
+
 [[redirects]]
 from = "/api/*"
 to = "/.netlify/functions/:splat"
