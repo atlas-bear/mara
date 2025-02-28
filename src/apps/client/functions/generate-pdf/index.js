@@ -1,4 +1,4 @@
-const pdfGenerator = require("../utils/pdf-generator");
+import { generateReportPdf } from "../utils/pdf-generator.js";
 
 export const handler = async (event, context) => {
   // Only allow POST requests

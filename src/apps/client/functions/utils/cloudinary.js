@@ -1,4 +1,4 @@
-const cloudinary = require("cloudinary").v2;
+import { v2 as cloudinary } from "cloudinary";
 
 // Initialize Cloudinary with environment variables
 const initCloudinary = () => {
@@ -93,7 +93,7 @@ const getReportPdfUrl = (reportId) => {
   });
 };
 
-module.exports = {
+export {
   initCloudinary,
   uploadBuffer,
   getSignedUrl,

@@ -1,4 +1,4 @@
-const cloudinaryUtils = require("../utils/cloudinary");
+import { getReportPdfUrl, resourceExists } from "../utils/cloudinary.js";
 
 export const handler = async (event, context) => {
   // Only allow GET requests

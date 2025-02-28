@@ -1,12 +1,7 @@
-const chromium = require("chrome-aws-lambda");
-const cloudinaryUtils = require("./cloudinary");
+// src/apps/client/functions/utils/pdf-generator.js
+import chromium from "chrome-aws-lambda";
+import * as cloudinaryUtils from "./cloudinary.js";
 
-/**
- * Generate a PDF for a specific report
- * @param {string} reportId - The report ID (e.g., "2025-06")
- * @param {string} baseUrl - The base URL of the site
- * @returns {Promise<Object>} - Object containing the PDF URL and buffer
- */
 const generateReportPdf = async (reportId, baseUrl) => {
   let browser = null;
 
@@ -76,6 +71,5 @@ const generateReportPdf = async (reportId, baseUrl) => {
   }
 };
 
-module.exports = {
-  generateReportPdf,
-};
+// Explicitly export the function
+export { generateReportPdf };
