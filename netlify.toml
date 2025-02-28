@@ -15,6 +15,13 @@ status = 200
 [functions]
 directory = "functions"
 node_bundler = "esbuild"
+external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
+
+# API redirects for PDF functions
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat"
+status = 200
 
 # Collectors and processor run at different times to spread the load
 [functions."collect-recaap"]
@@ -31,3 +38,7 @@ schedule = "20,50 * * * *"
 
 [functions."process-incidents"]
 schedule = "25,55 * * * *"
+
+# PDF generation function scheduled to run weekly
+[functions."scheduled-pdf-generation"]
+schedule = "@weekly"

@@ -25,28 +25,31 @@
   "license": "ISC",
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
+    "@novu/node": "^0.22.0",
+    "@novu/notification-center": "^0.22.0",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
+    "chrome-aws-lambda": "^10.1.0",
+    "cloudinary": "^2.5.1",
     "lucide-react": "^0.263.1",
     "mapbox-gl": "^2.15.0",
+    "puppeteer-core": "^10.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.1.5",
-    "recharts": "^2.12.0",
-    "@novu/notification-center": "^0.22.0",
-    "@novu/node": "^0.22.0"
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
-    "vite": "^5.0.12",
-    "@vitejs/plugin-react": "^4.2.1",
     "@tailwindcss/forms": "^0.5.7",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.1",
     "eslint": "^8.56.0",
+    "postcss": "^8.4.33",
     "prettier": "^3.0.0",
-    "turbo": "^1.12.0"
+    "tailwindcss": "^3.4.1",
+    "turbo": "^1.12.0",
+    "vite": "^5.0.12"
   }
 }

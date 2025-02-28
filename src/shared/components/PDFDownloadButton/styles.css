@@ -1,0 +1,9 @@
+.pdf-download-container {
+    position: relative;
+  }
+  
+  @media print {
+    .pdf-download-container {
+      display: none !important;
+    }
+  }

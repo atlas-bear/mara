@@ -1,0 +1,73 @@
+@media print, (print-mode: true) {
+    /* Hide elements not needed in the PDF */
+    nav, button, .no-print, footer, .pdf-download-container {
+      display: none !important;
+    }
+    
+    /* Ensure full page width and clean margins */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: white;
+    }
+    
+    /* Apply to all container-like elements */
+    .container, [class*="max-w-"], [class*="mx-auto"] {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    
+    /* Ensure maps render properly */
+    .mapboxgl-map {
+      page-break-inside: avoid;
+      height: 400px !important; /* Fixed height for consistency */
+    }
+    
+    /* Ensure charts render properly */
+    .recharts-wrapper {
+      page-break-inside: avoid;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 250px;
+    }
+    
+    /* Add page breaks between major sections */
+    .regional-section {
+      page-break-after: always;
+    }
+    
+    /* Improve readability with better typography */
+    body {
+      font-size: 12pt;
+      line-height: 1.3;
+    }
+    
+    h1 {
+      font-size: 18pt;
+      margin-top: 1cm;
+    }
+    
+    h2 {
+      font-size: 16pt;
+      margin-top: 0.8cm;
+    }
+    
+    h3 {
+      font-size: 14pt;
+    }
+    
+    /* Ensure proper table display */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      page-break-inside: avoid;
+    }
+    
+    table th, table td {
+      border: 1px solid #ddd;
+    }
+  }
