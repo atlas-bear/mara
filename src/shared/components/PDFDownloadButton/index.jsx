@@ -12,8 +12,11 @@ const PDFDownloadButton = ({
   label = 'Download PDF'
 }) => {
   // Either use the provided reportId or get it from URL params
-  const { yearWeek } = useParams();
-  const reportId = customReportId || yearWeek;
+  const { yearWeek, "*": wildcardParam } = useParams();
+  // Try to get reportId from different possible URL patterns
+  const reportId = customReportId || yearWeek || wildcardParam || 
+  // Extract from pathname as fallback
+    window.location.pathname.split('/').filter(segment => segment).pop();
   
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);

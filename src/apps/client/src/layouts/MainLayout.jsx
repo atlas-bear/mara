@@ -5,6 +5,8 @@ import PDFDownloadButton from '@shared/components/PDFDownloadButton';
 export default function MainLayout() {
   const { branding } = useBranding()
   const params = useParams(); // Get route parameters
+  // Check if current path matches a report pattern like /2025-06
+  const isReportPage = /^\/\d{4}-\d{2}$/.test(location.pathname);
 
   console.log("🚀 MainLayout mounted!");
   console.log("Params received:", params); // Debugging output
@@ -19,9 +21,11 @@ export default function MainLayout() {
               alt={branding.companyName} 
               className="h-8"
             />
-            <PDFDownloadButton 
-              variant="primary"
-            />
+            {isReportPage && (
+              <PDFDownloadButton 
+                variant="primary"
+              />
+            )}
           </div>
         </div>
       </header>
