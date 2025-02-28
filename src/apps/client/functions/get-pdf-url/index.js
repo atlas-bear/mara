@@ -1,4 +1,4 @@
-const cloudinaryUtils = require("./utils/cloudinary");
+const cloudinaryUtils = require("../utils/cloudinary");
 
 exports.handler = async (event, context) => {
   // Only allow GET requests

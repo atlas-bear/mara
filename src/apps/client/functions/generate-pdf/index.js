@@ -1,4 +1,4 @@
-const pdfGenerator = require("./utils/pdf-generator");
+const pdfGenerator = require("../utils/pdf-generator");
 
 exports.handler = async (event, context) => {
   // Only allow POST requests
