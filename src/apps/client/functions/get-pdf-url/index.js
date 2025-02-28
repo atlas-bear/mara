@@ -23,14 +23,14 @@ export const handler = async (event, context) => {
 
     // Check if PDF exists in Cloudinary
     const publicId = `mara-reports/report-${reportId}`;
-    const exists = await cloudinaryUtils.resourceExists(publicId);
+    const exists = await resourceExists(publicId);
 
     if (exists) {
       return {
         statusCode: 200,
         body: JSON.stringify({
           exists: true,
-          url: cloudinaryUtils.getReportPdfUrl(reportId),
+          url: getReportPdfUrl(reportId),
         }),
       };
     } else {

@@ -24,10 +24,7 @@ export const handler = async (event, context) => {
     const siteUrl = process.env.SITE_URL || `https://${event.headers.host}`;
 
     // Generate the PDF
-    const { pdfUrl, isNew } = await pdfGenerator.generateReportPdf(
-      reportId,
-      siteUrl
-    );
+    const { pdfUrl, isNew } = await generateReportPdf(reportId, siteUrl);
 
     return {
       statusCode: 200,
