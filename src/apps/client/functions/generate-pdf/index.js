@@ -1,4 +1,4 @@
-import { generateReportPdf } from "../utils/pdf-generator.js";
+const pdfGenerator = require("../utils/pdf-generator");
 
 export const handler = async (event, context) => {
   // Only allow POST requests
@@ -24,7 +24,10 @@ export const handler = async (event, context) => {
     const siteUrl = process.env.SITE_URL || `https://${event.headers.host}`;
 
     // Generate the PDF
-    const { pdfUrl, isNew } = await generateReportPdf(reportId, siteUrl);
+    const { pdfUrl, isNew } = await pdfGenerator.generateReportPdf(
+      reportId,
+      siteUrl
+    );
 
     return {
       statusCode: 200,

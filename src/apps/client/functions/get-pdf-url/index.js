@@ -1,4 +1,4 @@
-import { getReportPdfUrl, resourceExists } from "../utils/cloudinary.js";
+const cloudinaryUtils = require("../utils/cloudinary");
 
 export const handler = async (event, context) => {
   // Only allow GET requests
@@ -23,14 +23,14 @@ export const handler = async (event, context) => {
 
     // Check if PDF exists in Cloudinary
     const publicId = `mara-reports/report-${reportId}`;
-    const exists = await resourceExists(publicId);
+    const exists = await cloudinaryUtils.resourceExists(publicId);
 
     if (exists) {
       return {
         statusCode: 200,
         body: JSON.stringify({
           exists: true,
-          url: getReportPdfUrl(reportId),
+          url: cloudinaryUtils.getReportPdfUrl(reportId),
         }),
       };
     } else {

@@ -1,4 +1,4 @@
-import { v2 as cloudinary } from "cloudinary";
+const cloudinary = require("cloudinary").v2;
 
 // Initialize Cloudinary with environment variables
 const initCloudinary = () => {
@@ -38,28 +38,6 @@ const uploadBuffer = async (buffer, options = {}) => {
 };
 
 /**
- * Get a signed URL with an expiration time
- * @param {string} publicId - Cloudinary public ID
- * @param {Object} options - Signing options
- * @returns {string} - Signed URL
- */
-const getSignedUrl = (publicId, options = {}) => {
-  const cl = initCloudinary();
-
-  const defaultOptions = {
-    resource_type: "raw",
-    expires_at: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 7 days
-  };
-
-  const signOptions = { ...defaultOptions, ...options };
-
-  return cl.utils.api_sign_request(
-    { public_id: publicId, ...signOptions },
-    process.env.CLOUDINARY_API_SECRET
-  );
-};
-
-/**
  * Check if a file exists in Cloudinary
  * @param {string} publicId - The public ID to check
  * @returns {Promise<boolean>} - Whether the file exists
@@ -93,10 +71,10 @@ const getReportPdfUrl = (reportId) => {
   });
 };
 
-export {
+// Use module.exports for CommonJS exports
+module.exports = {
   initCloudinary,
   uploadBuffer,
-  getSignedUrl,
   resourceExists,
   getReportPdfUrl,
 };
