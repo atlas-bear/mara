@@ -1,6 +1,9 @@
-export const handler = async (event, context) => {
+module.exports.handler = async (event, context) => {
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: "Test function works!" }),
+    body: JSON.stringify({
+      message: "Test function works!",
+      time: new Date().toISOString(),
+    }),
   };
 };

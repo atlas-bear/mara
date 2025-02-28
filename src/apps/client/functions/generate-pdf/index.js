@@ -1,6 +1,6 @@
 const pdfGenerator = require("../utils/pdf-generator");
 
-export const handler = async (event, context) => {
+module.exports.handler = async (event, context) => {
   // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return {

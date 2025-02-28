@@ -1,6 +1,6 @@
 const cloudinaryUtils = require("../utils/cloudinary");
 
-export const handler = async (event, context) => {
+module.exports.handler = async (event, context) => {
   // Only allow GET requests
   if (event.httpMethod !== "GET") {
     return {
