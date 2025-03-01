@@ -1,6 +1,7 @@
 import { Outlet, useParams } from 'react-router-dom';
 import { useBranding } from '@client/hooks/useBranding'
 import PDFDownloadButton from '@shared/components/PDFDownloadButton';
+import '@shared/components/print-styles.css';
 
 export default function MainLayout() {
   const { branding } = useBranding()

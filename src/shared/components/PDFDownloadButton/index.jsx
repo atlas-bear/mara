@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import axios from 'axios';
 
 const PDFDownloadButton = ({ 
@@ -21,6 +21,7 @@ const PDFDownloadButton = ({
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [usePrintFallback, setUsePrintFallback] = useState(false);
 
   // Default styles based on variant
   const getButtonStyles = () => {
@@ -60,13 +61,19 @@ const PDFDownloadButton = ({
           localStorage.setItem(`pdf-url-${reportId}`, response.data.url);
         }
       } catch (error) {
-        console.log('PDF not yet available, will generate on demand');
-        // We don't set an error here as this is an expected case
+        console.log('PDF not yet available, will use print fallback');
+        setUsePrintFallback(true);
       }
     };
     
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
+  
+  // Simple print function that uses the browser's print dialog
+  const handlePrint = () => {
+    window.print();
+    setIsLoading(false);
+  };
   
   const handleDownload = async () => {
     // If we don't have a reportId, we can't do anything
@@ -81,10 +88,17 @@ const PDFDownloadButton = ({
       return;
     }
     
-    // Otherwise generate it on-demand
+    // Set loading state
     setIsLoading(true);
     setError(null);
     
+    // If we should use the print fallback, just print directly
+    if (usePrintFallback) {
+      handlePrint();
+      return;
+    }
+    
+    // Otherwise try to generate the PDF via the API
     try {
       const response = await axios.post(generateEndpoint, {
         reportId
@@ -99,7 +113,9 @@ const PDFDownloadButton = ({
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      setError('Failed to generate PDF. Please try again later.');
+      setError('Failed to generate PDF. Using print dialog instead.');
+      // Fall back to print dialog
+      handlePrint();
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +130,7 @@ const PDFDownloadButton = ({
         onClick={handleDownload}
         disabled={isLoading}
         className={getButtonStyles()}
-        aria-label="Download PDF report"
+        aria-label={pdfUrl ? "Download PDF report" : "Print report"}
       >
         {isLoading ? (
           <span className="flex items-center">
@@ -122,12 +138,16 @@ const PDFDownloadButton = ({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Generating PDF...
+            {pdfUrl ? "Opening PDF..." : "Preparing..."}
           </span>
         ) : (
           <>
-            <Download className="mr-2 h-4 w-4" />
-            {label}
+            {pdfUrl || !usePrintFallback ? (
+              <Download className="mr-2 h-4 w-4" />
+            ) : (
+              <Printer className="mr-2 h-4 w-4" />
+            )}
+            {pdfUrl ? label : (usePrintFallback ? "Print Report" : label)}
           </>
         )}
       </button>
