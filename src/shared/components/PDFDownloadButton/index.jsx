@@ -68,17 +68,31 @@ const PDFDownloadButton = ({
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
   
-  // New method to handle browser printing
+  // New method to handle browser printing in the current window
   const handlePrint = () => {
-    // Create a new window with print-optimized URL
-    const printWindow = window.open(`${window.location.pathname}?print=true`, '_blank');
+    // Add print mode class to body
+    document.body.classList.add('print-mode');
     
-    // Listen for the window to load and then trigger print
-    printWindow.onload = () => {
+    // Store current URL to restore after printing
+    const currentUrl = window.location.href;
+    
+    // Add print parameter to URL without reloading
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('print', 'true');
+    window.history.replaceState({}, '', newUrl);
+    
+    // Short delay to ensure styles are applied
+    setTimeout(() => {
+      // Trigger browser print dialog
+      window.print();
+      
+      // After printing complete, restore the URL and remove print mode
       setTimeout(() => {
-        printWindow.print();
-      }, 1000); // Short delay to ensure all content is loaded
-    };
+        window.history.replaceState({}, '', currentUrl);
+        document.body.classList.remove('print-mode');
+        setIsLoading(false);
+      }, 500);
+    }, 300);
   };
   
   const handleDownload = async () => {
@@ -94,7 +108,7 @@ const PDFDownloadButton = ({
       return;
     }
     
-    // Otherwise use browser printing
+    // Otherwise use browser printing in current tab
     setIsLoading(true);
     
     try {
@@ -103,7 +117,6 @@ const PDFDownloadButton = ({
     } catch (error) {
       console.error('Error with print dialog:', error);
       setError('Failed to open print dialog. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };

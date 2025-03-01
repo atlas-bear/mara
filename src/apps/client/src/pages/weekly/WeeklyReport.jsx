@@ -78,7 +78,13 @@ function WeeklyReport() {
   }, [location.search]);
 
   useEffect(() => {
-    document.title = 'MARA Weekly Report';
+    // Set document title with report period if available
+    if (start && end) {
+      const dateRange = formatDateRange(start, end);
+      document.title = `MARA Report ${dateRange}`;
+    } else {
+      document.title = 'MARA Weekly Report';
+    }
     
     // Apply print mode class to body if needed
     if (isPrintMode) {
@@ -90,7 +96,7 @@ function WeeklyReport() {
     return () => {
       document.body.classList.remove('print-mode');
     };
-  }, [isPrintMode]);
+  }, [isPrintMode, start, end]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
@@ -179,7 +185,10 @@ function WeeklyReport() {
     incidentsByRegion[region].push(incident);
   });
 
-  console.log('Incidents by region:', incidentsByRegion);
+  // Only log incident data in non-print mode
+  if (!isPrintMode) {
+    console.log('Incidents by region:', incidentsByRegion);
+  }
 
   const reportHeaderClass = isPrintMode ? "py-4 flex justify-center items-center mb-8" : "hidden";
   

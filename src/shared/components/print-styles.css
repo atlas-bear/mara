@@ -1,6 +1,7 @@
-@media print, (print-mode: true) {
+@media print, .print-mode {
     /* Hide elements not needed in the PDF */
-    nav, button, .no-print, footer, .pdf-download-container {
+    nav, button, .no-print, footer, .pdf-download-container, 
+    header, .navigation-controls, .filter-controls {
       display: none !important;
     }
     
@@ -44,6 +45,9 @@
     body {
       font-size: 12pt;
       line-height: 1.3;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     
     h1 {
