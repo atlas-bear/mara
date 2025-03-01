@@ -1,4 +1,14 @@
-@media print, .print-mode {
+/* Print-only elements - hidden on screen but shown in print */
+.print-only {
+  display: none;
+}
+
+@media print {
+    /* Show print-only elements */
+    .print-only {
+      display: block !important;
+    }
+    
     /* Hide elements not needed in the PDF */
     nav, button, .no-print, footer, .pdf-download-container, 
     header, .navigation-controls, .filter-controls {

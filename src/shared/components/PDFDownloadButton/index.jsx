@@ -68,54 +68,12 @@ const PDFDownloadButton = ({
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
   
-  // Handle browser printing in the current window
+  // Simple native print function
   const handlePrint = () => {
-    try {
-      // Store current URL to restore after printing
-      const currentUrl = window.location.href;
-      
-      // Create a safety timeout to reset loading state
-      const safetyTimer = setTimeout(() => {
-        setIsLoading(false);
-      }, 5000);
-      
-      // Add print mode via URL parameter - this triggers the print mode in WeeklyReport
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('print', 'true');
-      window.history.replaceState({}, '', newUrl);
-      
-      // Ensure current page is fully loaded before printing
-      if (document.readyState === 'complete') {
-        setTimeout(() => {
-          window.print();
-          
-          // Clean up after printing
-          setTimeout(() => {
-            window.history.replaceState({}, '', currentUrl);
-            setIsLoading(false);
-            clearTimeout(safetyTimer);
-          }, 500);
-        }, 500);
-      } else {
-        // If document isn't fully loaded, wait for it
-        window.addEventListener('load', () => {
-          setTimeout(() => {
-            window.print();
-            
-            // Clean up after printing
-            setTimeout(() => {
-              window.history.replaceState({}, '', currentUrl);
-              setIsLoading(false);
-              clearTimeout(safetyTimer);
-            }, 500);
-          }, 500);
-        }, { once: true });
-      }
-    } catch (error) {
-      console.error("Error in print handler:", error);
-      setIsLoading(false);
-      setError("Error opening print dialog. Please try again.");
-    }
+    // Just use the browser's native print function
+    window.print();
+    // Reset loading state after a short delay
+    setTimeout(() => setIsLoading(false), 300);
   };
   
   const handleDownload = async () => {

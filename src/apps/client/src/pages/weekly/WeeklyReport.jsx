@@ -200,17 +200,20 @@ function WeeklyReport() {
     console.log('Incidents by region:', incidentsByRegion);
   }
 
-  const reportHeaderClass = isPrintMode ? "py-4 flex justify-center items-center mb-8" : "hidden";
+  // Adding a special class for print view that is shown on screen and in print
+  const reportHeaderClass = "print-only py-4 flex justify-center items-center mb-8";
   
   return (
-    <div className={`${isPrintMode ? 'bg-white' : 'min-h-screen bg-gray-100'} py-8`}>
+    <div className="min-h-screen bg-gray-100 py-8">
       
-      {/* Print-only header */}
+      {/* Print-only header - always rendered but only visible in print mode */}
       <div className={reportHeaderClass}>
         <h1 className="text-2xl font-bold text-center">
           MARA Maritime Security Report
           <br />
-          <span className="text-xl">{formatDateRange(start, end)}</span>
+          <span className="text-xl">
+            {start && end ? formatDateRange(start, end) : 'Weekly Report'}
+          </span>
         </h1>
       </div>
       
