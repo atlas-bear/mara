@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import axios from 'axios';
 
 const PDFDownloadButton = ({ 
@@ -60,13 +60,26 @@ const PDFDownloadButton = ({
           localStorage.setItem(`pdf-url-${reportId}`, response.data.url);
         }
       } catch (error) {
-        console.log('PDF not yet available, will generate on demand');
+        console.log('PDF not yet available, will use print view');
         // We don't set an error here as this is an expected case
       }
     };
     
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
+  
+  // New method to handle browser printing
+  const handlePrint = () => {
+    // Create a new window with print-optimized URL
+    const printWindow = window.open(`${window.location.pathname}?print=true`, '_blank');
+    
+    // Listen for the window to load and then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 1000); // Short delay to ensure all content is loaded
+    };
+  };
   
   const handleDownload = async () => {
     // If we don't have a reportId, we can't do anything
@@ -75,31 +88,21 @@ const PDFDownloadButton = ({
       return;
     }
 
-    // If we already have the URL, just download it
+    // If we already have a cached PDF URL, just open it
     if (pdfUrl) {
       window.open(pdfUrl, '_blank');
       return;
     }
     
-    // Otherwise generate it on-demand
+    // Otherwise use browser printing
     setIsLoading(true);
-    setError(null);
     
     try {
-      const response = await axios.post(generateEndpoint, {
-        reportId
-      });
-      
-      if (response.data.success && response.data.pdfUrl) {
-        setPdfUrl(response.data.pdfUrl);
-        localStorage.setItem(`pdf-url-${reportId}`, response.data.pdfUrl);
-        window.open(response.data.pdfUrl, '_blank');
-      } else {
-        throw new Error('PDF generation failed');
-      }
+      // Fall back to browser printing for PDF generation
+      handlePrint();
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      setError('Failed to generate PDF. Please try again later.');
+      console.error('Error with print dialog:', error);
+      setError('Failed to open print dialog. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +112,7 @@ const PDFDownloadButton = ({
   if (!reportId) return null;
   
   return (
-    <div className="pdf-download-container">
+    <div className="pdf-download-container flex space-x-2">
       <button
         onClick={handleDownload}
         disabled={isLoading}
@@ -122,12 +125,16 @@ const PDFDownloadButton = ({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Generating PDF...
+            Opening...
           </span>
         ) : (
           <>
-            <Download className="mr-2 h-4 w-4" />
-            {label}
+            {pdfUrl ? (
+              <Download className="mr-2 h-4 w-4" />
+            ) : (
+              <Printer className="mr-2 h-4 w-4" />
+            )}
+            {pdfUrl ? label : 'Print PDF'}
           </>
         )}
       </button>

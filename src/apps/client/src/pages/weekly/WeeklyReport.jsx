@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useLocation } from 'react-router-dom';
 import { 
   ExecutiveBrief, 
   RegionalBrief, 
@@ -8,6 +8,7 @@ import {
   formatDateRange,
   fetchWeeklyIncidents
 } from '@shared/features/weekly-report';
+import '@shared/components/print-styles.css';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -64,14 +65,32 @@ const REGION_ORDER = [
 
 function WeeklyReport() {
   const { yearWeek } = useParams();
+  const location = useLocation();
   const [incidents, setIncidents] = useState([]);
   const [latestIncidents, setLatestIncidents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Check if in print mode
+  const isPrintMode = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('print') === 'true';
+  }, [location.search]);
 
   useEffect(() => {
     document.title = 'MARA Weekly Report';
-  }, []);
+    
+    // Apply print mode class to body if needed
+    if (isPrintMode) {
+      document.body.classList.add('print-mode');
+    } else {
+      document.body.classList.remove('print-mode');
+    }
+    
+    return () => {
+      document.body.classList.remove('print-mode');
+    };
+  }, [isPrintMode]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
@@ -162,8 +181,19 @@ function WeeklyReport() {
 
   console.log('Incidents by region:', incidentsByRegion);
 
+  const reportHeaderClass = isPrintMode ? "py-4 flex justify-center items-center mb-8" : "hidden";
+  
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className={`${isPrintMode ? 'bg-white' : 'min-h-screen bg-gray-100'} py-8`}>
+      
+      {/* Print-only header */}
+      <div className={reportHeaderClass}>
+        <h1 className="text-2xl font-bold text-center">
+          MARA Maritime Security Report
+          <br />
+          <span className="text-xl">{formatDateRange(start, end)}</span>
+        </h1>
+      </div>
       
       <ExecutiveBrief 
         incidents={incidents} 
@@ -177,7 +207,7 @@ function WeeklyReport() {
         const latestRegionIncident = latestIncidents[region];
 
         return (
-          <div key={region}>
+          <div key={region} className="regional-section mb-8">
             {/* Regional Brief Section */}
             <RegionalBrief 
               incidents={regionIncidents}
