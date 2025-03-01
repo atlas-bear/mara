@@ -1,17 +1,25 @@
-/* Print-only elements - hidden on screen but shown in print */
-.print-only {
-  display: none;
+/* Print-specific styles */
+.print-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px;
 }
 
+.print-loading, .print-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+/* Add specific styles for the print view */
 @media print {
-    /* Show print-only elements */
-    .print-only {
-      display: block !important;
-    }
-    
     /* Hide elements not needed in the PDF */
     nav, button, .no-print, footer, .pdf-download-container, 
-    header, .navigation-controls, .filter-controls {
+    header, .navigation-controls, .filter-controls,
+    .print-loading {
       display: none !important;
     }
     

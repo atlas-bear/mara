@@ -68,10 +68,10 @@ const PDFDownloadButton = ({
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
   
-  // Simple native print function
+  // Navigate to the print-specific route
   const handlePrint = () => {
-    // Just use the browser's native print function
-    window.print();
+    // Open the print view in a new tab
+    window.open(`/print/${reportId}`, '_blank');
     // Reset loading state after a short delay
     setTimeout(() => setIsLoading(false), 300);
   };
