@@ -8,8 +8,8 @@ export default function MainLayout() {
   // Check if current path matches a report pattern like /2025-06
   const isReportPage = /^\/\d{4}-\d{2}$/.test(location.pathname);
 
-  console.log("🚀 MainLayout mounted!");
-  console.log("Params received:", params); // Debugging output
+  // Parse report ID from path for PDF download button
+  const reportId = isReportPage ? location.pathname.substring(1) : null;
   
   return (
     <div className="min-h-screen bg-gray-100">
@@ -21,9 +21,12 @@ export default function MainLayout() {
               alt={branding.companyName} 
               className="h-8"
             />
-            {isReportPage && (
+            {isReportPage && reportId && (
               <PDFDownloadButton 
                 variant="primary"
+                customReportId={reportId}
+                apiEndpoint="/.netlify/functions/get-pdf-url"
+                generateEndpoint="/.netlify/functions/generate-pdf"
               />
             )}
           </div>

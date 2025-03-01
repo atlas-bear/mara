@@ -7,7 +7,7 @@ const cloudinaryUtils = require("./cloudinary");
  * @param {string} baseUrl - The base URL of the site
  * @returns {Promise<Object>} - Object containing the PDF URL
  */
-const generateReportPdf = async (reportId, baseUrl) => {
+async function generateReportPdf(reportId, baseUrl) {
   let browser = null;
 
   try {
@@ -86,7 +86,7 @@ const generateReportPdf = async (reportId, baseUrl) => {
       await browser.close();
     }
   }
-};
+}
 
 // Use module.exports for CommonJS exports
 module.exports = {
