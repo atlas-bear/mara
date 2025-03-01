@@ -1,0 +1,1 @@
+This file exists to mark a revert to the working version of PDF functionality. The code is reverted to commit 3235d59 where PDF generation was working properly.
