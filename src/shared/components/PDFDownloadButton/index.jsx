@@ -82,7 +82,7 @@ const PDFDownloadButton = ({
       return;
     }
 
-    // If we already have the URL, just download it
+    // If we already have a cached PDF URL, just open it
     if (pdfUrl) {
       window.open(pdfUrl, '_blank');
       return;
@@ -90,7 +90,6 @@ const PDFDownloadButton = ({
     
     // Set loading state
     setIsLoading(true);
-    setError(null);
     
     // If we should use the print fallback, just print directly
     if (usePrintFallback) {
@@ -125,7 +124,7 @@ const PDFDownloadButton = ({
   if (!reportId) return null;
   
   return (
-    <div className="pdf-download-container">
+    <div className="pdf-download-container flex space-x-2">
       <button
         onClick={handleDownload}
         disabled={isLoading}

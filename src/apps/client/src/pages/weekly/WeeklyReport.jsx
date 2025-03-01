@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useLocation } from 'react-router-dom';
 import { 
   ExecutiveBrief, 
   RegionalBrief, 
@@ -8,6 +8,7 @@ import {
   formatDateRange,
   fetchWeeklyIncidents
 } from '@shared/features/weekly-report';
+import '@shared/components/print-styles.css';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -64,14 +65,48 @@ const REGION_ORDER = [
 
 function WeeklyReport() {
   const { yearWeek } = useParams();
+  const location = useLocation();
   const [incidents, setIncidents] = useState([]);
   const [latestIncidents, setLatestIncidents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
+  // Check if in print mode
+  const isPrintMode = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('print') === 'true';
+  }, [location.search]);
+  
+  // Set basic title immediately
   useEffect(() => {
     document.title = 'MARA Weekly Report';
   }, []);
+
+  // Update title and print mode when data is available
+  useEffect(() => {
+    // Only update title if both start and end are available
+    if (start && end) {
+      try {
+        const dateRange = formatDateRange(start, end);
+        document.title = `MARA Report ${dateRange}`;
+      } catch (err) {
+        console.error('Error formatting date range for title:', err);
+      }
+    }
+  }, [start, end]);
+  
+  // Handle print mode separately
+  useEffect(() => {
+    if (isPrintMode) {
+      document.body.classList.add('print-mode');
+    } else {
+      document.body.classList.remove('print-mode');
+    }
+    
+    return () => {
+      document.body.classList.remove('print-mode');
+    };
+  }, [isPrintMode]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
@@ -160,10 +195,27 @@ function WeeklyReport() {
     incidentsByRegion[region].push(incident);
   });
 
-  console.log('Incidents by region:', incidentsByRegion);
+  // Only log incident data in non-print mode
+  if (!isPrintMode) {
+    console.log('Incidents by region:', incidentsByRegion);
+  }
 
+  // Adding a special class for print view that is shown on screen and in print
+  const reportHeaderClass = "print-only py-4 flex justify-center items-center mb-8";
+  
   return (
     <div className="min-h-screen bg-gray-100 py-8">
+      
+      {/* Print-only header - always rendered but only visible in print mode */}
+      <div className={reportHeaderClass}>
+        <h1 className="text-2xl font-bold text-center">
+          MARA Maritime Security Report
+          <br />
+          <span className="text-xl">
+            {start && end ? formatDateRange(start, end) : 'Weekly Report'}
+          </span>
+        </h1>
+      </div>
       
       <ExecutiveBrief 
         incidents={incidents} 
@@ -177,7 +229,7 @@ function WeeklyReport() {
         const latestRegionIncident = latestIncidents[region];
 
         return (
-          <div key={region}>
+          <div key={region} className="regional-section mb-8">
             {/* Regional Brief Section */}
             <RegionalBrief 
               incidents={regionIncidents}

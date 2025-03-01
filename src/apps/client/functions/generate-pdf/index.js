@@ -21,7 +21,22 @@ module.exports.handler = async (event, context) => {
     }
 
     // Get the site URL from environment or headers
-    const siteUrl = process.env.SITE_URL || `https://${event.headers.host}`;
+    // Use the complete original URL if available to handle custom domains
+    const referer = event.headers.referer;
+    const originUrl = event.headers.origin;
+    let siteUrl;
+    
+    if (referer) {
+      // Extract base URL from referer
+      const url = new URL(referer);
+      siteUrl = `${url.protocol}//${url.host}`;
+    } else if (originUrl) {
+      siteUrl = originUrl;
+    } else {
+      siteUrl = process.env.SITE_URL || `https://${event.headers.host}`;
+    }
+    
+    console.log(`Using site URL: ${siteUrl} for PDF generation`);
 
     // Generate the PDF
     const { pdfUrl, isNew } = await pdfGenerator.generateReportPdf(
