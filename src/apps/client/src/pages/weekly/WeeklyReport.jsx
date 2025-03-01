@@ -76,17 +76,27 @@ function WeeklyReport() {
     const searchParams = new URLSearchParams(location.search);
     return searchParams.get('print') === 'true';
   }, [location.search]);
-
+  
+  // Set basic title immediately
   useEffect(() => {
-    // Set document title with report period if available
+    document.title = 'MARA Weekly Report';
+  }, []);
+
+  // Update title and print mode when data is available
+  useEffect(() => {
+    // Only update title if both start and end are available
     if (start && end) {
-      const dateRange = formatDateRange(start, end);
-      document.title = `MARA Report ${dateRange}`;
-    } else {
-      document.title = 'MARA Weekly Report';
+      try {
+        const dateRange = formatDateRange(start, end);
+        document.title = `MARA Report ${dateRange}`;
+      } catch (err) {
+        console.error('Error formatting date range for title:', err);
+      }
     }
-    
-    // Apply print mode class to body if needed
+  }, [start, end]);
+  
+  // Handle print mode separately
+  useEffect(() => {
     if (isPrintMode) {
       document.body.classList.add('print-mode');
     } else {
@@ -96,7 +106,7 @@ function WeeklyReport() {
     return () => {
       document.body.classList.remove('print-mode');
     };
-  }, [isPrintMode, start, end]);
+  }, [isPrintMode]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';

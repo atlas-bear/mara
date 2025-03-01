@@ -68,31 +68,54 @@ const PDFDownloadButton = ({
     checkPdfUrl();
   }, [reportId, apiEndpoint]);
   
-  // New method to handle browser printing in the current window
+  // Handle browser printing in the current window
   const handlePrint = () => {
-    // Add print mode class to body
-    document.body.classList.add('print-mode');
-    
-    // Store current URL to restore after printing
-    const currentUrl = window.location.href;
-    
-    // Add print parameter to URL without reloading
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set('print', 'true');
-    window.history.replaceState({}, '', newUrl);
-    
-    // Short delay to ensure styles are applied
-    setTimeout(() => {
-      // Trigger browser print dialog
-      window.print();
+    try {
+      // Store current URL to restore after printing
+      const currentUrl = window.location.href;
       
-      // After printing complete, restore the URL and remove print mode
-      setTimeout(() => {
-        window.history.replaceState({}, '', currentUrl);
-        document.body.classList.remove('print-mode');
+      // Create a safety timeout to reset loading state
+      const safetyTimer = setTimeout(() => {
         setIsLoading(false);
-      }, 500);
-    }, 300);
+      }, 5000);
+      
+      // Add print mode via URL parameter - this triggers the print mode in WeeklyReport
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('print', 'true');
+      window.history.replaceState({}, '', newUrl);
+      
+      // Ensure current page is fully loaded before printing
+      if (document.readyState === 'complete') {
+        setTimeout(() => {
+          window.print();
+          
+          // Clean up after printing
+          setTimeout(() => {
+            window.history.replaceState({}, '', currentUrl);
+            setIsLoading(false);
+            clearTimeout(safetyTimer);
+          }, 500);
+        }, 500);
+      } else {
+        // If document isn't fully loaded, wait for it
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            window.print();
+            
+            // Clean up after printing
+            setTimeout(() => {
+              window.history.replaceState({}, '', currentUrl);
+              setIsLoading(false);
+              clearTimeout(safetyTimer);
+            }, 500);
+          }, 500);
+        }, { once: true });
+      }
+    } catch (error) {
+      console.error("Error in print handler:", error);
+      setIsLoading(false);
+      setError("Error opening print dialog. Please try again.");
+    }
   };
   
   const handleDownload = async () => {
