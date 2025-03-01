@@ -25,22 +25,14 @@ async function generateReportPdf(reportId, baseUrl) {
       };
     }
 
-    // Launch headless browser
+    // Configure Chrome options for Netlify Functions environment
+    const executablePath = process.env.CHROME_EXECUTABLE_PATH || await chromium.executablePath;
+    
+    // Launch headless browser with minimal arguments for Netlify Functions
     browser = await chromium.puppeteer.launch({
-      args: [
-        ...chromium.args,
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: true,
+      args: chromium.args,
+      executablePath,
+      headless: chromium.headless,
       ignoreHTTPSErrors: true,
     });
 
@@ -83,7 +75,11 @@ async function generateReportPdf(reportId, baseUrl) {
     throw error;
   } finally {
     if (browser !== null) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (error) {
+        console.error("Error closing browser:", error);
+      }
     }
   }
 }

@@ -25,6 +25,8 @@ external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
 [functions.generate-pdf]
 included_files = []
 external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
+memory = 1024
+timeout = 30
 
 [[redirects]]
 from = "/api/*"
