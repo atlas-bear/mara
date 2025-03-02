@@ -15,25 +15,46 @@ const MaritimeMap = ({
   useLayoutEffect(() => {
     if (mapInstance.current) return;
 
+    // Get MapBox token from environment
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!token) {
-      console.error('MapBox token not found');
+      console.error('MapBox token not found in environment variables');
       setMapError(true);
       return;
     }
+    
+    // For security, create a reference to the token rather than logging it
+    console.log('MapBox token found:', token ? 'yes' : 'no');
 
     try {
       mapboxgl.accessToken = token;
 
+      // Use a fallback style if the custom style fails
+      const defaultStyle = 'mapbox://styles/mapbox/navigation-day-v1';
+      const customStyle = 'mapbox://styles/mara-admin/clsbsqqvb011f01qqfwo95y4q';
+      
       const map = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mara-admin/clsbsqqvb011f01qqfwo95y4q',
+        style: customStyle,
         center: center,
         zoom: zoom,
         preserveDrawingBuffer: true,
         trackResize: true,
         attributionControl: false,
         navigationControl: false
+      });
+      
+      // Add error handler specifically for style loading
+      map.on('style.load', () => {
+        console.log('Map style loaded successfully');
+      });
+      
+      map.on('error', (e) => {
+        // Check if the error is related to style loading
+        if (e.error && e.error.status === 404 && e.error.url && e.error.url.includes('styles')) {
+          console.warn('Custom map style not found, falling back to default style');
+          map.setStyle(defaultStyle);
+        }
       });
 
       map.on('load', () => {
