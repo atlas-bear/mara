@@ -103,7 +103,7 @@ const IncidentDetails = ({ incident, isHistorical = false }) => {
         <MaritimeMap 
           incidents={mapIncidents}
           center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
-          zoom={10}
+          zoom={5}
         />
         <div className="mt-2 text-xs text-gray-500">
           <span className="flex items-center">

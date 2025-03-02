@@ -8,35 +8,35 @@ const REGIONS = {
     title: 'West Africa',
     description: 'West African VRA/HRA',
     defaultCenter: [1, 4],
-    defaultZoom: 5,
+    defaultZoom: 3,
     threatLevel: 'SUBSTANTIAL'
   },
   'Southeast Asia': {
     title: 'Southeast Asia',
     description: 'Southeast Asia Region',
     defaultCenter: [103.8, 1.12],
-    defaultZoom: 8,
+    defaultZoom: 3,
     threatLevel: 'SUBSTANTIAL'
   },
   'Indian Ocean': {
     title: 'Indian Ocean',
     description: 'Indian Ocean VRA/HRA',
     defaultCenter: [65, 12],
-    defaultZoom: 5,
+    defaultZoom: 3,
     threatLevel: 'SUBSTANTIAL'
   },
   'Americas': {
     title: 'Americas',
     description: 'Americas Region',
     defaultCenter: [-80, 10],
-    defaultZoom: 4,
+    defaultZoom: 3,
     threatLevel: 'MODERATE'
   },
   'Europe': {
     title: 'Europe',
     description: 'Europe/Black Sea Region',
     defaultCenter: [30, 45],
-    defaultZoom: 6,
+    defaultZoom: 3,
     threatLevel: 'MODERATE'
   }
 };
