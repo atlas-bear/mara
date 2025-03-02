@@ -49,7 +49,10 @@ const MaritimeMap = ({
       const defaultStyle = 'mapbox://styles/mapbox/light-v11'; // More reliable style
       const customStyle = 'mapbox://styles/mara-admin/clsbsqqvb011f01qqfwo95y4q';
       
-      // Create map with resource timeout settings
+      // Instead of trying to modify readonly config properties,
+      // we'll use a different approach to handle events.mapbox.com errors
+      
+      // Create map with resource timeout settings and telemetry disabled
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: customStyle,
@@ -62,7 +65,20 @@ const MaritimeMap = ({
         failIfMajorPerformanceCaveat: false, // More permissive rendering
         localIdeographFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif", // Font fallbacks
         maxZoom: 18,
-        refreshExpiredTiles: false // Prevent unnecessary resource requests
+        refreshExpiredTiles: false, // Prevent unnecessary resource requests
+        trackResize: true,
+        collectResourceTiming: false, // Disable performance data collection
+        interactive: true, // Keep map interactive
+        boxZoom: true,
+        dragRotate: false, // Simplify interaction model
+        touchZoomRotate: true,
+        doubleClickZoom: true,
+        keyboard: false, // Disable unnecessary keyboard handlers
+        fadeDuration: 0, // Reduce animations
+        preserveDrawingBuffer: true,
+        trackUserLocation: false, // Don't track user location
+        pitchWithRotate: false, // Simplify 3D
+        attributionControl: false
       });
       
       // Add error handler specifically for style loading
