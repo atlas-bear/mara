@@ -32,7 +32,7 @@ const IncidentDetails = ({ incident, isHistorical = false }) => {
   }];
 
   return (
-    <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg my-8">
+    <div className="incident-detail max-w-4xl mx-auto bg-white shadow-lg rounded-lg my-8">
       {/* Header with Alert Status */}
       <div className="bg-orange-50 p-6 rounded-t-lg border-b border-orange-100">
         {isHistorical && (

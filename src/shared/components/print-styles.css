@@ -1,6 +1,8 @@
 @media print, (print-mode: true) {
     /* Hide elements not needed in the PDF */
-    nav, button, .no-print, footer, .pdf-download-container {
+    nav, button, .no-print, footer, .pdf-download-container, .pdf-cover, 
+    /* Also hide the title since we add it to the PDF header */
+    .pdf-cover h1, .content-container > h1:first-child, .content-container > div:first-child > h1 {
       display: none !important;
     }
     
@@ -35,9 +37,11 @@
       min-height: 250px;
     }
     
-    /* Add page breaks between major sections */
-    .regional-section {
-      page-break-after: always;
+    /* Remove page breaks for continuous PDF */
+    * {
+      page-break-inside: auto !important;
+      page-break-before: auto !important;
+      page-break-after: auto !important;
     }
     
     /* Improve readability with better typography */

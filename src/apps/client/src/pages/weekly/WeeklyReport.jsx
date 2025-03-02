@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useSearchParams } from 'react-router-dom';
 import { 
   ExecutiveBrief, 
   RegionalBrief, 
@@ -8,6 +8,7 @@ import {
   formatDateRange,
   fetchWeeklyIncidents
 } from '@shared/features/weekly-report';
+import '@shared/components/print-styles.css';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -69,9 +70,26 @@ function WeeklyReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [searchParams] = useSearchParams();
+  const isPrintMode = searchParams.get('print') === 'true';
+  
   useEffect(() => {
     document.title = 'MARA Weekly Report';
-  }, []);
+    
+    // Apply print mode class if needed
+    if (isPrintMode) {
+      document.documentElement.classList.add('print-mode');
+      // Auto-trigger print dialog after content loads
+      const timer = setTimeout(() => {
+        window.print();
+      }, 3000); // Wait for maps and charts to render
+      
+      return () => {
+        clearTimeout(timer);
+        document.documentElement.classList.remove('print-mode');
+      };
+    }
+  }, [isPrintMode]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
@@ -163,48 +181,58 @@ function WeeklyReport() {
   console.log('Incidents by region:', incidentsByRegion);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      
-      <ExecutiveBrief 
-        incidents={incidents} 
-        start={start} 
-        end={end} 
-      />
+    <div className={`min-h-screen bg-gray-100 py-8 ${isPrintMode ? 'print-mode' : ''}`}>
+      <div className="content-container max-w-4xl mx-auto">
+        {/* Cover section only visible in screen mode, not in PDF */}
+        <div className="pdf-cover page-break-after mb-8 no-print">
+          <h1 className="text-3xl font-bold text-center mb-4">
+            Weekly Maritime Security Report
+          </h1>
+        </div>
+        
+        <ExecutiveBrief 
+          incidents={incidents} 
+          start={start} 
+          end={end} 
+        />
 
-      {/* Display each region in order */}
-      {REGION_ORDER.map(region => {
-        const regionIncidents = incidentsByRegion[region] || [];
-        const latestRegionIncident = latestIncidents[region];
+        {/* Display each region in order */}
+        {REGION_ORDER.map(region => {
+          const regionIncidents = incidentsByRegion[region] || [];
+          const latestRegionIncident = latestIncidents[region];
 
-        return (
-          <div key={region}>
-            {/* Regional Brief Section */}
-            <RegionalBrief 
-              incidents={regionIncidents}
-              latestIncidents={{ [region]: latestRegionIncident }}
-              currentRegion={region}
-              start={start} 
-              end={end}
-            />
-
-            {/* Display incidents for this region */}
-            {regionIncidents.map(incident => (
-              <IncidentDetails 
-                key={incident.incident.id}
-                incident={incident}
+          return (
+            <div key={region} className="regional-section mb-8">
+              {/* Regional Brief Section */}
+              <RegionalBrief 
+                incidents={regionIncidents}
+                latestIncidents={{ [region]: latestRegionIncident }}
+                currentRegion={region}
+                start={start} 
+                end={end}
               />
-            ))}
 
-            {/* Show latest incident if no current incidents */}
-            {regionIncidents.length === 0 && latestRegionIncident && (
-              <IncidentDetails 
-                incident={latestRegionIncident}
-                isHistorical={true}
-              />
-            )}
-          </div>
-        );
-      })}
+              {/* Display incidents for this region */}
+              <div className="incidents-container">
+                {regionIncidents.map(incident => (
+                  <IncidentDetails 
+                    key={incident.incident.id}
+                    incident={incident}
+                  />
+                ))}
+
+                {/* Show latest incident if no current incidents */}
+                {regionIncidents.length === 0 && latestRegionIncident && (
+                  <IncidentDetails 
+                    incident={latestRegionIncident}
+                    isHistorical={true}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

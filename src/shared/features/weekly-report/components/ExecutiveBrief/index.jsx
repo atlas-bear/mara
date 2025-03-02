@@ -110,7 +110,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
       <div className="p-6 border-b border-gray-200">
         <div className="flex justify-between items-baseline">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Maritime Security Executive Brief
+            Executive Brief
           </h1>
           <p className="text-sm md:text-base text-gray-600">
             Week {getWeekNumber(new Date(start))} ({formatDateRange(start, end)})
