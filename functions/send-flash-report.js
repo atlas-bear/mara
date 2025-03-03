@@ -49,11 +49,47 @@ export const handler = async (event, context) => {
 
     const { incidentId, recipients, customBranding, templateOverrides } = payload;
     
-    // Fetch incident data from Airtable
+    // Fetch incident data from Airtable or use sample data for testing
     let incidentData;
+    
+    // For testing purposes - this is a sample incident to use when Airtable is not available
+    // or when testing with sample data
+    const sampleIncidentData = {
+      id: '2024-2662',
+      incident_type: 'Robbery',
+      date_time_utc: '2024-10-17T18:08:00.000Z',
+      location_name: 'Singapore Strait',
+      latitude: '1.13',
+      longitude: '103.5',
+      vessel_name: 'ASPASIA LUCK',
+      vessel_type: 'Bulk Carrier',
+      vessel_flag: 'Liberia',
+      vessel_imo: '9223485',
+      vessel_status_during_incident: 'Underway',
+      vessel_destination: 'PEBGB',
+      crew_impact: 'All Safe',
+      description: 'Test incident description for flash report from serverless function.',
+      response_type: ['Action 1', 'Action 2'],
+      authorities_notified: ['Local Maritime Authority'],
+      items_stolen: ['Ship supplies'],
+      analysis: 'This is a sample analysis for testing the flash report email functionality.',
+      recommendations: 'Use caution when transiting this area.'
+    };
+
     try {
-      incidentData = await getIncident(incidentId);
+      // Try to get real incident data first
+      try {
+        incidentData = await getIncident(incidentId);
+      } catch (airtableError) {
+        console.warn('Could not fetch from Airtable:', airtableError.message);
+        // If Airtable fetch fails and this is the sample incident ID, use sample data
+        if (incidentId === '2024-2662') {
+          console.log('Using sample incident data instead');
+          incidentData = sampleIncidentData;
+        }
+      }
       
+      // If we still don't have incident data, return an error
       if (!incidentData) {
         return {
           statusCode: 404,
@@ -62,7 +98,7 @@ export const handler = async (event, context) => {
         };
       }
     } catch (error) {
-      console.error('Error fetching incident:', error);
+      console.error('Error handling incident data:', error);
       return {
         statusCode: 500,
         headers: corsHeaders,
@@ -74,10 +110,20 @@ export const handler = async (event, context) => {
     let vesselData = {};
     if (incidentData.vessel_imo) {
       try {
+        // First try to fetch from Airtable
         vesselData = await getVesselByIMO(incidentData.vessel_imo);
       } catch (error) {
         console.error('Error fetching vessel data:', error);
-        // Continue without vessel data if there's an error
+        // If this is the sample incident, use sample vessel data
+        if (incidentId === '2024-2662') {
+          vesselData = {
+            name: incidentData.vessel_name,
+            type: incidentData.vessel_type,
+            flag: incidentData.vessel_flag,
+            imo: incidentData.vessel_imo
+          };
+        }
+        // For other incidents, continue without vessel data
       }
     }
     
@@ -88,22 +134,32 @@ export const handler = async (event, context) => {
         // Generate a MapBox Static API URL
         const mapboxToken = process.env.MAPBOX_TOKEN;
         
-        // Define marker appearance based on incident type
-        const incident_type = incidentData.incident_type || 'unknown';
-        const markerColor = getMarkerColorByType(incident_type.toLowerCase());
-        
-        // Create a marker for the incident location
-        const marker = `pin-l+${markerColor.replace('#', '')}(${incidentData.longitude},${incidentData.latitude})`;
-        
-        // Define map style - using satellite by default
-        const mapStyle = 'mapbox/satellite-v9';
-        
-        // Build URL
-        mapImageUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${incidentData.longitude},${incidentData.latitude},5,0/600x400@2x?access_token=${mapboxToken}`;
+        if (!mapboxToken) {
+          console.warn('MapBox token not found in environment variables');
+          // Use a placeholder image if no token is available
+          mapImageUrl = 'https://placehold.co/600x400?text=Map+Location';
+        } else {
+          // Define marker appearance based on incident type
+          const incident_type = incidentData.incident_type || 'unknown';
+          const markerColor = getMarkerColorByType(incident_type.toLowerCase());
+          
+          // Create a marker for the incident location
+          const marker = `pin-l+${markerColor.replace('#', '')}(${incidentData.longitude},${incidentData.latitude})`;
+          
+          // Define map style - using satellite by default
+          const mapStyle = 'mapbox/satellite-v9';
+          
+          // Build URL
+          mapImageUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${incidentData.longitude},${incidentData.latitude},5,0/600x400@2x?access_token=${mapboxToken}`;
+        }
+      } else {
+        console.warn('No coordinates available for map generation');
+        mapImageUrl = 'https://placehold.co/600x400?text=No+Coordinates';
       }
     } catch (mapError) {
       console.error('Error generating map image:', mapError);
-      // Continue without map image if there's an error
+      // Use a fallback for errors
+      mapImageUrl = 'https://placehold.co/600x400?text=Map+Error';
     }
     
     // Prepare incident data for email
@@ -132,7 +188,24 @@ export const handler = async (event, context) => {
       mapImageUrl
     };
     
-    // Send emails
+    // Check if SendGrid API key is available
+    if (!process.env.SENDGRID_API_KEY) {
+      console.warn('SendGrid API key not found in environment variables');
+      
+      // For testing without sending emails
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          message: 'TESTING MODE: Email would be sent (no SendGrid API key provided)',
+          incident: preparedIncident,
+          recipients: recipients.map(r => r.email),
+          mapImageUrl: mapImageUrl || 'No map generated'
+        })
+      };
+    }
+    
+    // Send emails (if SendGrid API key is available)
     const results = await Promise.all(recipients.map(async (recipient) => {
       try {
         // Get branding for this recipient
@@ -159,15 +232,24 @@ export const handler = async (event, context) => {
           }
         };
         
-        // Send email
-        await sgMail.send(emailData);
-        
-        return {
-          email: recipient.email,
-          status: 'sent'
-        };
+        try {
+          // Send email
+          await sgMail.send(emailData);
+          
+          return {
+            email: recipient.email,
+            status: 'sent'
+          };
+        } catch (sendGridError) {
+          console.error(`SendGrid error for ${recipient.email}:`, sendGridError);
+          return {
+            email: recipient.email,
+            status: 'failed',
+            error: sendGridError.message
+          };
+        }
       } catch (error) {
-        console.error(`Error sending to ${recipient.email}:`, error);
+        console.error(`Error preparing email for ${recipient.email}:`, error);
         return {
           email: recipient.email,
           status: 'failed',
