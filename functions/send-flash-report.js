@@ -32,14 +32,17 @@ export const handler = async (event, context) => {
     // Configure SendGrid
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     
-    // Parse request body
+    // Parse request body and log for debugging
+    console.log('Request body:', event.body);
     const payload = JSON.parse(event.body);
+    console.log('Parsed payload:', JSON.stringify(payload));
     
     // Validate required fields
     const requiredFields = ['incidentId', 'recipients'];
     const validation = validateData(payload, requiredFields);
     
     if (!validation.valid) {
+      console.log('Validation failed:', validation.error);
       return {
         statusCode: 400,
         headers: corsHeaders,
@@ -48,6 +51,7 @@ export const handler = async (event, context) => {
     }
 
     const { incidentId, recipients, customBranding, templateOverrides } = payload;
+    console.log('Processing request for incident ID:', incidentId);
     
     // Fetch incident data from Airtable or use sample data for testing
     let incidentData;
@@ -79,9 +83,13 @@ export const handler = async (event, context) => {
     try {
       // Try to get real incident data first
       try {
+        console.log('Attempting to fetch incident from Airtable...');
         incidentData = await getIncident(incidentId);
+        console.log('Airtable fetch result:', incidentData ? 'Found' : 'Not found');
       } catch (airtableError) {
         console.warn('Could not fetch from Airtable:', airtableError.message);
+        console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2024-2662');
+        
         // If Airtable fetch fails and this is the sample incident ID, use sample data
         if (incidentId === '2024-2662') {
           console.log('Using sample incident data instead');
