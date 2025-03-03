@@ -27,6 +27,8 @@
     "@netlify/blobs": "^8.1.0",
     "@novu/node": "^0.22.0",
     "@novu/notification-center": "^0.22.0",
+    "@react-email/components": "^0.0.33",
+    "@sendgrid/mail": "^8.1.4",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
     "chrome-aws-lambda": "^10.1.0",
@@ -36,6 +38,7 @@
     "puppeteer-core": "^10.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-email": "^3.0.7",
     "react-router-dom": "^7.1.5",
     "recharts": "^2.12.0"
   },

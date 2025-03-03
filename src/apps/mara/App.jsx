@@ -10,6 +10,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/weekly-report/:yearWeek" element={<WeeklyReportPage />} />
+        <Route path="/flash/:incidentId" element={<FlashReportPage />} />
         <Route path="/flash-report/:incidentId" element={<FlashReportPage />} />
       </Routes>
     </Router>
