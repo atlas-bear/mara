@@ -125,9 +125,17 @@ function FlashReportPage() {
     
     try {
       // Send the flash report to all subscribers
-      await sendFlashReport(incident, subscribers.map(s => s.id));
+      const result = await sendFlashReport(incident, subscribers.map(s => s.id));
+      console.log('Flash report result:', result);
       
-      setDialogMessage('Flash report sent successfully!');
+      // Show success message with recipient statuses
+      const sentCount = result.results?.filter(r => r.status === 'sent' || r.status === 'demo-sent').length || 0;
+      const totalCount = subscribers.length;
+      
+      setDialogMessage(
+        `Flash report sent successfully!${result.message?.includes('DEMO') ? ' (DEMO MODE)' : ''}\n` +
+        `${sentCount} of ${totalCount} recipients received the report.`
+      );
       setShowDialog(true);
     } catch (error) {
       console.error('Error sending flash report:', error);
@@ -361,7 +369,7 @@ function FlashReportPage() {
               <h2 className="text-xl font-bold mb-4">
                 {dialogMessage.includes('Error') ? 'Error' : 'Success'}
               </h2>
-              <p className="text-gray-700">{dialogMessage}</p>
+              <div className="text-gray-700 whitespace-pre-line">{dialogMessage}</div>
               <div className="mt-6 flex justify-end">
                 <button 
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
