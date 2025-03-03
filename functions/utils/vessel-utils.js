@@ -1,4 +1,37 @@
 import { toTitleCase } from "./string-utils.js";
+import axios from "axios";
+
+/**
+ * Fetches a vessel by IMO number from Airtable
+ * @param {string} imoNumber - The IMO number of the vessel to fetch
+ * @returns {Object|null} The vessel data or null if not found
+ */
+export async function getVesselByIMO(imoNumber) {
+  if (!imoNumber) {
+    throw new Error("IMO number is required");
+  }
+
+  // Fetch vessel from Airtable
+  const response = await axios.get(
+    `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/vessel`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.AT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      params: {
+        filterByFormula: `{imo}="${imoNumber}"`,
+        maxRecords: 1,
+      },
+    }
+  );
+
+  if (response.data.records && response.data.records.length > 0) {
+    return response.data.records[0].fields;
+  }
+
+  return null;
+}
 
 export function determineVesselStatus(text) {
   const lowerText = text.toLowerCase();

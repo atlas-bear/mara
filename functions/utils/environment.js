@@ -4,3 +4,10 @@ export const verifyEnvironmentVariables = (requiredVars) => {
     throw new Error(`Missing environment variables: ${missingVars.join(", ")}`);
   }
 };
+
+// CORS headers for API responses
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};

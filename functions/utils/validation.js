@@ -1,5 +1,24 @@
 import { log } from "./logger.js";
 
+/**
+ * Validates that all required fields exist in the provided data
+ * @param {Object} data - The data object to validate
+ * @param {Array} requiredFields - Array of field names that are required
+ * @returns {Object} Object with valid flag and error message
+ */
+export function validateData(data, requiredFields) {
+  const missingFields = requiredFields.filter(field => !data[field]);
+  
+  if (missingFields.length > 0) {
+    return {
+      valid: false,
+      error: `Missing required fields: ${missingFields.join(', ')}`
+    };
+  }
+  
+  return { valid: true };
+}
+
 // High-level regions
 export const HIGH_LEVEL_REGIONS = [
   "west_africa",

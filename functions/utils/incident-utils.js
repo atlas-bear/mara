@@ -1,4 +1,37 @@
 import { toTitleCase } from "./string-utils.js";
+import axios from "axios";
+
+/**
+ * Fetches an incident by ID from Airtable
+ * @param {string} incidentId - The ID of the incident to fetch
+ * @returns {Object|null} The incident data or null if not found
+ */
+export async function getIncident(incidentId) {
+  if (!incidentId) {
+    throw new Error("Incident ID is required");
+  }
+
+  // Fetch incident from Airtable
+  const response = await axios.get(
+    `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.AT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      params: {
+        filterByFormula: `{id}="${incidentId}"`,
+        maxRecords: 1,
+      },
+    }
+  );
+
+  if (response.data.records && response.data.records.length > 0) {
+    return response.data.records[0].fields;
+  }
+
+  return null;
+}
 
 export async function determineIncidentType(text, incidentTypes) {
   const lowerText = text.toLowerCase();
