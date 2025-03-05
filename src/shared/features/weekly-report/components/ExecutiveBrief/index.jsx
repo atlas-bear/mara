@@ -87,9 +87,9 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
     loadTrends();
   }, []);
 
-  // Use historical trends if available, otherwise use current week data
-  const trend = historicalTrends[region] || Array.from({ length: 8 }, (_, i) => ({
-    week: -(8-i),
+  // Use historical trends if available, otherwise use current month data
+  const trend = historicalTrends[region] || Array.from({ length: 6 }, (_, i) => ({
+    month: ["May", "Jun", "Jul", "Aug", "Sep", "Oct"][i],
     value: 0
   }));
 
@@ -172,7 +172,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Region</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Threat Level</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">Incidents</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">8-Week Trend</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">6-Month Trend</th>
               </tr>
             </thead>
             <tbody>

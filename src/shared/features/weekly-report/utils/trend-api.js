@@ -1,6 +1,6 @@
 import { mockHistoricalTrends } from "./mock-data";
 
-export async function fetchHistoricalTrends(region, weeks = 8) {
+export async function fetchHistoricalTrends(region, months = 6) {
   try {
     if (mockHistoricalTrends[region]) {
       return mockHistoricalTrends[region];
@@ -12,7 +12,7 @@ export async function fetchHistoricalTrends(region, weeks = 8) {
   }
 }
 
-export async function fetchAllHistoricalTrends(weeks = 8) {
+export async function fetchAllHistoricalTrends(months = 6) {
   try {
     return mockHistoricalTrends;
   } catch (error) {
