@@ -13,7 +13,7 @@ const areaIncidentData = [
   { month: 'Oct', incidents: 5 }
 ];
 
-const IncidentDetails = ({ incident, isHistorical = false }) => {
+const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext = true }) => {
   if (!incident) return null;
 
   // Get fields from the nested structure
@@ -160,34 +160,36 @@ const IncidentDetails = ({ incident, isHistorical = false }) => {
           </div>
 
           {/* Historical Context */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-2">Historical Context</h3>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { month: 'May', incidents: 2 },
-                  { month: 'Jun', incidents: 3 },
-                  { month: 'Jul', incidents: 2 },
-                  { month: 'Aug', incidents: 4 },
-                  { month: 'Sep', incidents: 3 },
-                  { month: 'Oct', incidents: 5 }
-                ]}>
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="incidents" 
-                    stroke="#f97316" 
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          {showHistoricalContext && (
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Historical Context</h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { month: 'May', incidents: 2 },
+                    { month: 'Jun', incidents: 3 },
+                    { month: 'Jul', incidents: 2 },
+                    { month: 'Aug', incidents: 4 },
+                    { month: 'Sep', incidents: 3 },
+                    { month: 'Oct', incidents: 5 }
+                  ]}>
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="incidents" 
+                      stroke="#f97316" 
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Incidents in {fields.region} (Past 6 Months)
+              </p>
             </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Incidents in {fields.region} (Past 6 Months)
-            </p>
-          </div>
+          )}
           
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-semibold text-gray-900 mb-2">Recommendations</h3>
