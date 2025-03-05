@@ -1,6 +1,7 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
 import MaritimeMap from '@shared/components/MaritimeMap';
+import { getFirstSentence } from '@shared/features/weekly-report';
 
 // Define regions info
 const REGIONS = {
@@ -216,7 +217,7 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                     {new Date(fields.date_time_utc).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="text-sm text-gray-700 mb-2">{fields.description}</p>
+                <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>
                 <div className="flex gap-2">
                   {vesselFields.type && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">

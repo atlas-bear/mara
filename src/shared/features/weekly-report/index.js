@@ -16,6 +16,7 @@ export {
   fetchAllHistoricalTrends,
 } from "./utils/trend-api";
 export { formatCoordinates, formatLocation } from "./utils/coordinates";
+export { getFirstSentence } from "./utils/text";
 
 // Data exports
 export { mockHistoricalTrends } from "./utils/mock-data";
