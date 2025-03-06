@@ -202,9 +202,12 @@ export const handler = async (event, context) => {
       mapImageUrl
     };
     
-    // If test mode is enabled, always generate tokens and return URLs
+    // If test mode is enabled, check if we should skip emails
     if (testMode) {
-      console.log('TEST MODE ENABLED: Will generate tokens and URLs but skip actual email sending');
+      // The skipEmails parameter is used by the direct test API call
+      // The normal Send Flash Report button doesn't include it, so will send emails
+      const skipEmails = payload.skipEmails === true;
+      console.log(`TEST MODE ENABLED: Will generate tokens and URLs${skipEmails ? ' but skip actual email sending' : ' and send actual emails'}`);
       
       // Generate tokens and URLs for testing
       const testResults = await Promise.all(recipients.map(async (recipient) => {
@@ -219,7 +222,7 @@ export const handler = async (event, context) => {
         
         return {
           email: recipient.email,
-          status: 'test-mode',
+          status: skipEmails ? 'test-mode' : 'pending-send',
           token: tokenData.token,
           publicUrl: publicUrl
         };
@@ -231,15 +234,22 @@ export const handler = async (event, context) => {
         console.log(`- ${r.email}: ${r.publicUrl}`);
       });
       
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          message: 'Flash report test completed (no emails sent)',
-          testMode: true,
-          results: testResults
-        })
-      };
+      // If skipping emails, return early
+      if (skipEmails) {
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            message: 'Flash report test completed (no emails sent)',
+            testMode: true,
+            skipEmails: true,
+            results: testResults
+          })
+        };
+      }
+      
+      // Otherwise, continue to the email sending code below with our pre-generated tokens
+      console.log('TEST MODE: Continuing to send actual emails with pre-generated tokens');
     }
     
     // Look for SendGrid API key with or without VITE_ prefix

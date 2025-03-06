@@ -278,7 +278,8 @@ function FlashReportPage() {
                           body: JSON.stringify({
                             incidentId: incident.id,
                             recipients: formattedRecipients,
-                            testMode: true
+                            testMode: true,
+                            skipEmails: true
                           }),
                         });
                         
