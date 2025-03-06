@@ -41,7 +41,9 @@ export const useNotifications = () => {
         recipients: formattedRecipients,
       });
       
-      // TEMP: For testing - simulate successful sending
+      // NOTE: We now use the server's testMode instead of client-side mock data
+      // This ensures consistent token generation between preview and actual emails
+      /*
       if (incident.id === '2025-0010') {
         console.log('DEMO MODE: Simulating successful flash report');
         
@@ -69,6 +71,7 @@ export const useNotifications = () => {
           results
         };
       }
+      */
       
       // Call the Netlify function for real sending
       try {
@@ -86,6 +89,8 @@ export const useNotifications = () => {
           body: JSON.stringify({
             incidentId: incident.id,
             recipients: formattedRecipients,
+            // Enable test mode for all requests during development
+            testMode: true,
             // Pass custom branding if needed
             customBranding: null
           }),
