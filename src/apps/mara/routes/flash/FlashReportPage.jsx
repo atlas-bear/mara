@@ -329,7 +329,57 @@ function FlashReportPage() {
                   Test send-flash-report
                 </button>
                 
-                {/* Email test function button */}
+                {/* Direct email test button */}
+                <button 
+                  className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Directly send a simple test email"
+                  onClick={async () => {
+                    try {
+                      if (subscribers.length === 0) {
+                        alert('Please add at least one subscriber/recipient first');
+                        return;
+                      }
+                      
+                      if (window.confirm(`Send a simple test email to ${subscribers[0].email}?`)) {
+                        console.log('Directly sending test email...');
+                        const response = await fetch('/.netlify/functions/direct-send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            email: subscribers[0].email,
+                            subject: 'Direct MARA Test Email',
+                            message: 'This is a direct test email from MARA to verify that your SendGrid integration is working correctly.'
+                          }),
+                        });
+                        
+                        console.log('Email API response status:', response.status);
+                        
+                        const text = await response.text();
+                        console.log('Email API raw response:', text);
+                        
+                        try {
+                          const data = JSON.parse(text);
+                          console.log('Email API parsed response:', data);
+                          
+                          if (data.success) {
+                            alert(`Test email sent successfully to ${subscribers[0].email}!\n\nPlease check your inbox (and spam folder).`);
+                          } else {
+                            alert(`Failed to send email: ${data.error || 'Unknown error'}\n\n${JSON.stringify(data.details || {})}`);
+                          }
+                        } catch (e) {
+                          console.error('Error parsing response:', e);
+                          alert(`API returned non-JSON: ${text}`);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('Email test error:', err);
+                      alert(`Email test error: ${err.message}`);
+                    }
+                  }}
+                >
+                  Send Test Email
+                </button>
+                
                 <button 
                   className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Test the email function directly"
