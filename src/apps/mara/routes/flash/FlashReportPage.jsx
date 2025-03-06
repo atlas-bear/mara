@@ -252,26 +252,68 @@ function FlashReportPage() {
                   className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={async () => {
                     try {
-                      console.log('Testing Netlify function...');
-                      const response = await fetch('/.netlify/functions/test-send-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          test: true, 
-                          recipients: subscribers.map(s => ({ email: s.email }))
-                        }),
-                      });
-                      const text = await response.text();
-                      console.log('Test function response status:', response.status);
-                      console.log('Test function raw response:', text);
+                      if (subscribers.length === 0) {
+                        alert('Please add at least one subscriber/recipient first');
+                        return;
+                      }
                       
-                      try {
-                        const data = JSON.parse(text);
-                        console.log('Test function parsed response:', data);
-                        alert(`Test function success!\nStatus: ${response.status}\nMessage: ${data.message || 'No message'}`);
-                      } catch (e) {
-                        console.error('Error parsing test response:', e);
-                        alert(`Test function returned non-JSON: ${text}`);
+                      if (window.confirm(`Send a test email to ${subscribers[0].email}?`)) {
+                        console.log('Testing Netlify function with email send...');
+                        const response = await fetch('/.netlify/functions/test-send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            test: true,
+                            sendEmail: true, 
+                            recipients: subscribers.map(s => ({ email: s.email }))
+                          }),
+                        });
+                        const text = await response.text();
+                        console.log('Test function response status:', response.status);
+                        console.log('Test function raw response:', text);
+                        
+                        try {
+                          const data = JSON.parse(text);
+                          console.log('Test function parsed response:', data);
+                          
+                          // Show detailed message including SendGrid info
+                          let message = `Test function result:\n`;
+                          message += `Status: ${response.status}\n`;
+                          message += `Message: ${data.message || 'No message'}\n\n`;
+                          
+                          // Add email result info
+                          message += `Email: ${data.emailResult || 'No result'}\n`;
+                          message += `SendGrid API Key: ${data.sendGridApiKeyFound ? 'Found' : 'Not Found'}\n`;
+                          message += `SendGrid From Email: ${data.sendGridFromEmailFound ? 'Found' : 'Not Found'}\n`;
+                          
+                          alert(message);
+                        } catch (e) {
+                          console.error('Error parsing test response:', e);
+                          alert(`Test function returned non-JSON: ${text}`);
+                        }
+                      } else {
+                        // User canceled email sending, just test function
+                        console.log('Testing Netlify function without email...');
+                        const response = await fetch('/.netlify/functions/test-send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            test: true,
+                            recipients: subscribers.map(s => ({ email: s.email }))
+                          }),
+                        });
+                        const text = await response.text();
+                        console.log('Test function response status:', response.status);
+                        console.log('Test function raw response:', text);
+                        
+                        try {
+                          const data = JSON.parse(text);
+                          console.log('Test function parsed response:', data);
+                          alert(`Test function success!\nStatus: ${response.status}\nMessage: ${data.message || 'No message'}`);
+                        } catch (e) {
+                          console.error('Error parsing test response:', e);
+                          alert(`Test function returned non-JSON: ${text}`);
+                        }
                       }
                     } catch (err) {
                       console.error('Test error:', err);
