@@ -45,19 +45,19 @@ const sampleSubscribers = [
 // Branding configurations
 const brandingConfigs = {
   default: {
-    logo: 'https://img.logoipsum.com/343.svg',
-    companyName: 'Maritime Risk Analysis',
+    logo: 'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/public/mara_logo_k4epmo.png',
+    companyName: 'MARA Maritime Risk Analysis',
     colors: {
-      primary: '#234567',
-      secondary: '#890123'
+      primary: '#234567', // dark blue
+      secondary: '#890123' // red
     }
   },
   client: {
-    logo: 'https://img.logoipsum.com/342.svg',
-    companyName: 'Client Company',
+    logo: import.meta.env.VITE_CLIENT_LOGO,
+    companyName: import.meta.env.VITE_CLIENT_NAME,
     colors: {
-      primary: '#0047AB', // royal blue
-      secondary: '#FF6B00' // orange
+      primary: import.meta.env.VITE_CLIENT_PRIMARY_COLOR, // dark blue
+      secondary: import.meta.env.VITE_CLIENT_SECONDARY_COLOR // light blue
     }
   }
 };
@@ -161,7 +161,7 @@ function FlashReportPage() {
   // Toggle branding for testing purposes
   const handleTestClientBranding = () => {
     // Toggle between default and client branding
-    if (branding.companyName === 'Client Company') {
+    if (branding.companyName === brandingConfigs.client.companyName) {
       setBranding(brandingConfigs.default);
       setSelectedRecipient(null);
     } else {
