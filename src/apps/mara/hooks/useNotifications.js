@@ -42,7 +42,7 @@ export const useNotifications = () => {
       });
       
       // TEMP: For testing - simulate successful sending
-      if (incident.id === '2024-2662') {
+      if (incident.id === '2025-0010') {
         console.log('DEMO MODE: Simulating successful flash report');
         
         // Wait for 1 second to simulate network delay

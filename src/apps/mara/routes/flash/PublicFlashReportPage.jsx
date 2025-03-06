@@ -4,8 +4,8 @@ import PreviewMode from '../../components/FlashReport/PreviewMode';
 
 // For testing - will eventually come from API/database
 const sampleIncidents = {
-  '2024-2662': {
-    id: '2024-2662',
+  '2025-0010': {
+    id: '2025-0010',
     title: 'Armed Robbery aboard ASPASIA LUCK',
     type: 'robbery',
     date: '2024-10-17T18:08:00.000Z',

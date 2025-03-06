@@ -63,7 +63,7 @@ export const handler = async (event, context) => {
     // For testing purposes - this is a sample incident to use when Airtable is not available
     // or when testing with sample data
     const sampleIncidentData = {
-      id: '2024-2662',
+      id: '2025-0010',
       incident_type: 'Robbery',
       date_time_utc: '2024-10-17T18:08:00.000Z',
       location_name: 'Singapore Strait',
@@ -92,10 +92,10 @@ export const handler = async (event, context) => {
         console.log('Airtable fetch result:', incidentData ? 'Found' : 'Not found');
       } catch (airtableError) {
         console.warn('Could not fetch from Airtable:', airtableError.message);
-        console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2024-2662');
+        console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
         
         // If Airtable fetch fails and this is the sample incident ID, use sample data
-        if (incidentId === '2024-2662') {
+        if (incidentId === '2025-0010') {
           console.log('Using sample incident data instead');
           incidentData = sampleIncidentData;
         }
