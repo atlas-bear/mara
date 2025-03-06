@@ -87,9 +87,33 @@ export const handler = async (event, context) => {
     try {
       // Try to get real incident data first
       try {
-        console.log('Attempting to fetch incident from Airtable...');
-        incidentData = await getIncident(incidentId);
-        console.log('Airtable fetch result:', incidentData ? 'Found' : 'Not found');
+        console.log('Attempting to fetch incident data from Airtable...');
+        // This will now return a complex object with incident, vessel, and incidentType data
+        const airtableData = await getIncident(incidentId);
+        
+        if (airtableData) {
+          console.log('Airtable data fetch successful!');
+          
+          // Extract the data components
+          incidentData = airtableData.incident || {};
+          const fetchedVesselData = airtableData.vessel || {};
+          const incidentTypeData = airtableData.incidentType || {};
+          
+          // Log what we found
+          console.log('Incident data:', Object.keys(incidentData).join(', '));
+          console.log('Vessel data:', Object.keys(fetchedVesselData).join(', '));
+          console.log('Incident type data:', Object.keys(incidentTypeData).join(', '));
+          
+          // Combine data for easier access in the template
+          vesselData = fetchedVesselData;
+          
+          // Add incident type info to incident data
+          if (incidentTypeData && incidentTypeData.name) {
+            incidentData.incident_type_name = incidentTypeData.name;
+          }
+        } else {
+          console.log('No data found in Airtable');
+        }
       } catch (airtableError) {
         console.warn('Could not fetch from Airtable:', airtableError.message);
         console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
@@ -98,6 +122,14 @@ export const handler = async (event, context) => {
         if (incidentId === '2025-0010') {
           console.log('Using sample incident data instead');
           incidentData = sampleIncidentData;
+          
+          // Create sample vessel data since we're using the sample data
+          vesselData = {
+            name: incidentData.vessel_name,
+            type: incidentData.vessel_type,
+            flag: incidentData.vessel_flag,
+            imo: incidentData.vessel_imo
+          };
         }
       }
       
@@ -118,33 +150,20 @@ export const handler = async (event, context) => {
       };
     }
     
-    // Get vessel data if available
-    let vesselData = {};
-    if (incidentData.vessel_imo) {
-      try {
-        // First try to fetch from Airtable
-        vesselData = await getVesselByIMO(incidentData.vessel_imo);
-      } catch (error) {
-        console.error('Error fetching vessel data:', error);
-        // If this is the sample incident, use sample vessel data
-        if (incidentId === '2024-2662') {
-          vesselData = {
-            name: incidentData.vessel_name,
-            type: incidentData.vessel_type,
-            flag: incidentData.vessel_flag,
-            imo: incidentData.vessel_imo
-          };
-        }
-        // For other incidents, continue without vessel data
-      }
-    }
-    
     // Generate static map
     let mapImageUrl = '';
     try {
-      if (incidentData.latitude && incidentData.longitude) {
+      // Get coordinates, either from the direct fields or from the structured incident data
+      const latitude = incidentData.latitude || incidentData.lat || 
+                      (incidentData.coordinates ? incidentData.coordinates.latitude : null);
+      const longitude = incidentData.longitude || incidentData.lon || 
+                       (incidentData.coordinates ? incidentData.coordinates.longitude : null);
+      
+      if (latitude && longitude) {
         // Generate a MapBox Static API URL (check for VITE_ prefix)
         const mapboxToken = process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY;
+        
+        console.log(`Map coordinates found: ${latitude}, ${longitude}`);
         
         if (!mapboxToken) {
           console.warn('MapBox token not found in environment variables');
@@ -153,47 +172,83 @@ export const handler = async (event, context) => {
           mapImageUrl = 'https://placehold.co/600x400?text=Map+Location';
         } else {
           console.log('Using MapBox token (length):', mapboxToken.length);
+          
           // Define marker appearance based on incident type
-          const incident_type = incidentData.incident_type || 'unknown';
-          const markerColor = getMarkerColorByType(incident_type.toLowerCase());
+          const incidentTypeName = incidentData.incident_type_name || 
+                                  (incidentData.incident_type ? 
+                                    (typeof incidentData.incident_type === 'string' ? 
+                                      incidentData.incident_type : 'unknown') : 
+                                    'unknown');
+          
+          console.log('Using incident type for map:', incidentTypeName);
+          const markerColor = getMarkerColorByType(incidentTypeName.toLowerCase());
           
           // Create a marker for the incident location
-          const marker = `pin-l+${markerColor.replace('#', '')}(${incidentData.longitude},${incidentData.latitude})`;
+          // Convert longitude and latitude to strings and ensure they're correctly formatted
+          const lonStr = parseFloat(longitude).toFixed(6);
+          const latStr = parseFloat(latitude).toFixed(6);
+          const marker = `pin-l+${markerColor.replace('#', '')}(${lonStr},${latStr})`;
           
           // Define map style - using satellite by default
           const mapStyle = 'mapbox/satellite-v9';
           
           // Build URL
-          mapImageUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${incidentData.longitude},${incidentData.latitude},5,0/600x400@2x?access_token=${mapboxToken}`;
+          const mapUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${lonStr},${latStr},5,0/600x400@2x?access_token=${mapboxToken}`;
+          console.log('Generated map URL (length):', mapUrl.length);
+          
+          mapImageUrl = mapUrl;
         }
       } else {
         console.warn('No coordinates available for map generation');
+        console.log('Incident data fields:', Object.keys(incidentData).join(', '));
         mapImageUrl = 'https://placehold.co/600x400?text=No+Coordinates';
       }
     } catch (mapError) {
       console.error('Error generating map image:', mapError);
+      console.error(mapError.stack);
       // Use a fallback for errors
       mapImageUrl = 'https://placehold.co/600x400?text=Map+Error';
     }
     
+    // Get coordinates for consistency
+    const latitude = incidentData.latitude || incidentData.lat || 
+                    (incidentData.coordinates ? incidentData.coordinates.latitude : 0);
+    const longitude = incidentData.longitude || incidentData.lon || 
+                     (incidentData.coordinates ? incidentData.coordinates.longitude : 0);
+                     
+    // Prepare incident data for email - with more fallbacks and logging
+    console.log('Preparing data for email template...');
+    
+    // Get incident type - with fallbacks
+    const incidentType = incidentData.incident_type_name || 
+                        (incidentData.incident_type ? 
+                          (typeof incidentData.incident_type === 'string' ? 
+                            incidentData.incident_type : 'Incident') : 
+                          'Incident');
+    console.log('Incident type for email:', incidentType);
+    
+    // Get vessel name - with fallbacks
+    const vesselName = vesselData.name || incidentData.vessel_name || 'Unknown Vessel';
+    console.log('Vessel name for email:', vesselName);
+    
     // Prepare incident data for email
     const preparedIncident = {
       id: incidentData.id,
-      type: incidentData.incident_type,
-      date: incidentData.date_time_utc,
-      location: incidentData.location_name,
+      type: incidentType,
+      date: incidentData.date_time_utc || incidentData.date,
+      location: incidentData.location_name || incidentData.location || 'Unknown Location',
       coordinates: {
-        latitude: parseFloat(incidentData.latitude) || 0,
-        longitude: parseFloat(incidentData.longitude) || 0
+        latitude: parseFloat(latitude) || 0,
+        longitude: parseFloat(longitude) || 0
       },
-      vesselName: vesselData.name || incidentData.vessel_name,
-      vesselType: vesselData.type || incidentData.vessel_type,
-      vesselFlag: vesselData.flag || incidentData.vessel_flag,
-      vesselIMO: vesselData.imo || incidentData.vessel_imo,
-      status: incidentData.vessel_status_during_incident || 'Unknown',
-      destination: incidentData.vessel_destination || '',
+      vesselName: vesselName,
+      vesselType: vesselData.type || incidentData.vessel_type || 'Unknown Type',
+      vesselFlag: vesselData.flag || incidentData.vessel_flag || 'Unknown Flag',
+      vesselIMO: vesselData.imo || incidentData.vessel_imo || 'Unknown IMO',
+      status: incidentData.vessel_status_during_incident || 'Unknown Status',
+      destination: incidentData.vessel_destination || 'Unknown Destination',
       crewStatus: incidentData.crew_impact || 'No information available',
-      description: incidentData.description,
+      description: incidentData.description || 'No description available',
       responseActions: incidentData.response_type || [],
       authorities_notified: incidentData.authorities_notified || [],
       items_stolen: incidentData.items_stolen || [],
@@ -201,6 +256,13 @@ export const handler = async (event, context) => {
       recommendations: incidentData.recommendations || '',
       mapImageUrl
     };
+    
+    console.log('Prepared incident data:', JSON.stringify({
+      id: preparedIncident.id,
+      type: preparedIncident.type,
+      vesselName: preparedIncident.vesselName,
+      mapImageUrl: mapImageUrl ? 'Generated' : 'Not available'
+    }));
     
     // If test mode is enabled, check if we should skip emails
     if (testMode) {
@@ -432,38 +494,77 @@ export const handler = async (event, context) => {
  * @returns {Object} Branding configuration
  */
 function getBrandingForEmail(email, customBranding = null) {
+  // Log the branding request for debugging
+  console.log(`Getting branding for email: ${email}`);
+  
   // If custom branding is provided, use it
   if (customBranding) {
+    console.log('Using custom branding');
     return customBranding;
   }
   
   // Extract domain from email
-  const domain = email.split('@')[1];
+  const domain = email.split('@')[1] || '';
+  console.log(`Email domain: ${domain}`);
+  
+  // Show available environment variables for debugging
+  const envVars = Object.keys(process.env)
+    .filter(key => key.includes('LOGO') || key.includes('COMPANY') || key.includes('COLOR'))
+    .filter(key => !key.includes('SECRET'));
+  console.log('Available branding environment variables:', envVars.join(', '));
+  
+  // Add support for VITE_ prefixed environment variables
+  const clientLogo = process.env.CLIENT_LOGO || process.env.VITE_CLIENT_LOGO;
+  const defaultLogo = process.env.DEFAULT_LOGO || process.env.VITE_DEFAULT_LOGO;
+  const clientName = process.env.CLIENT_NAME || process.env.VITE_CLIENT_NAME;
+  const defaultName = process.env.DEFAULT_COMPANY_NAME || process.env.VITE_DEFAULT_COMPANY_NAME;
   
   // Domain-based branding mapping - use environment variables for production
-  const clientDomains = process.env.CLIENT_DOMAINS ? process.env.CLIENT_DOMAINS.split(',') : ['clientdomain.com', 'company.com'];
+  const clientDomains = process.env.CLIENT_DOMAINS ? 
+                        process.env.CLIENT_DOMAINS.split(',') : 
+                        (process.env.VITE_CLIENT_DOMAINS ? 
+                          process.env.VITE_CLIENT_DOMAINS.split(',') : 
+                          ['clientdomain.com', 'company.com', 'atlasbear.co']);
+  
+  console.log('Client domains:', clientDomains.join(', '));
   
   // Check if this is a client domain
-  const isClientDomain = clientDomains.some(clientDomain => domain.includes(clientDomain));
+  const isClientDomain = clientDomains.some(clientDomain => 
+    domain.includes(clientDomain.trim())
+  );
+  
+  console.log(`Is client domain: ${isClientDomain}`);
   
   if (isClientDomain) {
+    // Use Cloudinary URL for client logo if available
+    const logoUrl = clientLogo || 
+                  'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/client/client_logo_vf7snt.png';
+    
+    console.log(`Using client branding with logo: ${logoUrl}`);
+    
     return {
-      logo: process.env.CLIENT_LOGO || 'https://placehold.co/150x50?text=Client',
-      companyName: process.env.CLIENT_NAME || 'Client Company',
+      logo: logoUrl,
+      companyName: clientName || 'Atlas Bear Maritime',
       colors: {
-        primary: process.env.CLIENT_PRIMARY_COLOR || '#0047AB',
-        secondary: process.env.CLIENT_SECONDARY_COLOR || '#FF6B00'
+        primary: process.env.CLIENT_PRIMARY_COLOR || process.env.VITE_CLIENT_PRIMARY_COLOR || '#0047AB',
+        secondary: process.env.CLIENT_SECONDARY_COLOR || process.env.VITE_CLIENT_SECONDARY_COLOR || '#FF6B00'
       }
     };
   }
   
+  // Use Cloudinary URL for default logo if available
+  const defaultLogoUrl = defaultLogo || 
+                      'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/public/mara_logo_k4epmo.png';
+  
+  console.log(`Using default branding with logo: ${defaultLogoUrl}`);
+  
   // Default branding
   return {
-    logo: process.env.DEFAULT_LOGO || 'https://placehold.co/150x50?text=Maritime',
-    companyName: process.env.DEFAULT_COMPANY_NAME || 'Maritime Risk Analysis',
+    logo: defaultLogoUrl,
+    companyName: defaultName || 'MARA Maritime Risk Analysis',
     colors: {
-      primary: process.env.DEFAULT_PRIMARY_COLOR || '#234567',
-      secondary: process.env.DEFAULT_SECONDARY_COLOR || '#890123'
+      primary: process.env.DEFAULT_PRIMARY_COLOR || process.env.VITE_DEFAULT_PRIMARY_COLOR || '#234567',
+      secondary: process.env.DEFAULT_SECONDARY_COLOR || process.env.VITE_DEFAULT_SECONDARY_COLOR || '#890123'
     }
   };
 }
