@@ -124,8 +124,8 @@ function FlashReportPage() {
     setIsSubmitting(true);
     
     try {
-      // Send the flash report to all subscribers
-      const result = await sendFlashReport(incident, subscribers.map(s => s.id));
+      // Send the flash report to all subscribers - pass the full subscriber objects
+      const result = await sendFlashReport(incident, subscribers);
       console.log('Flash report result:', result);
       
       // Show success message with recipient statuses
