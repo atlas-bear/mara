@@ -4,6 +4,7 @@ import { getIncident } from './utils/incident-utils.js';
 import { getVesselByIMO } from './utils/vessel-utils.js';
 import { validateData } from './utils/validation.js';
 import { corsHeaders } from './utils/environment.js';
+import { generateFlashReportToken, getPublicFlashReportUrl } from './utils/token-utils.js';
 
 /**
  * Netlify function to send flash reports via SendGrid
@@ -219,11 +220,25 @@ export const handler = async (event, context) => {
         // Get branding for this recipient
         const branding = getBrandingForEmail(recipient.email, customBranding);
         
+        // Generate a secure token for this recipient
+        const tokenData = generateFlashReportToken(incidentId, 168); // 7 days expiry
+        
+        // Get brand parameter for the URL if this is a client
+        const brandParam = recipient.isClient ? 'client' : null;
+        
+        // Generate public flash report URL
+        const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
+        
         // Create email subject
         const subject = `🚨 MARITIME ALERT: ${preparedIncident.vesselName} Incident`;
         
-        // Create HTML content
-        const htmlContent = await generateEmailHtml(preparedIncident, branding, templateOverrides);
+        // Create HTML content with public link
+        const htmlContent = await generateEmailHtml(
+          preparedIncident, 
+          branding, 
+          templateOverrides, 
+          publicUrl // Pass public URL to the template
+        );
         
         // Create email object
         const emailData = {
@@ -236,7 +251,8 @@ export const handler = async (event, context) => {
           html: htmlContent,
           categories: ['flash-report', 'maritime', 'incident'],
           customArgs: {
-            incident_id: incidentId
+            incident_id: incidentId,
+            token: tokenData.token // Include token for tracking
           }
         };
         
@@ -357,8 +373,12 @@ function getMarkerColorByType(incidentType) {
  * Generate HTML content for email
  * This is a simplified version - in production, use a proper templating engine
  * or React server-side rendering with the components we created
+ * @param {Object} incident Incident data
+ * @param {Object} branding Branding configuration
+ * @param {Object} templateOverrides Template overrides
+ * @param {string} publicUrl Public URL for viewing the report
  */
-async function generateEmailHtml(incident, branding, templateOverrides = {}) {
+async function generateEmailHtml(incident, branding, templateOverrides = {}, publicUrl = null) {
   // In production, we would use a more sophisticated HTML generation method
   // For now, use this as a placeholder that returns a simple HTML version
   
@@ -397,6 +417,19 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}) {
       </div>
     </div>
 
+    ${publicUrl ? `
+    <!-- View Online Banner -->
+    <div style="background-color: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #DBEAFE;">
+      <p style="margin: 0; font-size: 14px; color: #1E3A8A;">
+        This is an email snapshot. 
+        <a href="${publicUrl}" style="color: #2563EB; font-weight: 600; text-decoration: underline;">
+          View this Flash Report online
+        </a> 
+        for the latest information.
+      </p>
+    </div>
+    ` : ''}
+
     <!-- Location Map -->
     <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
       <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Location</h2>
@@ -423,6 +456,18 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}) {
         <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${Array.isArray(incident.analysis) ? incident.analysis.join('<br>') : incident.analysis}</p>
       </div>
     </div>
+
+    ${publicUrl ? `
+    <!-- View Online Button -->
+    <div style="padding: 0 24px 24px; text-align: center;">
+      <a href="${publicUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${branding.colors.primary}; color: white; font-weight: 600; text-decoration: none; border-radius: 6px;">
+        View Complete Flash Report
+      </a>
+      <p style="font-size: 12px; color: #6B7280; margin-top: 8px;">
+        This link is valid for 7 days and is uniquely generated for you.
+      </p>
+    </div>
+    ` : ''}
 
     <!-- Footer -->
     <div style="margin-top: 30px; padding: 0 24px 24px; text-align: center; color: #6B7280; font-size: 12px;">

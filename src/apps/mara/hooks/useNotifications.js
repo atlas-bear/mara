@@ -1,4 +1,12 @@
 export const useNotifications = () => {
+  // Generate a demo public URL for testing
+  const generateDemoPublicUrl = (incidentId, recipient) => {
+    const baseUrl = window.location.origin;
+    const randomToken = Math.random().toString(36).substring(2, 15);
+    const brandParam = recipient.isClient ? '?brand=client' : '';
+    return `${baseUrl}/public/flash-report/${incidentId}/${randomToken}${brandParam}`;
+  };
+
   const sendFlashReport = async (incident, recipients) => {
     try {
       if (!incident) {
@@ -40,12 +48,22 @@ export const useNotifications = () => {
         // Wait for 1 second to simulate network delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        // Generate demo public URLs for testing
+        const results = formattedRecipients.map(r => ({
+          email: r.email,
+          status: 'demo-sent',
+          publicUrl: generateDemoPublicUrl(incident.id, r)
+        }));
+        
+        // Log the public URLs for demo purposes
+        console.log('Demo public URLs:');
+        results.forEach(r => {
+          console.log(`- ${r.email}: ${r.publicUrl}`);
+        });
+        
         return {
           message: 'Flash report sent',
-          results: formattedRecipients.map(r => ({
-            email: r.email,
-            status: 'demo-sent'
-          }))
+          results
         };
       }
       
@@ -70,18 +88,39 @@ export const useNotifications = () => {
         }
         
         const result = await response.json();
+        
+        // Log public URLs if available
+        if (result.results && result.results.some(r => r.publicUrl)) {
+          console.log('Public URLs:');
+          result.results.forEach(r => {
+            if (r.publicUrl) {
+              console.log(`- ${r.email}: ${r.publicUrl}`);
+            }
+          });
+        }
+        
         return result;
       } catch (serverError) {
         console.error('Server error:', serverError);
         
         // Fallback to demo mode if server function fails
         if (window.confirm('Server function failed. Would you like to use demo mode instead?')) {
+          // Generate demo public URLs for testing
+          const results = formattedRecipients.map(r => ({
+            email: r.email,
+            status: 'demo-sent',
+            publicUrl: generateDemoPublicUrl(incident.id, r)
+          }));
+          
+          // Log the public URLs for demo purposes
+          console.log('Demo public URLs:');
+          results.forEach(r => {
+            console.log(`- ${r.email}: ${r.publicUrl}`);
+          });
+          
           return {
             message: 'Flash report sent (DEMO MODE)',
-            results: formattedRecipients.map(r => ({
-              email: r.email,
-              status: 'demo-sent'
-            }))
+            results
           };
         }
         

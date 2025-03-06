@@ -132,10 +132,18 @@ function FlashReportPage() {
       const sentCount = result.results?.filter(r => r.status === 'sent' || r.status === 'demo-sent').length || 0;
       const totalCount = subscribers.length;
       
-      setDialogMessage(
-        `Flash report sent successfully!${result.message?.includes('DEMO') ? ' (DEMO MODE)' : ''}\n` +
-        `${sentCount} of ${totalCount} recipients received the report.`
-      );
+      // Check if public URLs are available
+      const hasPublicUrls = result.results?.some(r => r.publicUrl);
+      
+      let message = `Flash report sent successfully!${result.message?.includes('DEMO') ? ' (DEMO MODE)' : ''}\n` +
+        `${sentCount} of ${totalCount} recipients received the report.`;
+      
+      // Add public URL information if available
+      if (hasPublicUrls) {
+        message += `\n\nRecipients can view the report online. URLs are logged in the console for testing.`;
+      }
+      
+      setDialogMessage(message);
       setShowDialog(true);
     } catch (error) {
       console.error('Error sending flash report:', error);
