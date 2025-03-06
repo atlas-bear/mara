@@ -72,6 +72,12 @@ export const useNotifications = () => {
       
       // Call the Netlify function for real sending
       try {
+        console.log('🚀 Calling Netlify function: send-flash-report');
+        console.log('Payload:', {
+          incidentId: incident.id,
+          recipients: formattedRecipients,
+        });
+        
         const response = await fetch('/.netlify/functions/send-flash-report', {
           method: 'POST',
           headers: {
@@ -85,12 +91,31 @@ export const useNotifications = () => {
           }),
         });
         
+        console.log('📬 Netlify function response status:', response.status);
+        
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Failed to send flash report');
         }
         
-        const result = await response.json();
+        // Try to parse response
+        let responseText;
+        try {
+          responseText = await response.text();
+          console.log('📄 Netlify function raw response:', responseText);
+        } catch (e) {
+          console.error('Error getting response text:', e);
+        }
+        
+        // Now parse as JSON
+        let result;
+        try {
+          result = responseText ? JSON.parse(responseText) : {};
+          console.log('📊 Netlify function parsed response:', result);
+        } catch (e) {
+          console.error('Error parsing JSON response:', e);
+          throw new Error('Invalid response from server: ' + responseText);
+        }
         
         // Log public URLs if available
         if (result.results && result.results.some(r => r.publicUrl)) {

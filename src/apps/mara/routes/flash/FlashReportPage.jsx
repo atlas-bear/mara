@@ -239,14 +239,49 @@ function FlashReportPage() {
                   <span>Toggle Branding</span>
                 </button>
               )}
-              <button 
-                className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleSendReport}
-                disabled={isSubmitting || subscribers.length === 0}
-              >
-                <Send className="h-4 w-4" />
-                <span>Send Flash Report</span>
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleSendReport}
+                  disabled={isSubmitting || subscribers.length === 0}
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Send Flash Report</span>
+                </button>
+                <button 
+                  className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={async () => {
+                    try {
+                      console.log('Testing Netlify function...');
+                      const response = await fetch('/.netlify/functions/test-send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          test: true, 
+                          recipients: subscribers.map(s => ({ email: s.email }))
+                        }),
+                      });
+                      const text = await response.text();
+                      console.log('Test function response status:', response.status);
+                      console.log('Test function raw response:', text);
+                      
+                      try {
+                        const data = JSON.parse(text);
+                        console.log('Test function parsed response:', data);
+                        alert(`Test function success!\nStatus: ${response.status}\nMessage: ${data.message || 'No message'}`);
+                      } catch (e) {
+                        console.error('Error parsing test response:', e);
+                        alert(`Test function returned non-JSON: ${text}`);
+                      }
+                    } catch (err) {
+                      console.error('Test error:', err);
+                      alert(`Test error: ${err.message}`);
+                    }
+                  }}
+                >
+                  Test Function
+                </button>
+              </div>
             </div>
           </div>
           
