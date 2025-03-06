@@ -93,20 +93,25 @@ export const useNotifications = () => {
         
         console.log('📬 Netlify function response status:', response.status);
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to send flash report');
-        }
-        
-        // Try to parse response
+        // Get response text first, before any other processing
         let responseText;
         try {
           responseText = await response.text();
           console.log('📄 Netlify function raw response:', responseText);
         } catch (e) {
           console.error('Error getting response text:', e);
+          throw new Error('Could not read response from server');
         }
         
+        // Check if response is OK
+        if (!response.ok) {
+          try {
+            const errorData = JSON.parse(responseText);
+            throw new Error(errorData.error || 'Failed to send flash report');
+          } catch (e) {
+            throw new Error(`Server error (${response.status}): ${responseText || 'No error details'}`);
+          }
+        }
         // Now parse as JSON
         let result;
         try {

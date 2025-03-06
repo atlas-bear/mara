@@ -248,8 +248,91 @@ function FlashReportPage() {
                   <Send className="h-4 w-4" />
                   <span>Send Flash Report</span>
                 </button>
+
+                {/* Direct Send-Flash-Report API test button */}
+                <button 
+                  className="flex items-center gap-1 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Directly test the send-flash-report API"
+                  onClick={async () => {
+                    try {
+                      if (subscribers.length === 0) {
+                        alert('Please add at least one subscriber/recipient first');
+                        return;
+                      }
+                      
+                      if (window.confirm(`Directly call send-flash-report API for ${subscribers[0].email}?`)) {
+                        console.log('Directly calling send-flash-report API...');
+                        
+                        const formattedRecipients = subscribers.map(sub => ({
+                          email: sub.email,
+                          firstName: sub.firstName || '',
+                          lastName: sub.lastName || '',
+                          isClient: sub.isClient || false
+                        }));
+                        
+                        const response = await fetch('/.netlify/functions/send-flash-report', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            incidentId: incident.id,
+                            recipients: formattedRecipients,
+                            testMode: true
+                          }),
+                        });
+                        
+                        console.log('Direct API call response status:', response.status);
+                        
+                        let responseText;
+                        try {
+                          responseText = await response.text();
+                          console.log('Direct API call raw response:', responseText);
+                        } catch (e) {
+                          console.error('Error getting response text:', e);
+                        }
+                        
+                        try {
+                          const data = responseText ? JSON.parse(responseText) : {};
+                          console.log('Direct API call parsed response:', data);
+                          
+                          // Show detailed message
+                          let message = `Direct send-flash-report API test:\n`;
+                          message += `Status: ${response.status}\n`;
+                          message += `Message: ${data.message || 'No message'}\n\n`;
+                          
+                          if (data.results && data.results.length > 0) {
+                            message += `Results:\n`;
+                            data.results.forEach(r => {
+                              message += `- ${r.email}: ${r.status}\n`;
+                              if (r.publicUrl) {
+                                message += `  URL: ${r.publicUrl}\n`;
+                              }
+                              if (r.error) {
+                                message += `  Error: ${r.error}\n`;
+                              }
+                            });
+                          }
+                          
+                          alert(message);
+                        } catch (e) {
+                          console.error('Error parsing response:', e);
+                          alert(`API returned non-JSON: ${responseText}`);
+                        }
+                      }
+                    } catch (err) {
+                      console.error('API call error:', err);
+                      alert(`API call error: ${err.message}`);
+                    }
+                  }}
+                >
+                  Test send-flash-report
+                </button>
+                
+                {/* Email test function button */}
                 <button 
                   className="flex items-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Test the email function directly"
                   onClick={async () => {
                     try {
                       if (subscribers.length === 0) {

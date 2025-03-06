@@ -53,7 +53,8 @@ export const handler = async (event, context) => {
       };
     }
 
-    const { incidentId, recipients, customBranding, templateOverrides } = payload;
+    const { incidentId, recipients, customBranding, templateOverrides, testMode } = payload;
+    console.log('Processing flash report. Test mode:', testMode ? 'YES' : 'NO');
     console.log('Processing request for incident ID:', incidentId);
     
     // Fetch incident data from Airtable or use sample data for testing
@@ -200,6 +201,46 @@ export const handler = async (event, context) => {
       recommendations: incidentData.recommendations || '',
       mapImageUrl
     };
+    
+    // If test mode is enabled, always generate tokens and return URLs
+    if (testMode) {
+      console.log('TEST MODE ENABLED: Will generate tokens and URLs but skip actual email sending');
+      
+      // Generate tokens and URLs for testing
+      const testResults = await Promise.all(recipients.map(async (recipient) => {
+        // Generate a secure token for testing
+        const tokenData = generateFlashReportToken(incidentId, 168);
+        
+        // Get brand parameter for the URL if this is a client
+        const brandParam = recipient.isClient ? 'client' : null;
+        
+        // Generate public flash report URL
+        const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
+        
+        return {
+          email: recipient.email,
+          status: 'test-mode',
+          token: tokenData.token,
+          publicUrl: publicUrl
+        };
+      }));
+      
+      // Log public URLs for testing
+      console.log('TEST MODE: Public URLs generated:');
+      testResults.forEach(r => {
+        console.log(`- ${r.email}: ${r.publicUrl}`);
+      });
+      
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          message: 'Flash report test completed (no emails sent)',
+          testMode: true,
+          results: testResults
+        })
+      };
+    }
     
     // Look for SendGrid API key with or without VITE_ prefix
     const sendGridApiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
