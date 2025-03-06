@@ -200,6 +200,30 @@ export const handler = async (event, context) => {
     // Check if SendGrid API key is available
     if (!process.env.SENDGRID_API_KEY) {
       console.warn('SendGrid API key not found in environment variables');
+      console.log('Environment variables available:', Object.keys(process.env).filter(key => !key.includes('SECRET')).join(', '));
+      
+      // Generate tokens and URLs for testing even without SendGrid
+      const testResults = await Promise.all(recipients.map(async (recipient) => {
+        // Generate a secure token for testing
+        const tokenData = generateFlashReportToken(incidentId, 168);
+        
+        // Get brand parameter for the URL if this is a client
+        const brandParam = recipient.isClient ? 'client' : null;
+        
+        // Generate public flash report URL
+        const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
+        
+        return {
+          email: recipient.email,
+          status: 'demo-would-send',
+          token: tokenData.token,
+          publicUrl: publicUrl
+        };
+      }));
+      
+      // Log detailed information about what would happen
+      console.log('TESTING MODE: Would send emails to:', recipients.map(r => r.email).join(', '));
+      console.log('Public URLs generated:', testResults.map(r => `${r.email}: ${r.publicUrl}`).join('\n'));
       
       // For testing without sending emails
       return {
@@ -209,7 +233,8 @@ export const handler = async (event, context) => {
           message: 'TESTING MODE: Email would be sent (no SendGrid API key provided)',
           incident: preparedIncident,
           recipients: recipients.map(r => r.email),
-          mapImageUrl: mapImageUrl || 'No map generated'
+          mapImageUrl: mapImageUrl || 'No map generated',
+          results: testResults
         })
       };
     }
@@ -257,28 +282,64 @@ export const handler = async (event, context) => {
         };
         
         try {
+          // Log email sending attempt
+          console.log(`Attempting to send email to ${recipient.email} with SendGrid...`);
+          console.log(`From: ${emailData.from.email} (${emailData.from.name})`);
+          console.log(`To: ${emailData.to}`);
+          console.log(`Subject: ${emailData.subject}`);
+          console.log(`Public URL in email: ${publicUrl}`);
+          
           // Send email
           await sgMail.send(emailData);
           
+          console.log(`Email successfully sent to ${recipient.email}`);
+          
           return {
             email: recipient.email,
-            status: 'sent'
+            status: 'sent',
+            publicUrl: publicUrl
           };
         } catch (sendGridError) {
           console.error(`SendGrid error for ${recipient.email}:`, sendGridError);
+          // Log more detailed error information
+          if (sendGridError.response) {
+            console.error('SendGrid API response:', JSON.stringify({
+              statusCode: sendGridError.code || sendGridError.response.statusCode,
+              body: sendGridError.response.body,
+              headers: sendGridError.response.headers
+            }));
+          }
+          
           return {
             email: recipient.email,
             status: 'failed',
-            error: sendGridError.message
+            error: sendGridError.message,
+            publicUrl: publicUrl // Still return the URL even if email fails
           };
         }
       } catch (error) {
         console.error(`Error preparing email for ${recipient.email}:`, error);
-        return {
-          email: recipient.email,
-          status: 'failed',
-          error: error.message
-        };
+        
+        // Try to generate a public URL even if there was an error
+        try {
+          const tokenData = generateFlashReportToken(incidentId, 168);
+          const brandParam = recipient.isClient ? 'client' : null;
+          const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
+          
+          return {
+            email: recipient.email,
+            status: 'failed',
+            error: error.message,
+            publicUrl: publicUrl
+          };
+        } catch (urlError) {
+          console.error(`Error generating fallback URL for ${recipient.email}:`, urlError);
+          return {
+            email: recipient.email,
+            status: 'failed',
+            error: error.message
+          };
+        }
       }
     }));
     

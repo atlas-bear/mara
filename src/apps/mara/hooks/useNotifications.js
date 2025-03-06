@@ -61,6 +61,9 @@ export const useNotifications = () => {
           console.log(`- ${r.email}: ${r.publicUrl}`);
         });
         
+        console.log('\n✨ Copy any of these URLs to test the public Flash Report view');
+        console.log('Note: In production, these URLs would be included in the emails sent');
+        
         return {
           message: 'Flash report sent',
           results
@@ -97,6 +100,9 @@ export const useNotifications = () => {
               console.log(`- ${r.email}: ${r.publicUrl}`);
             }
           });
+          
+          console.log('\n✨ Copy any of these URLs to test the public Flash Report view');
+          console.log('Note: In production, these URLs would be included in the emails sent');
         }
         
         return result;

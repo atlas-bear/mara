@@ -141,6 +141,13 @@ function FlashReportPage() {
       // Add public URL information if available
       if (hasPublicUrls) {
         message += `\n\nRecipients can view the report online. URLs are logged in the console for testing.`;
+        message += `\n\nℹ️ In production, each recipient would receive an email with their unique secure link.`;
+        
+        // Specifically for the demo, add the first URL directly to the message
+        const firstUrl = result.results?.find(r => r.publicUrl)?.publicUrl;
+        if (firstUrl) {
+          message += `\n\n🔗 Demo URL (for testing): ${firstUrl}`;
+        }
       }
       
       setDialogMessage(message);
