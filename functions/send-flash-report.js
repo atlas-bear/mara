@@ -30,8 +30,10 @@ export const handler = async (event, context) => {
   }
 
   try {
-    // Configure SendGrid
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    // Configure SendGrid (check for VITE_ prefixed variables too)
+    const apiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
+    sgMail.setApiKey(apiKey);
+    console.log('SendGrid API configured with key length:', apiKey ? apiKey.length : 'not found');
     
     // Parse request body and log for debugging
     console.log('Request body:', event.body);
@@ -140,14 +142,16 @@ export const handler = async (event, context) => {
     let mapImageUrl = '';
     try {
       if (incidentData.latitude && incidentData.longitude) {
-        // Generate a MapBox Static API URL
-        const mapboxToken = process.env.MAPBOX_TOKEN;
+        // Generate a MapBox Static API URL (check for VITE_ prefix)
+        const mapboxToken = process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY;
         
         if (!mapboxToken) {
           console.warn('MapBox token not found in environment variables');
+          console.log('Looked for: MAPBOX_TOKEN or VITE_MAPS_API_KEY');
           // Use a placeholder image if no token is available
           mapImageUrl = 'https://placehold.co/600x400?text=Map+Location';
         } else {
+          console.log('Using MapBox token (length):', mapboxToken.length);
           // Define marker appearance based on incident type
           const incident_type = incidentData.incident_type || 'unknown';
           const markerColor = getMarkerColorByType(incident_type.toLowerCase());
@@ -197,10 +201,15 @@ export const handler = async (event, context) => {
       mapImageUrl
     };
     
+    // Look for SendGrid API key with or without VITE_ prefix
+    const sendGridApiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
+    const sendGridFromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.VITE_SENDGRID_FROM_EMAIL;
+    
     // Check if SendGrid API key is available
-    if (!process.env.SENDGRID_API_KEY) {
+    if (!sendGridApiKey) {
       console.warn('SendGrid API key not found in environment variables');
       console.log('Environment variables available:', Object.keys(process.env).filter(key => !key.includes('SECRET')).join(', '));
+      console.log('Looking for: SENDGRID_API_KEY or VITE_SENDGRID_API_KEY');
       
       // Generate tokens and URLs for testing even without SendGrid
       const testResults = await Promise.all(recipients.map(async (recipient) => {
@@ -269,7 +278,7 @@ export const handler = async (event, context) => {
         const emailData = {
           to: recipient.email,
           from: {
-            email: process.env.SENDGRID_FROM_EMAIL || 'alerts@example.com',
+            email: sendGridFromEmail || process.env.VITE_SENDGRID_FROM_EMAIL || 'alerts@example.com',
             name: branding.companyName || 'Maritime Risk Analysis'
           },
           subject,
