@@ -10,6 +10,16 @@ import { generateFlashReportToken, getPublicFlashReportUrl } from './utils/token
  * Netlify function to send flash reports via SendGrid
  * This handles the email sending functionality, keeping API keys secure
  * and avoiding CORS issues
+ * 
+ * ENVIRONMENT VARIABLE USAGE:
+ * - In Netlify functions, use process.env directly (NOT import.meta.env)
+ * - Required variables:
+ *   - MAPBOX_TOKEN - MapBox API token for maps
+ *   - SENDGRID_API_KEY - SendGrid API key
+ *   - SENDGRID_FROM_EMAIL - Email sender address
+ * - Don't use VITE_ prefixed variables in server-side code
+ * 
+ * See ENVIRONMENT.md for complete documentation on environment variables
  */
 export const handler = async (event, context) => {
   // Check for allowed request methods
@@ -34,8 +44,8 @@ export const handler = async (event, context) => {
     let latitude = null;
     let longitude = null;
     
-    // Configure SendGrid (check for VITE_ prefixed variables too)
-    const apiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
+    // Configure SendGrid - in Netlify functions use process.env directly
+    const apiKey = process.env.SENDGRID_API_KEY;
     sgMail.setApiKey(apiKey);
     console.log('SendGrid API configured with key length:', apiKey ? apiKey.length : 'not found');
     
@@ -106,13 +116,14 @@ export const handler = async (event, context) => {
           
           // Log what we found
           console.log('Incident data:', Object.keys(incidentData).join(', '));
-          console.log('Vessel data:', Object.keys(fetchedVesselData).join(', '));
-          console.log('Incident Vessel data:', Object.keys(fetchedIncidentVesselData).join(', '));
-          console.log('Incident type data:', Object.keys(incidentTypeData).join(', '));
+          console.log('Vessel data:', fetchedVesselData ? Object.keys(fetchedVesselData).join(', ') : 'none');
+          console.log('Incident Vessel data:', fetchedIncidentVesselData ? Object.keys(fetchedIncidentVesselData).join(', ') : 'none');
+          console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
           
           // Combine data for easier access in the template
-          vesselData = fetchedVesselData;
-          const incidentVesselData = fetchedIncidentVesselData;
+          // Define vesselData globally (it was referenced later without being defined in some code paths)
+          vesselData = fetchedVesselData || {};
+          const incidentVesselData = fetchedIncidentVesselData || {};
           
           // Add vessel status and crew impact from incident_vessel if available
           if (incidentVesselData) {
@@ -127,6 +138,14 @@ export const handler = async (event, context) => {
             }
             console.log('Added incident_vessel data to incident record');
           }
+          
+          // Log vessel data before we use it
+          console.log('VESSEL DATA DEBUG:');
+          console.log('- vesselData direct:', vesselData);
+          console.log('- vessel name from vessel table:', vesselData.name);
+          console.log('- vessel type from vessel table:', vesselData.type);
+          console.log('- vessel flag from vessel table:', vesselData.flag);
+          console.log('- vessel IMO from vessel table:', vesselData.imo);
           
           // Add incident type info to incident data
           if (incidentTypeData && incidentTypeData.name) {
@@ -217,23 +236,19 @@ export const handler = async (event, context) => {
       
       // If we have valid coordinates
       if (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude)) {
-        // Generate a MapBox Static API URL (check for VITE_ prefix)
-        const mapboxToken = process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY;
+        // In Netlify functions, use process.env for all environment variables
+        // This is server-side code, so import.meta.env is not available here
+        const mapboxToken = process.env.MAPBOX_TOKEN;
         
         console.log(`Map coordinates found: ${latitude}, ${longitude}`);
-        console.log('Available environment variables:');
-        Object.keys(process.env)
-          .filter(key => key.includes('MAP') || key.includes('TOKEN'))
-          .filter(key => !key.includes('SECRET'))
-          .forEach(key => {
-            console.log(`- ${key}: ${key.includes('KEY') || key.includes('TOKEN') ? '[REDACTED]' : process.env[key]}`);
-          });
+        console.log('Checking for MapBox token:');
+        console.log('- MAPBOX_TOKEN present:', !!process.env.MAPBOX_TOKEN);
         
         if (!mapboxToken) {
           console.warn('MapBox token not found in environment variables');
-          console.log('Looked for: MAPBOX_TOKEN or VITE_MAPS_API_KEY');
+          console.log('Make sure to set MAPBOX_TOKEN in your Netlify environment variables');
           // Use a placeholder image if no token is available
-          mapImageUrl = 'https://placehold.co/600x400?text=Map+Location';
+          mapImageUrl = 'https://placehold.co/600x400?text=Map+Requires+Mapbox+Token';
         } else {
           console.log('Using MapBox token (length):', mapboxToken.length);
           console.log('Token starts with:', mapboxToken.substring(0, 5) + '...');
@@ -285,8 +300,27 @@ export const handler = async (event, context) => {
           // Build URL
           const mapUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${lonStr},${latStr},5,0/600x400@2x?access_token=${mapboxToken}`;
           console.log('Generated map URL (length):', mapUrl.length);
+          console.log('Map URL beginning:', mapUrl.substring(0, 60) + '...');
           
-          mapImageUrl = mapUrl;
+          // Check if we're using a Google Maps API key by mistake
+          if (mapboxToken && mapboxToken.startsWith('AIza')) {
+            console.warn('WARNING: Using what appears to be a Google Maps API key with Mapbox API!');
+            console.warn('This will not work - you need a Mapbox access token that starts with "pk."');
+            
+            // Use a fallback static map URL
+            const fallbackUrl = `https://via.placeholder.com/600x400?text=Map+Requires+Mapbox+Token`;
+            console.log('Using fallback map URL instead');
+            mapImageUrl = fallbackUrl;
+          } else if (!mapboxToken) {
+            console.warn('No MapBox token found, using placeholder image');
+            mapImageUrl = `https://via.placeholder.com/600x400?text=No+Mapbox+Token+Found`;
+          } else if (!mapboxToken.startsWith('pk.')) {
+            console.warn('Invalid MapBox token format, should start with "pk."');
+            mapImageUrl = `https://via.placeholder.com/600x400?text=Invalid+Mapbox+Token+Format`;
+          } else {
+            console.log('Using valid Mapbox token format');
+            mapImageUrl = mapUrl;
+          }
         }
       } else {
         console.warn('No coordinates available for map generation');
@@ -301,12 +335,13 @@ export const handler = async (event, context) => {
       console.log('Map error analysis:');
       console.log('- Latitude value:', latitude, 'type:', typeof latitude);
       console.log('- Longitude value:', longitude, 'type:', typeof longitude);
-      console.log('- Mapbox token available:', !!process.env.MAPBOX_TOKEN || !!process.env.VITE_MAPS_API_KEY);
+      console.log('- Mapbox token available:', !!process.env.MAPBOX_TOKEN);
       
       // Use a Mapbox troubleshooting URL
       try {
         // Create a simpler map URL as a fallback 
-        const fallbackUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-s+f74e4e(0,0)/0,0,1/600x400?access_token=${process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY}`;
+        // Use only process.env.MAPBOX_TOKEN as we're in a server-side function
+        const fallbackUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-s+f74e4e(0,0)/0,0,1/600x400?access_token=${process.env.MAPBOX_TOKEN}`;
         console.log('Trying fallback map URL...');
         mapImageUrl = fallbackUrl;
       } catch (fallbackError) {
@@ -398,6 +433,9 @@ export const handler = async (event, context) => {
     // Detailed debugging for vessel data
     console.log('DETAILED VESSEL DATA ANALYSIS:');
     console.log('- vesselData available:', !!vesselData);
+    console.log('- vesselData keys:', vesselData ? Object.keys(vesselData).join(', ') : 'none');
+    console.log('- vesselData complete object:', JSON.stringify(vesselData));
+    
     if (vesselData) {
       if (vesselData.name) console.log('- vesselData.name:', vesselData.name);
       if (vesselData.type) console.log('- vesselData.type:', vesselData.type);
@@ -438,7 +476,20 @@ export const handler = async (event, context) => {
     }
     
     // Combine all vessel data sources with proper fallbacks
-    const vesselName = vesselData?.name || extractedVesselName || 'Unknown Vessel';
+    // Debug the source of vessel data
+    console.log('COMBINED VESSEL DATA SOURCES:');
+    console.log('- vesselData?.name:', vesselData?.name);
+    console.log('- incidentData.vessel_name:', incidentData.vessel_name);
+    console.log('- extractedVesselName:', extractedVesselName);
+    console.log('- vesselData?.type:', vesselData?.type);
+    console.log('- incidentData.vessel_type:', incidentData.vessel_type);
+    console.log('- vesselData?.flag:', vesselData?.flag);
+    console.log('- incidentData.vessel_flag:', incidentData.vessel_flag);
+    console.log('- vesselData?.imo:', vesselData?.imo);
+    console.log('- incidentData.vessel_imo:', incidentData.vessel_imo);
+    
+    // Prioritize data from vessel table, fall back to incident data, then fall back to defaults
+    const vesselName = vesselData?.name || incidentData.vessel_name || extractedVesselName || 'Unknown Vessel';
     const vesselType = vesselData?.type || incidentData.vessel_type || 'Vessel';
     const vesselFlag = vesselData?.flag || incidentData.vessel_flag || 'Unknown';
     const vesselIMO = vesselData?.imo || incidentData.vessel_imo || '-';
@@ -533,9 +584,10 @@ export const handler = async (event, context) => {
       console.log('TEST MODE: Continuing to send actual emails with pre-generated tokens');
     }
     
-    // Look for SendGrid API key with or without VITE_ prefix
-    const sendGridApiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
-    const sendGridFromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.VITE_SENDGRID_FROM_EMAIL;
+    // In Netlify functions, use process.env directly
+    // Not using VITE_ prefixed variables as those are for client-side code
+    const sendGridApiKey = process.env.SENDGRID_API_KEY;
+    const sendGridFromEmail = process.env.SENDGRID_FROM_EMAIL;
     
     // Check if SendGrid API key is available
     if (!sendGridApiKey) {
@@ -610,7 +662,7 @@ export const handler = async (event, context) => {
         const emailData = {
           to: recipient.email,
           from: {
-            email: sendGridFromEmail || process.env.VITE_SENDGRID_FROM_EMAIL || 'alerts@example.com',
+            email: sendGridFromEmail || 'alerts@example.com',
             name: branding.companyName || 'Maritime Risk Analysis'
           },
           subject,
@@ -732,18 +784,17 @@ function getBrandingForEmail(email, customBranding = null) {
     .filter(key => !key.includes('SECRET'));
   console.log('Available branding environment variables:', envVars.join(', '));
   
-  // Add support for VITE_ prefixed environment variables
-  const clientLogo = process.env.CLIENT_LOGO || process.env.VITE_CLIENT_LOGO;
-  const defaultLogo = process.env.DEFAULT_LOGO || process.env.VITE_DEFAULT_LOGO;
-  const clientName = process.env.CLIENT_NAME || process.env.VITE_CLIENT_NAME;
-  const defaultName = process.env.DEFAULT_COMPANY_NAME || process.env.VITE_DEFAULT_COMPANY_NAME;
+  // In Netlify functions, we use process.env directly
+  // Make sure not to use VITE_ prefixed variables in server-side code
+  const clientLogo = process.env.CLIENT_LOGO;
+  const defaultLogo = process.env.DEFAULT_LOGO;
+  const clientName = process.env.CLIENT_NAME;
+  const defaultName = process.env.DEFAULT_COMPANY_NAME;
   
   // Domain-based branding mapping - use environment variables for production
   const clientDomains = process.env.CLIENT_DOMAINS ? 
                         process.env.CLIENT_DOMAINS.split(',') : 
-                        (process.env.VITE_CLIENT_DOMAINS ? 
-                          process.env.VITE_CLIENT_DOMAINS.split(',') : 
-                          ['clientdomain.com', 'company.com', 'atlasbear.co']);
+                        ['clientdomain.com', 'company.com', 'atlasbear.co'];
   
   console.log('Client domains:', clientDomains.join(', '));
   
@@ -765,8 +816,8 @@ function getBrandingForEmail(email, customBranding = null) {
       logo: logoUrl,
       companyName: clientName || 'Atlas Bear Maritime',
       colors: {
-        primary: process.env.CLIENT_PRIMARY_COLOR || process.env.VITE_CLIENT_PRIMARY_COLOR || '#0047AB',
-        secondary: process.env.CLIENT_SECONDARY_COLOR || process.env.VITE_CLIENT_SECONDARY_COLOR || '#FF6B00'
+        primary: process.env.CLIENT_PRIMARY_COLOR || '#0047AB',
+        secondary: process.env.CLIENT_SECONDARY_COLOR || '#FF6B00'
       }
     };
   }
@@ -782,8 +833,8 @@ function getBrandingForEmail(email, customBranding = null) {
     logo: defaultLogoUrl,
     companyName: defaultName || 'MARA Maritime Risk Analysis',
     colors: {
-      primary: process.env.DEFAULT_PRIMARY_COLOR || process.env.VITE_DEFAULT_PRIMARY_COLOR || '#234567',
-      secondary: process.env.DEFAULT_SECONDARY_COLOR || process.env.VITE_DEFAULT_SECONDARY_COLOR || '#890123'
+      primary: process.env.DEFAULT_PRIMARY_COLOR || '#234567',
+      secondary: process.env.DEFAULT_SECONDARY_COLOR || '#890123'
     }
   };
 }

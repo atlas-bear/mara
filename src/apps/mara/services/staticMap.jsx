@@ -30,6 +30,7 @@ export const generateMapImage = async ({ latitude, longitude, zoom = 6, incident
     
     // Generate MapBox Static API URL
     // Documentation: https://docs.mapbox.com/api/maps/static-images/
+    // Client-side code uses import.meta.env.VITE_ prefixed variables
     const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
     const staticMapUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${longitude},${latitude},${zoom},0/600x400@2x?access_token=${mapboxToken}`;
     
@@ -91,6 +92,7 @@ export const generateStaticMap = (coordinates, options = {}) => {
   const mapStyle = 'mapbox.satellite';
   
   // Generate MapBox Static API URL
+  // Client-side code uses import.meta.env.VITE_ prefixed variables
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
   
   return `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${longitude},${latitude},${zoom},0/${width}x${height}@2x?access_token=${mapboxToken}`;

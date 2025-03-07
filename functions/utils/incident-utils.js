@@ -19,7 +19,7 @@ export async function getIncident(incidentId) {
       `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.AT_API_KEY || process.env.VITE_AT_API_KEY}`,
+          Authorization: `Bearer ${process.env.AT_API_KEY}`,
           "Content-Type": "application/json",
         },
         params: {
@@ -47,7 +47,7 @@ export async function getIncident(incidentId) {
         `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_vessel`,
         {
           headers: {
-            Authorization: `Bearer ${process.env.AT_API_KEY || process.env.VITE_AT_API_KEY}`,
+            Authorization: `Bearer ${process.env.AT_API_KEY}`,
             "Content-Type": "application/json",
           },
           params: {
@@ -95,7 +95,7 @@ export async function getIncident(incidentId) {
           `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/vessel/${vesselId}`,
           {
             headers: {
-              Authorization: `Bearer ${process.env.AT_API_KEY || process.env.VITE_AT_API_KEY}`,
+              Authorization: `Bearer ${process.env.AT_API_KEY}`,
               "Content-Type": "application/json",
             },
           }
@@ -119,7 +119,7 @@ export async function getIncident(incidentId) {
           `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_type/${incidentData.incident_type[0]}`,
           {
             headers: {
-              Authorization: `Bearer ${process.env.AT_API_KEY || process.env.VITE_AT_API_KEY}`,
+              Authorization: `Bearer ${process.env.AT_API_KEY}`,
               "Content-Type": "application/json",
             },
           }
