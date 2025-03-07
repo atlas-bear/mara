@@ -98,18 +98,35 @@ export const handler = async (event, context) => {
         if (airtableData) {
           console.log('Airtable data fetch successful!');
           
-          // Extract the data components
+          // Extract the data components - note the new incidentVessel data
           incidentData = airtableData.incident || {};
           const fetchedVesselData = airtableData.vessel || {};
+          const fetchedIncidentVesselData = airtableData.incidentVessel || {}; 
           const incidentTypeData = airtableData.incidentType || {};
           
           // Log what we found
           console.log('Incident data:', Object.keys(incidentData).join(', '));
           console.log('Vessel data:', Object.keys(fetchedVesselData).join(', '));
+          console.log('Incident Vessel data:', Object.keys(fetchedIncidentVesselData).join(', '));
           console.log('Incident type data:', Object.keys(incidentTypeData).join(', '));
           
           // Combine data for easier access in the template
           vesselData = fetchedVesselData;
+          const incidentVesselData = fetchedIncidentVesselData;
+          
+          // Add vessel status and crew impact from incident_vessel if available
+          if (incidentVesselData) {
+            if (incidentVesselData.vessel_status_during_incident) {
+              incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
+            }
+            if (incidentVesselData.crew_impact) {
+              incidentData.crew_impact = incidentVesselData.crew_impact;
+            }
+            if (incidentVesselData.damage_sustained) {
+              incidentData.damage_sustained = incidentVesselData.damage_sustained;
+            }
+            console.log('Added incident_vessel data to incident record');
+          }
           
           // Add incident type info to incident data
           if (incidentTypeData && incidentTypeData.name) {
@@ -222,11 +239,36 @@ export const handler = async (event, context) => {
           console.log('Token starts with:', mapboxToken.substring(0, 5) + '...');
           
           // Define marker appearance based on incident type
-          const incidentTypeName = incidentData.incident_type_name || 
-                                  (incidentData.incident_type ? 
-                                    (typeof incidentData.incident_type === 'string' ? 
-                                      incidentData.incident_type : 'unknown') : 
-                                    'unknown');
+          let incidentTypeName = 'unknown';
+          
+          // Extract in the same way as the main incident type
+          // Looking at the CSV, use the title to determine incident type for colors
+          if (incidentData.title && typeof incidentData.title === 'string') {
+            const title = incidentData.title.toLowerCase();
+            
+            if (title.includes('robbery')) {
+              incidentTypeName = 'robbery';
+            } else if (title.includes('attack')) {
+              incidentTypeName = 'attack';
+            } else if (title.includes('boarding')) {
+              incidentTypeName = 'boarding';
+            } else if (title.includes('hijacking')) {
+              incidentTypeName = 'hijacking';
+            } else if (title.includes('piracy')) {
+              incidentTypeName = 'piracy';
+            } else if (title.includes('suspicious')) {
+              incidentTypeName = 'suspicious';
+            } else {
+              // Default
+              incidentTypeName = 'unknown';
+            }
+          } else if (incidentData.incident_type_name && typeof incidentData.incident_type_name === 'string') {
+            incidentTypeName = incidentData.incident_type_name.toLowerCase();
+          } else if (incidentData.incident_type && typeof incidentData.incident_type === 'string') {
+            incidentTypeName = incidentData.incident_type.toLowerCase();
+          } else if (incidentData.type && typeof incidentData.type === 'string') {
+            incidentTypeName = incidentData.type.toLowerCase();
+          }
           
           console.log('Using incident type for map:', incidentTypeName);
           const markerColor = getMarkerColorByType(incidentTypeName.toLowerCase());
@@ -304,24 +346,51 @@ export const handler = async (event, context) => {
     // Get incident type with best available data
     let incidentType = 'Incident';
     
-    // First try the most reliable methods
-    if (incidentData.incident_type_name) {
+    // Looking at the CSV files, we can use the 'title' field to extract incident type
+    // Some incident types found in the CSV: "Robbery", "Boarding", "Attack", "Piracy", etc.
+    
+    // First try using the incident_type_name field if it's a string
+    if (incidentData.incident_type_name && typeof incidentData.incident_type_name === 'string') {
       incidentType = incidentData.incident_type_name;
-    } else if (incidentData.type_name) {
-      incidentType = incidentData.type_name;
-    } else if (typeof incidentData.incident_type === 'string') {
-      incidentType = incidentData.incident_type;
-    } else if (typeof incidentData.type === 'string') {
-      incidentType = incidentData.type;
-    } 
-    // Handle array or object cases - these come from Airtable relationships
-    else if (Array.isArray(incidentData.incident_type) && incidentData.incident_type.length > 0) {
-      // If we have the incident type data already fetched with name
-      if (incidentTypeData && incidentTypeData.name) {
-        incidentType = incidentTypeData.name;
+      console.log('Using incident_type_name string directly:', incidentType);
+    }
+    // Best option: use the title field which appears to have the meaningful info
+    else if (incidentData.title && typeof incidentData.title === 'string') {
+      // From CSV examples, titles usually start with incident type:
+      // "Armed Robbery Aboard ASPASIA LUCK"
+      // "UAV Attack on Russian Naval Base"
+      // "Chinese Fishing Vessel Hijacking off Somalia"
+      
+      // Get first few words from title, which usually indicate incident type
+      const words = incidentData.title.split(' ');
+      
+      // First handle common cases seen in the CSV
+      if (incidentData.title.toLowerCase().includes('robbery')) {
+        incidentType = 'Robbery';
+      } else if (incidentData.title.toLowerCase().includes('attack')) {
+        incidentType = 'Attack';
+      } else if (incidentData.title.toLowerCase().includes('boarding')) {
+        incidentType = 'Boarding';
+      } else if (incidentData.title.toLowerCase().includes('hijacking')) {
+        incidentType = 'Hijacking';
+      } else if (incidentData.title.toLowerCase().includes('piracy')) {
+        incidentType = 'Piracy';
       } else {
-        incidentType = 'Incident'; // Default
+        // Default: take first two words as type
+        incidentType = words.slice(0, 2).join(' ');
       }
+      
+      console.log('Extracted incident type from title:', incidentType);
+    }
+    // Last resort: use any other available fields
+    else if (incidentData.type) {
+      incidentType = typeof incidentData.type === 'string' ? incidentData.type : 'Incident';
+    } 
+    
+    // Handle specific cases for this Airtable format
+    if (incidentType === 'Armed Robbery') {
+      // Add an emoji to make it more noticeable
+      incidentType = '🚨 Armed Robbery';
     }
     
     console.log('Final incident type for email:', incidentType);
@@ -331,18 +400,48 @@ export const handler = async (event, context) => {
     console.log('- vesselData available:', !!vesselData);
     if (vesselData) {
       if (vesselData.name) console.log('- vesselData.name:', vesselData.name);
-      if (vesselData.vessel_name) console.log('- vesselData.vessel_name:', vesselData.vessel_name);
-      if (vesselData.imo) console.log('- vesselData.imo:', vesselData.imo);
-      if (vesselData.flag) console.log('- vesselData.flag:', vesselData.flag);
       if (vesselData.type) console.log('- vesselData.type:', vesselData.type);
+      if (vesselData.flag) console.log('- vesselData.flag:', vesselData.flag);
+      if (vesselData.imo) console.log('- vesselData.imo:', vesselData.imo);
     }
-    if (incidentData.vessel_name) console.log('- incidentData.vessel_name:', incidentData.vessel_name);
     
-    // Get vessel data with best available fields
-    const vesselName = vesselData?.name || vesselData?.vessel_name || incidentData.vessel_name || 'Unknown Vessel';
-    const vesselType = vesselData?.type || vesselData?.vessel_type || incidentData.vessel_type || 'Unknown Type';
-    const vesselFlag = vesselData?.flag || vesselData?.vessel_flag || incidentData.vessel_flag || 'Unknown Flag';
-    const vesselIMO = vesselData?.imo || vesselData?.vessel_imo || incidentData.vessel_imo || 'Unknown IMO';
+    // From CSV data, we can see the vessel table has:
+    // id, name, type, flag, imo, beam, length, draft, incident_vessel_id
+    
+    // Get vessel name from title if not available from vessel data
+    let extractedVesselName = null;
+    if (incidentData.title) {
+      // Extract vessel name from title - based on naming pattern in CSV
+      // Examples: "Armed Robbery Aboard ASPASIA LUCK", "Missile Attack on OLYMPIC SPIRIT"
+      const title = incidentData.title;
+      
+      // Common patterns in the title where vessel name appears
+      const vesselIndicators = ['aboard', 'on', 'involving', 'of'];
+      
+      for (const indicator of vesselIndicators) {
+        const index = title.toLowerCase().indexOf(indicator + ' ');
+        if (index !== -1) {
+          // Take everything after the indicator
+          const afterIndicator = title.substring(index + indicator.length + 1);
+          
+          // If there's additional text (like "in Gulf of Guinea"), take what's before it
+          const endIndex = afterIndicator.indexOf(' in ');
+          if (endIndex !== -1) {
+            extractedVesselName = afterIndicator.substring(0, endIndex).trim();
+          } else {
+            extractedVesselName = afterIndicator.trim();
+          }
+          console.log(`Extracted vessel name from title using "${indicator}": ${extractedVesselName}`);
+          break;
+        }
+      }
+    }
+    
+    // Combine all vessel data sources with proper fallbacks
+    const vesselName = vesselData?.name || extractedVesselName || 'Unknown Vessel';
+    const vesselType = vesselData?.type || incidentData.vessel_type || 'Vessel';
+    const vesselFlag = vesselData?.flag || incidentData.vessel_flag || 'Unknown';
+    const vesselIMO = vesselData?.imo || incidentData.vessel_imo || '-';
     
     console.log('Final vessel data for email:', {
       name: vesselName,

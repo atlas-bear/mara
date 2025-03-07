@@ -40,6 +40,7 @@ export async function getIncident(incidentId) {
 
     // 2. Get the vessel ID from incident_vessel join table
     let vesselId = null;
+    let incidentVesselDetails = null;
     try {
       console.log(`Looking for vessel relationship for incident ${incidentId}...`);
       const incidentVesselResponse = await axios.get(
@@ -58,10 +59,28 @@ export async function getIncident(incidentId) {
 
       if (incidentVesselResponse.data.records && incidentVesselResponse.data.records.length > 0) {
         const linkRecord = incidentVesselResponse.data.records[0].fields;
+        // In our CSV data, we see that the vessel field isn't directly available
+        // Instead, we'd need to look at the incident_vessel_id field from vessel table
+        // Our goal is to get both incident_vessel data and vessel data
+        
+        // Keep track of incident_vessel data
+        const incidentVesselData = linkRecord;
+        console.log('Found incident_vessel data:', Object.keys(incidentVesselData).join(', '));
+        
+        // Try to find vessel_id
         if (linkRecord.vessel && linkRecord.vessel.length > 0) {
           vesselId = linkRecord.vessel[0];
-          console.log(`Found vessel relationship, vessel ID: ${vesselId}`);
+          console.log(`Found vessel relationship via vessel field, vessel ID: ${vesselId}`);
+        } else if (linkRecord.vessel_id) {
+          vesselId = linkRecord.vessel_id;
+          console.log(`Found vessel relationship via vessel_id field, vessel ID: ${vesselId}`);
         }
+        
+        // Add incident_vessel data to our return object to ensure we have all the information
+        incidentVesselData.id = linkRecord.id;
+        // Store for later return
+        incidentVesselDetails = incidentVesselData;
+        console.log('Incident vessel data added from incident_vessel table');
       }
     } catch (error) {
       console.warn(`Error fetching incident_vessel relationship: ${error.message}`);
@@ -144,6 +163,7 @@ export async function getIncident(incidentId) {
     return {
       incident: incidentData,
       vessel: vesselData,
+      incidentVessel: incidentVesselDetails,
       incidentType: incidentTypeData
     };
   } catch (error) {
