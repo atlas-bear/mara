@@ -1,7 +1,7 @@
 import sgMail from '@sendgrid/mail';
 import axios from 'axios';
 import { getIncident } from './utils/incident-utils.js';
-import { getVesselByIMO } from './utils/vessel-utils.js';
+import { getVesselByIMO, getVesselByName, getVesselById } from './utils/vessel-utils.js';
 import { validateData } from './utils/validation.js';
 import { corsHeaders } from './utils/environment.js';
 import { generateFlashReportToken, getPublicFlashReportUrl } from './utils/token-utils.js';
@@ -121,8 +121,8 @@ export const handler = async (event, context) => {
           console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
           
           // Combine data for easier access in the template
-          // Define vesselData globally (it was referenced later without being defined in some code paths)
-          vesselData = fetchedVesselData || {};
+          // Define vesselData with let instead of referencing it without declaration
+          let vesselData = fetchedVesselData || {};
           const incidentVesselData = fetchedIncidentVesselData || {};
           
           // Add vessel status and crew impact from incident_vessel if available
@@ -141,11 +141,16 @@ export const handler = async (event, context) => {
           
           // Log vessel data before we use it
           console.log('VESSEL DATA DEBUG:');
-          console.log('- vesselData direct:', vesselData);
+          console.log('- vesselData direct:', JSON.stringify(vesselData));
           console.log('- vessel name from vessel table:', vesselData.name);
           console.log('- vessel type from vessel table:', vesselData.type);
           console.log('- vessel flag from vessel table:', vesselData.flag);
           console.log('- vessel IMO from vessel table:', vesselData.imo);
+          
+          // Check for direct vessel data in incident record
+          if (incidentData.vessel) {
+            console.log('- Direct vessel link in incident:', incidentData.vessel);
+          }
           
           // Add incident type info to incident data
           if (incidentTypeData && incidentTypeData.name) {
@@ -164,7 +169,7 @@ export const handler = async (event, context) => {
           incidentData = sampleIncidentData;
           
           // Create sample vessel data since we're using the sample data
-          vesselData = {
+          let vesselData = {
             name: incidentData.vessel_name,
             type: incidentData.vessel_type,
             flag: incidentData.vessel_flag,
@@ -375,11 +380,92 @@ export const handler = async (event, context) => {
     // For sample data, the vessel info is included directly in the incidentData
     // For real incidents, prioritize data from the vessel table via the relation
     
-    // Prioritize data from vessel table, fall back to incident data, then fall back to defaults
-    const vesselName = vesselData?.name || incidentData.vessel_name || extractedVesselName || 'Unknown Vessel';
-    const vesselType = vesselData?.type || incidentData.vessel_type || 'Vessel';
-    const vesselFlag = vesselData?.flag || incidentData.vessel_flag || 'Unknown';
-    const vesselIMO = vesselData?.imo || incidentData.vessel_imo || '-';
+    // Start with vessel data from the relationship query
+    let enhancedVesselData = vesselData || {};
+    let lookupMethod = "vessel relationship data";
+    
+    // If vessel data is incomplete, try multiple lookup strategies
+    if (!enhancedVesselData?.name || !enhancedVesselData?.type || !enhancedVesselData?.flag) {
+      console.log('Incomplete vessel data detected. Attempting alternative lookups...');
+      
+      // Strategy 1: Check for direct vessel reference in the incident
+      if (incidentData.vessel && typeof incidentData.vessel === 'string' && incidentData.vessel.startsWith('rec')) {
+        console.log('Found direct vessel reference ID in incident:', incidentData.vessel);
+        try {
+          const directVesselData = await getVesselById(incidentData.vessel);
+          if (directVesselData) {
+            console.log('Successfully fetched vessel by direct ID reference:', Object.keys(directVesselData).join(', '));
+            enhancedVesselData = directVesselData;
+            lookupMethod = "direct vessel ID lookup";
+          }
+        } catch (vesselIdError) {
+          console.error('Error looking up vessel by ID:', vesselIdError.message);
+        }
+      }
+      
+      // Strategy 2: Try IMO lookup if we have one and still need data
+      if ((!enhancedVesselData?.type || !enhancedVesselData?.flag) && 
+         (enhancedVesselData?.imo || incidentData.vessel_imo)) {
+        const foundIMO = enhancedVesselData?.imo || incidentData.vessel_imo;
+        console.log(`Found IMO ${foundIMO}, attempting IMO lookup...`);
+        
+        try {
+          const imoVesselData = await getVesselByIMO(foundIMO);
+          if (imoVesselData) {
+            console.log('Successfully fetched vessel by IMO:', Object.keys(imoVesselData).join(', '));
+            enhancedVesselData = imoVesselData;
+            lookupMethod = "IMO lookup";
+          }
+        } catch (imoError) {
+          console.error('Error looking up vessel by IMO:', imoError.message);
+        }
+      }
+      
+      // Strategy 3: Try vessel name lookup if we have a name and still need data
+      if ((!enhancedVesselData?.type || !enhancedVesselData?.flag) && 
+         (enhancedVesselData?.name || incidentData.vessel_name || extractedVesselName)) {
+        const foundName = enhancedVesselData?.name || incidentData.vessel_name || extractedVesselName;
+        
+        if (foundName) {
+          console.log(`Found vessel name "${foundName}", attempting name lookup...`);
+          try {
+            const nameVesselData = await getVesselByName(foundName);
+            if (nameVesselData) {
+              console.log('Successfully fetched vessel by name:', Object.keys(nameVesselData).join(', '));
+              enhancedVesselData = nameVesselData;
+              lookupMethod = "name lookup";
+            }
+          } catch (nameError) {
+            console.error('Error looking up vessel by name:', nameError.message);
+          }
+        }
+      }
+      
+      // Strategy 4: As a last resort, use the embedded vessel fields from incident record
+      if (!enhancedVesselData?.type || !enhancedVesselData?.flag) {
+        if (incidentData.vessel_type || incidentData.vessel_flag) {
+          console.log('Using embedded vessel fields from incident record');
+          // Create a merged object with embedded fields as fallbacks
+          enhancedVesselData = {
+            ...enhancedVesselData,
+            name: enhancedVesselData?.name || incidentData.vessel_name || extractedVesselName,
+            type: enhancedVesselData?.type || incidentData.vessel_type,
+            flag: enhancedVesselData?.flag || incidentData.vessel_flag,
+            imo: enhancedVesselData?.imo || incidentData.vessel_imo
+          };
+          lookupMethod = "incident embedded vessel fields";
+        }
+      }
+    }
+    
+    console.log(`Vessel data source: ${lookupMethod}`);
+    console.log('Final enhanced vessel data:', JSON.stringify(enhancedVesselData));
+    
+    // Use enhanced vessel data directly (it already contains all the prioritization)
+    const vesselName = enhancedVesselData?.name || extractedVesselName || 'Unknown Vessel';
+    const vesselType = enhancedVesselData?.type || 'Vessel';
+    const vesselFlag = enhancedVesselData?.flag || 'Unknown';
+    const vesselIMO = enhancedVesselData?.imo || '-';
     
     console.log('FINAL VESSEL DATA AFTER PROCESSING:');
     console.log('- Name:', vesselName);

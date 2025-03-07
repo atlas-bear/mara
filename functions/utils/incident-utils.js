@@ -37,6 +37,12 @@ export async function getIncident(incidentId) {
     const incidentRecord = incidentResponse.data.records[0];
     const incidentData = incidentRecord.fields;
     console.log(`Found incident: ${incidentData.id} - ${incidentData.description?.substring(0, 50)}...`);
+    
+    // DEBUG: Log all fields from the incident record
+    console.log('All incident fields:', Object.keys(incidentData).join(', '));
+    if (incidentData.vessel) {
+      console.log('Direct vessel link found in incident:', incidentData.vessel);
+    }
 
     // 2. Get the vessel ID from incident_vessel join table
     let vesselId = null;
@@ -86,8 +92,14 @@ export async function getIncident(incidentId) {
       console.warn(`Error fetching incident_vessel relationship: ${error.message}`);
     }
 
-    // 3. Get vessel details if we have a vessel ID
+    // 3. Get vessel details if we have a vessel ID or direct link
     let vesselData = null;
+    // Check for direct vessel reference in the incident
+    if (incidentData.vessel && incidentData.vessel.length > 0) {
+      console.log('Using direct vessel reference from incident:', incidentData.vessel[0]);
+      vesselId = incidentData.vessel[0];
+    }
+    
     if (vesselId) {
       try {
         console.log(`Fetching vessel details for vessel ID ${vesselId}...`);

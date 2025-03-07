@@ -33,6 +33,70 @@ export async function getVesselByIMO(imoNumber) {
   return null;
 }
 
+/**
+ * Fetches a vessel by name from Airtable 
+ * @param {string} vesselName - The name of the vessel to fetch
+ * @returns {Object|null} The vessel data or null if not found
+ */
+export async function getVesselByName(vesselName) {
+  if (!vesselName) {
+    throw new Error("Vessel name is required");
+  }
+
+  // Fetch vessel from Airtable
+  const response = await axios.get(
+    `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/vessel`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.AT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      params: {
+        filterByFormula: `{name}="${vesselName}"`,
+        maxRecords: 1,
+      },
+    }
+  );
+
+  if (response.data.records && response.data.records.length > 0) {
+    return response.data.records[0].fields;
+  }
+
+  return null;
+}
+
+/**
+ * Fetches a vessel by Airtable record ID
+ * @param {string} vesselId - The Airtable record ID of the vessel
+ * @returns {Object|null} The vessel data or null if not found
+ */
+export async function getVesselById(vesselId) {
+  if (!vesselId) {
+    throw new Error("Vessel ID is required");
+  }
+
+  // Fetch vessel from Airtable
+  try {
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/vessel/${vesselId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.AT_API_KEY}`,
+          "Content-Type": "application/json",
+        }
+      }
+    );
+
+    if (response.data && response.data.fields) {
+      return response.data.fields;
+    }
+  } catch (error) {
+    console.error(`Error fetching vessel with ID ${vesselId}:`, error.message);
+  }
+
+  return null;
+}
+
 export function determineVesselStatus(text) {
   const lowerText = text.toLowerCase();
 
