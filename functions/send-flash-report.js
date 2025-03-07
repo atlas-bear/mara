@@ -190,51 +190,23 @@ export const handler = async (event, context) => {
       };
     }
     
-    // Get map image directly from Airtable incident data
+    // Extract map image URL directly from Airtable data
     let mapImageUrl = '';
     try {
-      // Extract coordinates for logging purposes
-      // These are used for displaying in the email, even if we don't use them for map generation anymore
-      latitude = null;
-      longitude = null;
+      // Extract coordinates for email display
+      latitude = parseFloat(incidentData.latitude) || 0;
+      longitude = parseFloat(incidentData.longitude) || 0;
       
-      // Check direct lat/lon fields for coordinates display
-      if (incidentData.latitude !== undefined) {
-        latitude = parseFloat(incidentData.latitude);
-      } else if (incidentData.lat !== undefined) {
-        latitude = parseFloat(incidentData.lat);
-      }
-      
-      if (incidentData.longitude !== undefined) {
-        longitude = parseFloat(incidentData.longitude);
-      } else if (incidentData.lon !== undefined) {
-        longitude = parseFloat(incidentData.lon);
-      }
-      
-      // Check coordinates object
-      if ((latitude === null || longitude === null) && incidentData.coordinates) {
-        if (incidentData.coordinates.latitude !== undefined) {
-          latitude = parseFloat(incidentData.coordinates.latitude);
-        }
-        if (incidentData.coordinates.longitude !== undefined) {
-          longitude = parseFloat(incidentData.coordinates.longitude);
-        }
-      }
-      
-      // Log coordinates for debugging
       console.log('Incident coordinates:', latitude, longitude);
       
-      // Check if the incident has a map_image_url field from Airtable
+      // Use map_image_url field from Airtable if available
       if (incidentData.map_image_url && typeof incidentData.map_image_url === 'string') {
-        // Use the pre-generated map image URL from Airtable
         mapImageUrl = incidentData.map_image_url;
         console.log('Using map image URL from Airtable:', mapImageUrl);
       } else {
         console.log('No map_image_url found in incident data, using default map');
         
         // Fall back to a default map in Cloudinary
-        // Default map based on rough region
-        // Asia/Pacific region default
         mapImageUrl = 'https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/default-map.jpg';
       }
     } catch (mapError) {

@@ -3,38 +3,8 @@ import { useParams } from 'react-router-dom';
 import PreviewMode from '../../components/FlashReport/PreviewMode';
 import EmailTemplate from '../../components/FlashReport/EmailTemplate';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useIncident } from '@shared/features/incidents';
 import { Send, Mail, Eye, EyeOff, User, Tag } from 'lucide-react';
-
-// For testing - will eventually come from API/database
-const sampleIncidents = {
-  '2025-0010': {
-    id: '2025-0010',
-    title: 'Armed Robbery aboard ASPASIA LUCK',
-    type: 'robbery',
-    date: '2024-10-17T18:08:00.000Z',
-    location: 'Singapore Strait',
-    coordinates: {
-      latitude: 1.13,
-      longitude: 103.5
-    },
-    vesselName: 'ASPASIA LUCK',
-    vesselType: 'Bulk Carrier',
-    vesselFlag: 'Liberia',
-    vesselIMO: '9223485',
-    status: 'Underway',
-    destination: 'PEBGB',
-    crewStatus: 'All Safe',
-    description: 'Test incident description',
-    responseActions: [
-      'Action 1',
-      'Action 2'
-    ],
-    analysis: [
-      'Analysis point 1',
-      'Analysis point 2'
-    ]
-  }
-};
 
 // Sample subscribers for testing
 const sampleSubscribers = [
@@ -64,8 +34,11 @@ const brandingConfigs = {
 
 function FlashReportPage() {
   const { incidentId } = useParams();
-  const incident = sampleIncidents[incidentId];
+  const { incident: incidentData, loading, error } = useIncident(incidentId);
   const { sendFlashReport } = useNotifications();
+  
+  // Prepare the incident data in the format expected by the components
+  const [incident, setIncident] = useState(null);
   
   const [activeTab, setActiveTab] = useState('preview');
   const [subscribers, setSubscribers] = useState([]);
@@ -87,6 +60,47 @@ function FlashReportPage() {
     // Load sample subscribers
     setSubscribers(sampleSubscribers);
   }, []);
+  
+  // Effect to transform API data into the format expected by components
+  useEffect(() => {
+    if (!incidentData) return;
+    
+    console.log('Processing incident data from API:', incidentData);
+    
+    // Extract fields from the API response
+    const fields = incidentData.incident.fields;
+    const vesselFields = incidentData.vessel?.fields || {};
+    const incidentVesselFields = incidentData.incidentVessel?.fields || {};
+    const incidentTypeFields = incidentData.incidentType?.fields || {};
+    
+    // Create a structured incident object
+    const formattedIncident = {
+      id: fields.id,
+      title: fields.title || `Incident at ${fields.location_name}`,
+      type: incidentTypeFields.name?.toLowerCase() || 'incident',
+      date: fields.date_time_utc,
+      location: fields.location_name,
+      coordinates: {
+        latitude: parseFloat(fields.latitude) || 0,
+        longitude: parseFloat(fields.longitude) || 0
+      },
+      vesselName: vesselFields.name || 'Unknown Vessel',
+      vesselType: vesselFields.type || 'Unknown',
+      vesselFlag: vesselFields.flag || 'Unknown',
+      vesselIMO: vesselFields.imo || 'Unknown',
+      status: incidentVesselFields.vessel_status_during_incident || 'Unknown',
+      destination: fields.vessel_destination || 'Unknown',
+      crewStatus: incidentVesselFields.crew_impact || 'No information available',
+      description: fields.description || 'No description available',
+      responseActions: fields.response_type || [],
+      analysis: fields.analysis ? [fields.analysis] : ['No analysis available'],
+      // Include any additional fields needed by the components
+      map_image_url: fields.map_image_url
+    };
+    
+    console.log('Formatted incident for UI:', formattedIncident);
+    setIncident(formattedIncident);
+  }, [incidentData]);
   
   const handleAddSubscriber = () => {
     if (!newSubscriber || !newSubscriber.includes('@')) return;
@@ -185,7 +199,32 @@ function FlashReportPage() {
     }
   };
 
-  if (!incident) {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h1>
+          <p className="text-gray-600">Fetching incident data for {incidentId}.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show not found state
+  if (!incident && !loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md">
