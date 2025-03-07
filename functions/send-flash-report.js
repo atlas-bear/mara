@@ -292,17 +292,36 @@ export const handler = async (event, context) => {
         const typeMapUrl = `${cloudinaryBase}/${incidentTypePath}`;
         const defaultMapUrl = `${cloudinaryBase}/${defaultMapPath}`;
         
-        // For development: use a specific incident file to guarantee success
-        // In production environment, we would create custom static maps for each incident
-        mapImageUrl = `${cloudinaryBase}/maps/public/demo_map.jpg`;
-        console.log('Using demo map from Cloudinary (guaranteed to work)');
+        // Generate a static map using Mapbox API directly
+        // We need this approach until we have pre-generated maps uploaded to Cloudinary
+        const mapboxToken = process.env.MAPBOX_TOKEN;
         
-        // Log our path options
-        console.log('Map options:');
-        console.log('1. Incident-specific:', incidentSpecificPath);
-        console.log('2. Incident type:', incidentTypePath); 
-        console.log('3. Default map:', defaultMapPath);
-        console.log('4. Demo map (currently used):', 'maps/public/demo_map.jpg');
+        if (!mapboxToken || !mapboxToken.startsWith('pk.')) {
+          console.warn('No valid Mapbox token available for map generation');
+          mapImageUrl = `${cloudinaryBase}/maps/public/no-mapbox-token.jpg`;
+        } else {
+          // Mapbox Static Map API: https://docs.mapbox.com/api/maps/static-images/
+          // We'll use this to generate a static map with the incident location
+          const mapStyle = 'mapbox/satellite-v9'; // Use satellite imagery by default
+          const zoom = 5; // Zoom level appropriate for maritime incidents
+          const width = 600;
+          const height = 400;
+          const markerColor = getMarkerColorByType(incidentTypeName);
+          
+          // Determine marker - use a different color based on incident type
+          const marker = `pin-l+${markerColor.replace('#', '')}(${longitude},${latitude})`;
+          
+          // Generate Mapbox static map URL - we bypass Cloudinary until we have pre-generated maps
+          mapImageUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${longitude},${latitude},${zoom},0/${width}x${height}@2x?access_token=${mapboxToken}`;
+          
+          console.log('Generated Mapbox static map URL (token masked for security)');
+          console.log('Map style:', mapStyle);
+          console.log('Using incident type:', incidentTypeName);
+          console.log('Using marker color:', markerColor);
+        }
+        
+        // Log our approach for debugging
+        console.log('Map approach: Using direct Mapbox API (should create static maps in Cloudinary)');
       } else {
         console.warn('No coordinates available for map generation');
         console.log('Incident data fields:', Object.keys(incidentData).join(', '));
@@ -842,6 +861,38 @@ function getMarkerColorByType(incidentType) {
 }
 
 /**
+ * Format coordinates in degrees, minutes, seconds format
+ * @param {number} coordinate - The coordinate value (latitude or longitude)
+ * @param {string} type - Either 'lat' or 'lon' to determine N/S or E/W
+ * @returns {string} Formatted coordinate string
+ */
+function formatCoordinates(coordinate, type) {
+  // Handle null or invalid coordinates
+  if (coordinate === null || coordinate === undefined || isNaN(coordinate)) {
+    return 'N/A';
+  }
+  
+  // Determine if positive or negative
+  const absolute = Math.abs(coordinate);
+  
+  // Convert to degrees, minutes, seconds
+  const degrees = Math.floor(absolute);
+  const minutesDecimal = (absolute - degrees) * 60;
+  const minutes = Math.floor(minutesDecimal);
+  const seconds = ((minutesDecimal - minutes) * 60).toFixed(2);
+  
+  // Format as string with directional indicator
+  let direction = '';
+  if (type === 'lat') {
+    direction = coordinate >= 0 ? 'N' : 'S';
+  } else {
+    direction = coordinate >= 0 ? 'E' : 'W';
+  }
+  
+  return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
+}
+
+/**
  * Generate HTML content for email
  * This is a simplified version - in production, use a proper templating engine
  * or React server-side rendering with the components we created
@@ -921,13 +972,40 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
         '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
       }
       
-      <!-- Clickable location name with coordinates as title -->
-      <p style="font-size: 14px; margin-top: 8px; text-align: center;">
-        <a href="https://www.google.com/maps?q=${incident.coordinates.latitude},${incident.coordinates.longitude}" 
-           title="View on Google Maps" target="_blank" style="color: ${branding.colors.primary}; text-decoration: underline;">
-          ${incident.location || 'View on map'}
-        </a>
+      <!-- Location name (not clickable) -->
+      <p style="font-size: 16px; margin-top: 8px; text-align: center; font-weight: 600; color: #1F2937;">
+        ${incident.location || 'Unknown location'}
       </p>
+    </div>
+
+    <!-- Vessel and Crew Status Section -->
+    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB; display: flex; flex-wrap: wrap; gap: 16px;">
+      <!-- Location Details -->
+      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Location</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0 0 8px 0;">
+          <strong>${incident.location || 'Unknown Location'}</strong><br>
+          ${incident.coordinates.latitude !== 0 ? formatCoordinates(incident.coordinates.latitude, 'lat') : 'N/A'}, 
+          ${incident.coordinates.longitude !== 0 ? formatCoordinates(incident.coordinates.longitude, 'lon') : 'N/A'}
+        </p>
+      </div>
+      
+      <!-- Vessel Status -->
+      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Vessel Status</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0 0 8px 0;">
+          <strong>${incident.status || 'Unknown'}</strong><br>
+          ${incident.destination ? `En route to ${incident.destination}` : ''}
+        </p>
+      </div>
+      
+      <!-- Crew Status -->
+      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Crew Status</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">
+          ${incident.crewStatus || 'No information available'}
+        </p>
+      </div>
     </div>
 
     <!-- Incident Details -->
