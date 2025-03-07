@@ -374,22 +374,36 @@ export const handler = async (event, context) => {
     console.log('COMBINED VESSEL DATA SOURCES:');
     console.log('- incidentData full object:', JSON.stringify(incidentData).substring(0, 500) + '...');
     console.log('- vesselData full object:', JSON.stringify(vesselData).substring(0, 500) + '...');
-    console.log('- vesselData?.name:', vesselData?.name);
-    console.log('- incidentData.vessel_name:', incidentData.vessel_name);
-    console.log('- extractedVesselName:', extractedVesselName);
-    console.log('- vesselData?.type:', vesselData?.type);
-    console.log('- incidentData.vessel_type:', incidentData.vessel_type);
-    console.log('- vesselData?.flag:', vesselData?.flag);
-    console.log('- incidentData.vessel_flag:', incidentData.vessel_flag);
-    console.log('- vesselData?.imo:', vesselData?.imo);
-    console.log('- incidentData.vessel_imo:', incidentData.vessel_imo);
     
-    // Ensure we get the vessel data from the correct source
-    // The sample data in incidentData.vessel_name is already populated
-    // The Airtable data might have the values in different fields
+    // For non-sample incidents, vesselData comes from the vessel table via the relationship
+    // For sample incidents, vesselData is created directly from the sample incident data
+    
+    // Sample case debug output
+    console.log('VESSEL DATA FIELDS FROM AIRTABLE VESSEL TABLE:');
+    if (vesselData) {
+      console.log('- name:', vesselData.name);
+      console.log('- type:', vesselData.type);
+      console.log('- flag:', vesselData.flag);
+      console.log('- imo:', vesselData.imo);
+    } else {
+      console.log('No vessel data from Airtable vessel table');
+    }
+    
+    // Incident case debug output
+    console.log('VESSEL DATA FIELDS FROM INCIDENT RECORD:');
+    console.log('- vessel_name:', incidentData.vessel_name);
+    console.log('- vessel_type:', incidentData.vessel_type);
+    console.log('- vessel_flag:', incidentData.vessel_flag);
+    console.log('- vessel_imo:', incidentData.vessel_imo);
+    
+    // Title extraction debug output
+    console.log('- extractedVesselName from title:', extractedVesselName);
+    
+    // For relational data (from Airtable), the vessel info comes from vesselData
+    // For sample data, the vessel info is included directly in the incidentData
+    // For real incidents, prioritize data from the vessel table via the relation
     
     // Prioritize data from vessel table, fall back to incident data, then fall back to defaults
-    // Use sample data vessels if available
     const vesselName = vesselData?.name || incidentData.vessel_name || extractedVesselName || 'Unknown Vessel';
     const vesselType = vesselData?.type || incidentData.vessel_type || 'Vessel';
     const vesselFlag = vesselData?.flag || incidentData.vessel_flag || 'Unknown';

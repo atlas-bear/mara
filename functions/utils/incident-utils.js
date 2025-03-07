@@ -103,8 +103,38 @@ export async function getIncident(incidentId) {
 
         if (vesselResponse.data) {
           vesselData = vesselResponse.data.fields;
-          console.log(`Found vessel data: ${vesselData.name || 'Unknown'} (IMO: ${vesselData.imo || 'N/A'})`);
+          
+          // Log the full vessel data
           console.log('Vessel data details:', JSON.stringify(vesselData));
+          
+          // In Airtable, the fields might have different names than what our code expects
+          // Make sure vessel data is normalized to have expected field names
+          
+          // Check for different field name possibilities
+          // For example, vessel type might be in 'type' or 'vessel_type'
+          if (!vesselData.name && vesselData.vessel_name) {
+            vesselData.name = vesselData.vessel_name;
+          }
+          
+          if (!vesselData.type && vesselData.vessel_type) {
+            vesselData.type = vesselData.vessel_type;
+          }
+          
+          if (!vesselData.flag && vesselData.vessel_flag) {
+            vesselData.flag = vesselData.vessel_flag;
+          }
+          
+          if (!vesselData.imo && vesselData.vessel_imo) {
+            vesselData.imo = vesselData.vessel_imo;
+          }
+          
+          // Log the final vessel data after normalization
+          console.log(`Found vessel data: ${vesselData.name || 'Unknown'} (IMO: ${vesselData.imo || 'N/A'})`);
+          console.log('Normalized vessel fields:');
+          console.log('- name:', vesselData.name);
+          console.log('- type:', vesselData.type);
+          console.log('- flag:', vesselData.flag);
+          console.log('- imo:', vesselData.imo);
         }
       } catch (error) {
         console.warn(`Error fetching vessel details: ${error.message}`);
