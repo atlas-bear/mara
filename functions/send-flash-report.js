@@ -190,157 +190,59 @@ export const handler = async (event, context) => {
       };
     }
     
-    // Generate static map using Cloudinary
+    // Get map image directly from Airtable incident data
     let mapImageUrl = '';
     try {
-      // Extract coordinates for map generation
-      // Using function-wide variables instead of local ones
+      // Extract coordinates for logging purposes
+      // These are used for displaying in the email, even if we don't use them for map generation anymore
       latitude = null;
       longitude = null;
       
-      // Check all possible coordinate fields (and handle string vs number)
-      console.log('COORDINATE EXTRACTION:');
-      
-      // Check direct lat/lon fields
+      // Check direct lat/lon fields for coordinates display
       if (incidentData.latitude !== undefined) {
-        console.log('Found latitude field:', incidentData.latitude, typeof incidentData.latitude);
         latitude = parseFloat(incidentData.latitude);
       } else if (incidentData.lat !== undefined) {
-        console.log('Found lat field:', incidentData.lat, typeof incidentData.lat);
         latitude = parseFloat(incidentData.lat);
       }
       
       if (incidentData.longitude !== undefined) {
-        console.log('Found longitude field:', incidentData.longitude, typeof incidentData.longitude);
         longitude = parseFloat(incidentData.longitude);
       } else if (incidentData.lon !== undefined) {
-        console.log('Found lon field:', incidentData.lon, typeof incidentData.lon);
         longitude = parseFloat(incidentData.lon);
       }
       
       // Check coordinates object
       if ((latitude === null || longitude === null) && incidentData.coordinates) {
-        console.log('Found coordinates object:', incidentData.coordinates);
         if (incidentData.coordinates.latitude !== undefined) {
-          console.log('Using coordinates.latitude:', incidentData.coordinates.latitude);
           latitude = parseFloat(incidentData.coordinates.latitude);
         }
         if (incidentData.coordinates.longitude !== undefined) {
-          console.log('Using coordinates.longitude:', incidentData.coordinates.longitude);
           longitude = parseFloat(incidentData.coordinates.longitude);
         }
       }
       
-      // Final coordinates check
-      console.log('Final coordinates:', latitude, longitude);
+      // Log coordinates for debugging
+      console.log('Incident coordinates:', latitude, longitude);
       
-      // For testing, we'll use static images from Cloudinary
-      console.log('Using Cloudinary for static maps...');
-      
-      // Cloudinary base URL
-      const cloudinaryBase = 'https://res.cloudinary.com/dwnh4b5sx/image/upload';
-      
-      // If we have valid coordinates
-      if (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude)) {
-        // Determine incident type for fallback maps
-        let incidentTypeName = 'unknown';
-        if (incidentData.incident_type_name && typeof incidentData.incident_type_name === 'string') {
-          incidentTypeName = incidentData.incident_type_name.toLowerCase().replace(/\s+/g, '-');
-        } else if (incidentData.incident_type && typeof incidentData.incident_type === 'string') {
-          incidentTypeName = incidentData.incident_type.toLowerCase().replace(/\s+/g, '-');
-        } else if (incidentData.type && typeof incidentData.type === 'string') {
-          incidentTypeName = incidentData.type.toLowerCase().replace(/\s+/g, '-');
-        } else if (incidentData.title && typeof incidentData.title === 'string') {
-          const title = incidentData.title.toLowerCase();
-          
-          if (title.includes('robbery')) {
-            incidentTypeName = 'robbery';
-          } else if (title.includes('attack')) {
-            incidentTypeName = 'attack';
-          } else if (title.includes('boarding')) {
-            incidentTypeName = 'boarding';
-          } else if (title.includes('hijacking')) {
-            incidentTypeName = 'hijacking';
-          } else if (title.includes('piracy')) {
-            incidentTypeName = 'piracy';
-          } else if (title.includes('suspicious')) {
-            incidentTypeName = 'suspicious';
-          }
-        }
-        
-        console.log('Identified incident type for map:', incidentTypeName);
-        
-        // Sanitize incident ID for filename
-        const safeIncidentId = incidentId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        
-        // Try loading paths in this order:
-        // 1. Incident-specific map
-        // 2. Incident type map
-        // 3. Default map
-        
-        // Pattern: maps/public/incident_[incidentID].jpg
-        const incidentSpecificPath = `maps/public/incident_${safeIncidentId}.jpg`;
-        
-        // Pattern: maps/public/type_[incident-type].jpg
-        const incidentTypePath = `maps/public/type_${incidentTypeName}.jpg`;
-        
-        // Default map
-        const defaultMapPath = 'maps/public/default-map.jpg';
-        
-        // Create URLs for each option
-        const specificMapUrl = `${cloudinaryBase}/${incidentSpecificPath}`;
-        const typeMapUrl = `${cloudinaryBase}/${incidentTypePath}`;
-        const defaultMapUrl = `${cloudinaryBase}/${defaultMapPath}`;
-        
-        // Generate a static map using Mapbox API directly
-        // We need this approach until we have pre-generated maps uploaded to Cloudinary
-        const mapboxToken = process.env.MAPBOX_TOKEN;
-        
-        if (!mapboxToken || !mapboxToken.startsWith('pk.')) {
-          console.warn('No valid Mapbox token available for map generation');
-          mapImageUrl = `${cloudinaryBase}/maps/public/no-mapbox-token.jpg`;
-        } else {
-          // Mapbox Static Map API: https://docs.mapbox.com/api/maps/static-images/
-          // We'll use this to generate a static map with the incident location
-          const mapStyle = 'mapbox/satellite-v9'; // Use satellite imagery by default
-          const zoom = 5; // Zoom level appropriate for maritime incidents
-          const width = 600;
-          const height = 400;
-          const markerColor = getMarkerColorByType(incidentTypeName);
-          
-          // Determine marker - use a different color based on incident type
-          const marker = `pin-l+${markerColor.replace('#', '')}(${longitude},${latitude})`;
-          
-          // Generate Mapbox static map URL - we bypass Cloudinary until we have pre-generated maps
-          mapImageUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${marker}/${longitude},${latitude},${zoom},0/${width}x${height}@2x?access_token=${mapboxToken}`;
-          
-          console.log('Generated Mapbox static map URL (token masked for security)');
-          console.log('Map style:', mapStyle);
-          console.log('Using incident type:', incidentTypeName);
-          console.log('Using marker color:', markerColor);
-        }
-        
-        // Log our approach for debugging
-        console.log('Map approach: Using direct Mapbox API (should create static maps in Cloudinary)');
+      // Check if the incident has a map_image_url field from Airtable
+      if (incidentData.map_image_url && typeof incidentData.map_image_url === 'string') {
+        // Use the pre-generated map image URL from Airtable
+        mapImageUrl = incidentData.map_image_url;
+        console.log('Using map image URL from Airtable:', mapImageUrl);
       } else {
-        console.warn('No coordinates available for map generation');
-        console.log('Incident data fields:', Object.keys(incidentData).join(', '));
+        console.log('No map_image_url found in incident data, using default map');
         
-        // Use a no-coordinates image from Cloudinary
-        mapImageUrl = `${cloudinaryBase}/maps/public/no-coordinates.jpg`;
-        console.log('Using no-coordinates map image from Cloudinary');
+        // Fall back to a default map in Cloudinary
+        // Default map based on rough region
+        // Asia/Pacific region default
+        mapImageUrl = 'https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/default-map.jpg';
       }
     } catch (mapError) {
-      console.error('Error generating map image:', mapError);
+      console.error('Error processing map data:', mapError);
       
-      // More detailed error analysis
-      console.log('Map error analysis:');
-      console.log('- Latitude value:', latitude, 'type:', typeof latitude);
-      console.log('- Longitude value:', longitude, 'type:', typeof longitude);
-      
-      // Use a Cloudinary fallback image for errors
+      // Use a fallback image in case of any error
       mapImageUrl = 'https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';
-      console.log('Using error map image from Cloudinary');
+      console.log('Using error fallback map image');
     }
     
     // Log final coordinates for prepared data
@@ -470,6 +372,8 @@ export const handler = async (event, context) => {
     // Combine all vessel data sources with proper fallbacks
     // Debug the source of vessel data
     console.log('COMBINED VESSEL DATA SOURCES:');
+    console.log('- incidentData full object:', JSON.stringify(incidentData).substring(0, 500) + '...');
+    console.log('- vesselData full object:', JSON.stringify(vesselData).substring(0, 500) + '...');
     console.log('- vesselData?.name:', vesselData?.name);
     console.log('- incidentData.vessel_name:', incidentData.vessel_name);
     console.log('- extractedVesselName:', extractedVesselName);
@@ -480,11 +384,22 @@ export const handler = async (event, context) => {
     console.log('- vesselData?.imo:', vesselData?.imo);
     console.log('- incidentData.vessel_imo:', incidentData.vessel_imo);
     
+    // Ensure we get the vessel data from the correct source
+    // The sample data in incidentData.vessel_name is already populated
+    // The Airtable data might have the values in different fields
+    
     // Prioritize data from vessel table, fall back to incident data, then fall back to defaults
+    // Use sample data vessels if available
     const vesselName = vesselData?.name || incidentData.vessel_name || extractedVesselName || 'Unknown Vessel';
     const vesselType = vesselData?.type || incidentData.vessel_type || 'Vessel';
     const vesselFlag = vesselData?.flag || incidentData.vessel_flag || 'Unknown';
     const vesselIMO = vesselData?.imo || incidentData.vessel_imo || '-';
+    
+    console.log('FINAL VESSEL DATA AFTER PROCESSING:');
+    console.log('- Name:', vesselName);
+    console.log('- Type:', vesselType);
+    console.log('- Flag:', vesselFlag);
+    console.log('- IMO:', vesselIMO);
     
     console.log('Final vessel data for email:', {
       name: vesselName,
@@ -928,9 +843,9 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
             ${incident.vesselName || 'Unknown Vessel'}
           </h1>
           <p style="font-size: 14px; color: #4B5563; margin: 0; font-weight: 600;">
-            <span style="display: inline-block; margin-right: 10px;">Type: ${incident.vesselType || 'Unknown'}</span> | 
-            <span style="display: inline-block; margin: 0 10px;">IMO: ${incident.vesselIMO || 'N/A'}</span> | 
-            <span style="display: inline-block; margin-left: 10px;">Flag: ${incident.vesselFlag || 'N/A'}</span>
+            <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${incident.vesselType || 'Unknown'}</strong></span> | 
+            <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${incident.vesselIMO || 'N/A'}</strong></span> | 
+            <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${incident.vesselFlag || 'N/A'}</strong></span>
           </p>
         </div>
         <div style="text-align: right;">

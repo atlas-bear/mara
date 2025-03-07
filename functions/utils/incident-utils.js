@@ -104,6 +104,7 @@ export async function getIncident(incidentId) {
         if (vesselResponse.data) {
           vesselData = vesselResponse.data.fields;
           console.log(`Found vessel data: ${vesselData.name || 'Unknown'} (IMO: ${vesselData.imo || 'N/A'})`);
+          console.log('Vessel data details:', JSON.stringify(vesselData));
         }
       } catch (error) {
         console.warn(`Error fetching vessel details: ${error.message}`);
