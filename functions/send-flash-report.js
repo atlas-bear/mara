@@ -153,17 +153,59 @@ export const handler = async (event, context) => {
     // Generate static map
     let mapImageUrl = '';
     try {
-      // Get coordinates, either from the direct fields or from the structured incident data
-      const latitude = incidentData.latitude || incidentData.lat || 
-                      (incidentData.coordinates ? incidentData.coordinates.latitude : null);
-      const longitude = incidentData.longitude || incidentData.lon || 
-                       (incidentData.coordinates ? incidentData.coordinates.longitude : null);
+      // Extract coordinates with extensive field checks and type handling
+      let latitude = null;
+      let longitude = null;
       
-      if (latitude && longitude) {
+      // Check all possible coordinate fields (and handle string vs number)
+      console.log('COORDINATE EXTRACTION:');
+      
+      // Check direct lat/lon fields
+      if (incidentData.latitude !== undefined) {
+        console.log('Found latitude field:', incidentData.latitude, typeof incidentData.latitude);
+        latitude = parseFloat(incidentData.latitude);
+      } else if (incidentData.lat !== undefined) {
+        console.log('Found lat field:', incidentData.lat, typeof incidentData.lat);
+        latitude = parseFloat(incidentData.lat);
+      }
+      
+      if (incidentData.longitude !== undefined) {
+        console.log('Found longitude field:', incidentData.longitude, typeof incidentData.longitude);
+        longitude = parseFloat(incidentData.longitude);
+      } else if (incidentData.lon !== undefined) {
+        console.log('Found lon field:', incidentData.lon, typeof incidentData.lon);
+        longitude = parseFloat(incidentData.lon);
+      }
+      
+      // Check coordinates object
+      if ((latitude === null || longitude === null) && incidentData.coordinates) {
+        console.log('Found coordinates object:', incidentData.coordinates);
+        if (incidentData.coordinates.latitude !== undefined) {
+          console.log('Using coordinates.latitude:', incidentData.coordinates.latitude);
+          latitude = parseFloat(incidentData.coordinates.latitude);
+        }
+        if (incidentData.coordinates.longitude !== undefined) {
+          console.log('Using coordinates.longitude:', incidentData.coordinates.longitude);
+          longitude = parseFloat(incidentData.coordinates.longitude);
+        }
+      }
+      
+      // Final coordinates check
+      console.log('Final coordinates:', latitude, longitude);
+      
+      // If we have valid coordinates
+      if (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude)) {
         // Generate a MapBox Static API URL (check for VITE_ prefix)
         const mapboxToken = process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY;
         
         console.log(`Map coordinates found: ${latitude}, ${longitude}`);
+        console.log('Available environment variables:');
+        Object.keys(process.env)
+          .filter(key => key.includes('MAP') || key.includes('TOKEN'))
+          .filter(key => !key.includes('SECRET'))
+          .forEach(key => {
+            console.log(`- ${key}: ${key.includes('KEY') || key.includes('TOKEN') ? '[REDACTED]' : process.env[key]}`);
+          });
         
         if (!mapboxToken) {
           console.warn('MapBox token not found in environment variables');
@@ -172,6 +214,7 @@ export const handler = async (event, context) => {
           mapImageUrl = 'https://placehold.co/600x400?text=Map+Location';
         } else {
           console.log('Using MapBox token (length):', mapboxToken.length);
+          console.log('Token starts with:', mapboxToken.substring(0, 5) + '...');
           
           // Define marker appearance based on incident type
           const incidentTypeName = incidentData.incident_type_name || 
@@ -206,30 +249,92 @@ export const handler = async (event, context) => {
     } catch (mapError) {
       console.error('Error generating map image:', mapError);
       console.error(mapError.stack);
-      // Use a fallback for errors
-      mapImageUrl = 'https://placehold.co/600x400?text=Map+Error';
+      
+      // More detailed error analysis
+      console.log('Map error analysis:');
+      console.log('- Latitude value:', latitude, 'type:', typeof latitude);
+      console.log('- Longitude value:', longitude, 'type:', typeof longitude);
+      console.log('- Mapbox token available:', !!process.env.MAPBOX_TOKEN || !!process.env.VITE_MAPS_API_KEY);
+      
+      // Use a Mapbox troubleshooting URL
+      try {
+        // Create a simpler map URL as a fallback 
+        const fallbackUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-s+f74e4e(0,0)/0,0,1/600x400?access_token=${process.env.MAPBOX_TOKEN || process.env.VITE_MAPS_API_KEY}`;
+        console.log('Trying fallback map URL...');
+        mapImageUrl = fallbackUrl;
+      } catch (fallbackError) {
+        console.error('Even fallback map URL failed:', fallbackError);
+        // Use a placeholder as last resort
+        mapImageUrl = 'https://placehold.co/600x400?text=Map+Error';
+      }
     }
     
-    // Get coordinates for consistency
-    const latitude = incidentData.latitude || incidentData.lat || 
-                    (incidentData.coordinates ? incidentData.coordinates.latitude : 0);
-    const longitude = incidentData.longitude || incidentData.lon || 
-                     (incidentData.coordinates ? incidentData.coordinates.longitude : 0);
+    // No need to redefine latitude and longitude here, we already extracted them above
                      
     // Prepare incident data for email - with more fallbacks and logging
     console.log('Preparing data for email template...');
     
-    // Get incident type - with fallbacks
-    const incidentType = incidentData.incident_type_name || 
-                        (incidentData.incident_type ? 
-                          (typeof incidentData.incident_type === 'string' ? 
-                            incidentData.incident_type : 'Incident') : 
-                          'Incident');
-    console.log('Incident type for email:', incidentType);
+    // Detailed debugging for incident type
+    console.log('DETAILED INCIDENT TYPE ANALYSIS:');
+    if (incidentData.incident_type_name) {
+      console.log('- Found incident_type_name:', incidentData.incident_type_name);
+    }
+    if (incidentData.incident_type) {
+      console.log('- Found incident_type:', 
+        typeof incidentData.incident_type === 'string' 
+          ? incidentData.incident_type 
+          : JSON.stringify(incidentData.incident_type));
+    }
     
-    // Get vessel name - with fallbacks
-    const vesselName = vesselData.name || incidentData.vessel_name || 'Unknown Vessel';
-    console.log('Vessel name for email:', vesselName);
+    // Get incident type with best available data
+    let incidentType = 'Incident';
+    
+    // First try the most reliable methods
+    if (incidentData.incident_type_name) {
+      incidentType = incidentData.incident_type_name;
+    } else if (incidentData.type_name) {
+      incidentType = incidentData.type_name;
+    } else if (typeof incidentData.incident_type === 'string') {
+      incidentType = incidentData.incident_type;
+    } else if (typeof incidentData.type === 'string') {
+      incidentType = incidentData.type;
+    } 
+    // Handle array or object cases - these come from Airtable relationships
+    else if (Array.isArray(incidentData.incident_type) && incidentData.incident_type.length > 0) {
+      // If we have the incident type data already fetched with name
+      if (incidentTypeData && incidentTypeData.name) {
+        incidentType = incidentTypeData.name;
+      } else {
+        incidentType = 'Incident'; // Default
+      }
+    }
+    
+    console.log('Final incident type for email:', incidentType);
+    
+    // Detailed debugging for vessel data
+    console.log('DETAILED VESSEL DATA ANALYSIS:');
+    console.log('- vesselData available:', !!vesselData);
+    if (vesselData) {
+      if (vesselData.name) console.log('- vesselData.name:', vesselData.name);
+      if (vesselData.vessel_name) console.log('- vesselData.vessel_name:', vesselData.vessel_name);
+      if (vesselData.imo) console.log('- vesselData.imo:', vesselData.imo);
+      if (vesselData.flag) console.log('- vesselData.flag:', vesselData.flag);
+      if (vesselData.type) console.log('- vesselData.type:', vesselData.type);
+    }
+    if (incidentData.vessel_name) console.log('- incidentData.vessel_name:', incidentData.vessel_name);
+    
+    // Get vessel data with best available fields
+    const vesselName = vesselData?.name || vesselData?.vessel_name || incidentData.vessel_name || 'Unknown Vessel';
+    const vesselType = vesselData?.type || vesselData?.vessel_type || incidentData.vessel_type || 'Unknown Type';
+    const vesselFlag = vesselData?.flag || vesselData?.vessel_flag || incidentData.vessel_flag || 'Unknown Flag';
+    const vesselIMO = vesselData?.imo || vesselData?.vessel_imo || incidentData.vessel_imo || 'Unknown IMO';
+    
+    console.log('Final vessel data for email:', {
+      name: vesselName,
+      type: vesselType,
+      flag: vesselFlag,
+      imo: vesselIMO
+    });
     
     // Prepare incident data for email
     const preparedIncident = {
@@ -242,14 +347,14 @@ export const handler = async (event, context) => {
         longitude: parseFloat(longitude) || 0
       },
       vesselName: vesselName,
-      vesselType: vesselData.type || incidentData.vessel_type || 'Unknown Type',
-      vesselFlag: vesselData.flag || incidentData.vessel_flag || 'Unknown Flag',
-      vesselIMO: vesselData.imo || incidentData.vessel_imo || 'Unknown IMO',
-      status: incidentData.vessel_status_during_incident || 'Unknown Status',
-      destination: incidentData.vessel_destination || 'Unknown Destination',
-      crewStatus: incidentData.crew_impact || 'No information available',
+      vesselType: vesselType,
+      vesselFlag: vesselFlag,
+      vesselIMO: vesselIMO,
+      status: incidentData.vessel_status_during_incident || incidentData.status || 'Unknown Status',
+      destination: incidentData.vessel_destination || incidentData.destination || 'Unknown Destination',
+      crewStatus: incidentData.crew_impact || incidentData.crewStatus || 'No information available',
       description: incidentData.description || 'No description available',
-      responseActions: incidentData.response_type || [],
+      responseActions: incidentData.response_type || incidentData.responseActions || [],
       authorities_notified: incidentData.authorities_notified || [],
       items_stolen: incidentData.items_stolen || [],
       analysis: incidentData.analysis || 'No analysis available',

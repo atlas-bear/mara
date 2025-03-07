@@ -115,6 +115,31 @@ export async function getIncident(incidentId) {
       }
     }
 
+    // Log complete data for debugging field names
+    console.log('=== COMPLETE INCIDENT DATA STRUCTURE ===');
+    console.log('Incident Fields:', Object.keys(incidentData));
+    console.log('Incident Sample Values:');
+    Object.keys(incidentData).slice(0, 10).forEach(key => {
+      console.log(`  ${key}: ${JSON.stringify(incidentData[key]).substring(0, 100)}`);
+    });
+    
+    if (vesselData) {
+      console.log('Vessel Fields:', Object.keys(vesselData));
+      console.log('Vessel Sample Values:');
+      Object.keys(vesselData).slice(0, 10).forEach(key => {
+        console.log(`  ${key}: ${JSON.stringify(vesselData[key]).substring(0, 100)}`);
+      });
+    }
+    
+    if (incidentTypeData) {
+      console.log('Incident Type Fields:', Object.keys(incidentTypeData));
+      console.log('Incident Type Sample Values:');
+      Object.keys(incidentTypeData).slice(0, 5).forEach(key => {
+        console.log(`  ${key}: ${JSON.stringify(incidentTypeData[key]).substring(0, 100)}`);
+      });
+    }
+    console.log('======================================');
+    
     // Return combined data
     return {
       incident: incidentData,
