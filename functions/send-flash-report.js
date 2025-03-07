@@ -44,6 +44,9 @@ export const handler = async (event, context) => {
     let latitude = null;
     let longitude = null;
     
+    // Define vesselData at the top level to ensure it's always defined
+    let vesselData = {};
+    
     // Configure SendGrid - in Netlify functions use process.env directly
     const apiKey = process.env.SENDGRID_API_KEY;
     sgMail.setApiKey(apiKey);
@@ -121,8 +124,8 @@ export const handler = async (event, context) => {
           console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
           
           // Combine data for easier access in the template
-          // Define vesselData with let instead of referencing it without declaration
-          let vesselData = fetchedVesselData || {};
+          // Update vesselData with data from relationship
+          vesselData = fetchedVesselData || {};
           const incidentVesselData = fetchedIncidentVesselData || {};
           
           // Add vessel status and crew impact from incident_vessel if available
@@ -169,7 +172,7 @@ export const handler = async (event, context) => {
           incidentData = sampleIncidentData;
           
           // Create sample vessel data since we're using the sample data
-          let vesselData = {
+          vesselData = {
             name: incidentData.vessel_name,
             type: incidentData.vessel_type,
             flag: incidentData.vessel_flag,
