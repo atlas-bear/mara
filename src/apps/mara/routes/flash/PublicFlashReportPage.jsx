@@ -1,37 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import PreviewMode from '../../components/FlashReport/PreviewMode';
-
-// For testing - will eventually come from API/database
-const sampleIncidents = {
-  '2025-0010': {
-    id: '2025-0010',
-    title: 'Armed Robbery aboard ASPASIA LUCK',
-    type: 'robbery',
-    date: '2024-10-17T18:08:00.000Z',
-    location: 'Singapore Strait',
-    coordinates: {
-      latitude: 1.13,
-      longitude: 103.5
-    },
-    vesselName: 'ASPASIA LUCK',
-    vesselType: 'Bulk Carrier',
-    vesselFlag: 'Liberia',
-    vesselIMO: '9223485',
-    status: 'Underway',
-    destination: 'PEBGB',
-    crewStatus: 'All Safe',
-    description: 'Test incident description',
-    responseActions: [
-      'Action 1',
-      'Action 2'
-    ],
-    analysis: [
-      'Analysis point 1',
-      'Analysis point 2'
-    ]
-  }
-};
+import { useIncident } from '@shared/features/incidents';
+import { IncidentDetails } from '@shared/features/weekly-report';
 
 // Branding configurations
 const brandingConfigs = {
@@ -58,18 +28,27 @@ function PublicFlashReportPage() {
   const [searchParams] = useSearchParams();
   const brandParam = searchParams.get('brand');
   
-  const incident = sampleIncidents[incidentId];
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Use the shared incident hook to fetch data
+  const { incident: incidentData, loading: incidentLoading, error: incidentError } = useIncident(incidentId);
+  
+  // State for token validation
+  const [tokenLoading, setTokenLoading] = useState(true);
+  const [tokenError, setTokenError] = useState(null);
   const [branding, setBranding] = useState(brandingConfigs.default);
   
+  // State for the formatted incident data
+  const [formattedIncident, setFormattedIncident] = useState(null);
+  
+  // Effect to set the document title
   useEffect(() => {
     document.title = 'Maritime Flash Report';
-    
+  }, []);
+  
+  // Effect to validate the token
+  useEffect(() => {
     // In production, verify token is valid for this incident
-    // This would involve an API call to validate the token
     const validateToken = async () => {
-      setLoading(true);
+      setTokenLoading(true);
       
       try {
         // For demo, we'll just simulate a request
@@ -86,17 +65,36 @@ function PublicFlashReportPage() {
           setBranding(brandingConfigs.default);
         }
         
-        setLoading(false);
+        setTokenLoading(false);
       } catch (err) {
         console.error('Error validating token:', err);
-        setError('This link is invalid or has expired');
-        setLoading(false);
+        setTokenError('This link is invalid or has expired');
+        setTokenLoading(false);
       }
     };
     
     validateToken();
   }, [incidentId, token, brandParam]);
+  
+  // Effect to transform API data to the format expected by IncidentDetails
+  useEffect(() => {
+    if (!incidentData) return;
+    
+    console.log('Formatting incident data for IncidentDetails component:', incidentData);
+    
+    // The IncidentDetails component expects a specific structure
+    const formattedData = {
+      incident: incidentData.incident,
+      vessel: incidentData.vessel,
+      incidentVessel: incidentData.incidentVessel,
+      incidentType: incidentData.incidentType
+    };
+    
+    setFormattedIncident(formattedData);
+  }, [incidentData]);
 
+  // Show loading state while either the token is being validated or the incident is loading
+  const loading = tokenLoading || incidentLoading;
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -108,7 +106,9 @@ function PublicFlashReportPage() {
     );
   }
 
-  if (error || !incident) {
+  // Show error state
+  const error = tokenError || incidentError;
+  if (error || !formattedIncident) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md">
@@ -119,6 +119,14 @@ function PublicFlashReportPage() {
     );
   }
 
+  // Extract vessel information for the header
+  const vesselName = formattedIncident.vessel?.fields?.name || 
+                     formattedIncident.incident?.fields?.vessel_name || 
+                     'Incident Report';
+  const incidentDate = formattedIncident.incident?.fields?.date_time_utc || 
+                       formattedIncident.incident?.fields?.date || 
+                       new Date().toISOString();
+  
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="container mx-auto px-4">
@@ -134,15 +142,18 @@ function PublicFlashReportPage() {
           
           <div className="border-b border-gray-200 pb-4 mb-6">
             <h1 className="text-2xl font-bold text-center" style={{ color: branding.colors.primary }}>
-              Flash Report: {incident.vesselName}
+              Flash Report: {vesselName}
             </h1>
             <p className="text-center text-gray-500 mt-2">
-              Published on {new Date(incident.date).toLocaleDateString()}
+              Published on {new Date(incidentDate).toLocaleDateString()}
             </p>
           </div>
           
-          {/* Preview content */}
-          <PreviewMode incident={incident} />
+          {/* Incident Details - using the shared component */}
+          <IncidentDetails 
+            incident={formattedIncident} 
+            showHistoricalContext={false}
+          />
           
           {/* Footer */}
           <div className="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">

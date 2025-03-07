@@ -78,11 +78,11 @@ export function validateFlashReportToken(token, incidentId) {
  * @returns {string} The public URL
  */
 export function getPublicFlashReportUrl(incidentId, token, brand = null) {
-  // Get base URL from environment variable or use default
-  const baseUrl = process.env.PUBLIC_URL || 'https://mara.example.com';
+  // Get base URL from environment variable or use Netlify URL if available
+  const baseUrl = process.env.PUBLIC_URL || process.env.URL || 'https://mara-v2.netlify.app';
   
-  // Construct URL with path and parameters
-  let url = `${baseUrl}/public/flash-report/${incidentId}/${token}`;
+  // Construct URL with path and parameters - match the actual route structure
+  let url = `${baseUrl}/flash/${incidentId}/${token}`;
   
   // Add branding parameter if provided
   if (brand) {
