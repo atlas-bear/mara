@@ -461,6 +461,9 @@ export const handler = async (event, context) => {
     console.log(`Vessel data source: ${lookupMethod}`);
     console.log('Final enhanced vessel data:', JSON.stringify(enhancedVesselData));
     
+    // CLAUDE CODE TEST - Verify this code is running
+    console.log('CLAUDE CODE TEST - VESSEL DATA UPDATE IS RUNNING');
+    
     // Use enhanced vessel data directly (it already contains all the prioritization)
     const vesselName = enhancedVesselData?.name || extractedVesselName || 'Unknown Vessel';
     const vesselType = enhancedVesselData?.type || 'Vessel';
