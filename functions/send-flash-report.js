@@ -30,6 +30,10 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Variables for coordinate handling - declared at the top to ensure scope
+    let latitude = null;
+    let longitude = null;
+    
     // Configure SendGrid (check for VITE_ prefixed variables too)
     const apiKey = process.env.SENDGRID_API_KEY || process.env.VITE_SENDGRID_API_KEY;
     sgMail.setApiKey(apiKey);
@@ -153,9 +157,10 @@ export const handler = async (event, context) => {
     // Generate static map
     let mapImageUrl = '';
     try {
-      // Extract coordinates with extensive field checks and type handling
-      let latitude = null;
-      let longitude = null;
+      // Extract coordinates for map generation
+      // Using function-wide variables instead of local ones
+      latitude = null;
+      longitude = null;
       
       // Check all possible coordinate fields (and handle string vs number)
       console.log('COORDINATE EXTRACTION:');
@@ -269,10 +274,20 @@ export const handler = async (event, context) => {
       }
     }
     
-    // No need to redefine latitude and longitude here, we already extracted them above
+    // Log final coordinates for prepared data
+    console.log('Using coordinates for prepared data:', latitude, longitude);
                      
     // Prepare incident data for email - with more fallbacks and logging
     console.log('Preparing data for email template...');
+    
+    // Safety check - make sure incidentData is an object
+    if (!incidentData || typeof incidentData !== 'object') {
+      console.error('incidentData is not a valid object!', incidentData);
+      incidentData = {
+        id: incidentId,
+        description: 'No incident data available'
+      };
+    }
     
     // Detailed debugging for incident type
     console.log('DETAILED INCIDENT TYPE ANALYSIS:');
@@ -343,8 +358,8 @@ export const handler = async (event, context) => {
       date: incidentData.date_time_utc || incidentData.date,
       location: incidentData.location_name || incidentData.location || 'Unknown Location',
       coordinates: {
-        latitude: parseFloat(latitude) || 0,
-        longitude: parseFloat(longitude) || 0
+        latitude: latitude !== null && !isNaN(latitude) ? parseFloat(latitude) : 0,
+        longitude: longitude !== null && !isNaN(longitude) ? parseFloat(longitude) : 0
       },
       vesselName: vesselName,
       vesselType: vesselType,
