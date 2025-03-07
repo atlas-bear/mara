@@ -81,8 +81,8 @@ export function getPublicFlashReportUrl(incidentId, token, brand = null) {
   // Get base URL from environment variable or use Netlify URL if available
   const baseUrl = process.env.PUBLIC_URL || process.env.URL || 'https://mara-v2.netlify.app';
   
-  // Construct URL with path and parameters - match the actual route structure
-  let url = `${baseUrl}/flash/${incidentId}/${token}`;
+  // Construct URL with path and parameters - match the actual route in App.jsx
+  let url = `${baseUrl}/public/flash-report/${incidentId}/${token}`;
   
   // Add branding parameter if provided
   if (brand) {

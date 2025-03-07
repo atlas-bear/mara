@@ -551,6 +551,14 @@ export const handler = async (event, context) => {
         const subject = `🚨 MARITIME ALERT: ${preparedIncident.vesselName} Incident`;
         
         // Create HTML content with public link
+        // Before sending, log the vessel data one final time to verify
+        console.log('DEBUG - VESSEL DATA BEING SENT TO EMAIL:', {
+          vesselName: preparedIncident.vesselName,
+          vesselType: preparedIncident.vesselType,
+          vesselFlag: preparedIncident.vesselFlag,
+          vesselIMO: preparedIncident.vesselIMO
+        });
+        
         const htmlContent = await generateEmailHtml(
           preparedIncident, 
           branding, 
@@ -803,6 +811,13 @@ function formatCoordinates(coordinate, type) {
  * @param {string} publicUrl Public URL for viewing the report
  */
 async function generateEmailHtml(incident, branding, templateOverrides = {}, publicUrl = null) {
+  // Debug vessel data to ensure it's available
+  console.log('GENERATE_EMAIL_HTML - RECEIVED VESSEL DATA:', {
+    vesselName: incident.vesselName,
+    vesselType: incident.vesselType,
+    vesselFlag: incident.vesselFlag,
+    vesselIMO: incident.vesselIMO
+  });
   // In production, we would use a more sophisticated HTML generation method
   // For now, use this as a placeholder that returns a simple HTML version
   
