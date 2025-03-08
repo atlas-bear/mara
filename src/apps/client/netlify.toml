@@ -30,3 +30,8 @@ external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
 from = "/api/*"
 to = "/.netlify/functions/:splat"
 status = 200
+
+[[headers]]
+for = "/*"
+[headers.values]
+Referrer-Policy = "origin"
