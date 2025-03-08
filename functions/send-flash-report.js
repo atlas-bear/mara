@@ -963,30 +963,7 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
     </div>
     ` : ''}
 
-    <!-- Location Map -->
-    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
-      <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Location</h2>
-      
-      <!-- Location coordinates in text format -->
-      <p style="font-size: 14px; color: #4B5563; margin-bottom: 16px;">
-        <strong>Coordinates:</strong> ${incident.coordinates.latitude !== 0 ? incident.coordinates.latitude.toFixed(6) : 'N/A'}, 
-        ${incident.coordinates.longitude !== 0 ? incident.coordinates.longitude.toFixed(6) : 'N/A'}
-      </p>
-      
-      <!-- Map Image with fallback options -->
-      ${incident.mapImageUrl ? 
-        `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="display: block; width: 100%; max-width: 600px; height: auto; border-radius: 4px; border: 1px solid #E5E7EB;" 
-              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
-        '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
-      }
-      
-      <!-- Location name (not clickable) -->
-      <p style="font-size: 16px; margin-top: 8px; text-align: center; font-weight: 600; color: #1F2937;">
-        ${incident.location || 'Unknown location'}
-      </p>
-    </div>
-
-    <!-- Vessel and Crew Status Section -->
+    <!-- Vessel and Crew Status Section - MOVED BEFORE MAP -->
     <div style="padding: 24px; border-bottom: 1px solid #E5E7EB; display: flex; flex-wrap: wrap; gap: 16px;">
       <!-- Location Details -->
       <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
@@ -1014,6 +991,29 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
           ${incident.crewStatus || 'No information available'}
         </p>
       </div>
+    </div>
+
+    <!-- Location Map - MOVED AFTER QUICK FACTS -->
+    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
+      <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Location Map</h2>
+      
+      <!-- Location coordinates in text format -->
+      <p style="font-size: 14px; color: #4B5563; margin-bottom: 16px;">
+        <strong>Coordinates:</strong> ${incident.coordinates.latitude !== 0 ? incident.coordinates.latitude.toFixed(6) : 'N/A'}, 
+        ${incident.coordinates.longitude !== 0 ? incident.coordinates.longitude.toFixed(6) : 'N/A'}
+      </p>
+      
+      <!-- Map Image with fallback options -->
+      ${incident.mapImageUrl ? 
+        `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="display: block; width: 100%; max-width: 600px; height: auto; border-radius: 4px; border: 1px solid #E5E7EB;" 
+              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
+        '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
+      }
+      
+      <!-- Location name (not clickable) -->
+      <p style="font-size: 16px; margin-top: 8px; text-align: center; font-weight: 600; color: #1F2937;">
+        ${incident.location || 'Unknown location'}
+      </p>
     </div>
 
     <!-- Incident Details -->
