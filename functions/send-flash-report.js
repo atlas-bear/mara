@@ -535,11 +535,11 @@ export const handler = async (event, context) => {
       
       // Generate tokens and URLs for testing
       const testResults = await Promise.all(recipients.map(async (recipient) => {
-        // Generate a secure token for testing
-        const tokenData = generateFlashReportToken(incidentId, 168);
+        // Generate a secure token for testing - using 1 year expiry
+        const tokenData = generateFlashReportToken(incidentId, 8760);
         
-        // Get brand parameter for the URL if this is a client
-        const brandParam = recipient.isClient ? 'client' : null;
+        // Determine URL branding based on recipient email domain
+        const brandParam = shouldUseClientBranding(recipient.email) ? 'client' : null;
         
         // Generate public flash report URL
         const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
@@ -589,11 +589,11 @@ export const handler = async (event, context) => {
       
       // Generate tokens and URLs for testing even without SendGrid
       const testResults = await Promise.all(recipients.map(async (recipient) => {
-        // Generate a secure token for testing
-        const tokenData = generateFlashReportToken(incidentId, 168);
+        // Generate a secure token for testing - using 1 year expiry
+        const tokenData = generateFlashReportToken(incidentId, 8760);
         
-        // Get brand parameter for the URL if this is a client
-        const brandParam = recipient.isClient ? 'client' : null;
+        // Determine URL branding based on recipient email domain
+        const brandParam = shouldUseClientBranding(recipient.email) ? 'client' : null;
         
         // Generate public flash report URL
         const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
@@ -627,14 +627,14 @@ export const handler = async (event, context) => {
     // Send emails (if SendGrid API key is available)
     const results = await Promise.all(recipients.map(async (recipient) => {
       try {
-        // Get branding for this recipient
-        const branding = getBrandingForEmail(recipient.email, customBranding);
+        // Always use default MARA branding for emails (regardless of recipient)
+        const branding = getDefaultBranding();
         
-        // Generate a secure token for this recipient
-        const tokenData = generateFlashReportToken(incidentId, 168); // 7 days expiry
+        // Generate a secure token for this recipient - using 8760 hours (1 year) for expiry
+        const tokenData = generateFlashReportToken(incidentId, 8760); // 1 year expiry
         
-        // Get brand parameter for the URL if this is a client
-        const brandParam = recipient.isClient ? 'client' : null;
+        // Determine URL branding based on recipient email domain
+        const brandParam = shouldUseClientBranding(recipient.email) ? 'client' : null;
         
         // Generate public flash report URL
         const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
@@ -715,8 +715,8 @@ export const handler = async (event, context) => {
         
         // Try to generate a public URL even if there was an error
         try {
-          const tokenData = generateFlashReportToken(incidentId, 168);
-          const brandParam = recipient.isClient ? 'client' : null;
+          const tokenData = generateFlashReportToken(incidentId, 8760); // 1 year expiry
+          const brandParam = shouldUseClientBranding(recipient.email) ? 'client' : null;
           const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
           
           return {
@@ -759,24 +759,36 @@ export const handler = async (event, context) => {
 };
 
 /**
- * Get branding configuration based on email domain
+ * Determine if client branding should be used for a recipient's URL
+ * This is separated from email branding to allow email to always use MARA branding
  * @param {string} email Recipient email address
- * @param {Object} customBranding Optional custom branding to override defaults
- * @returns {Object} Branding configuration
+ * @returns {boolean} Whether to use client branding for URLs
  */
-function getBrandingForEmail(email, customBranding = null) {
-  // Log the branding request for debugging
-  console.log(`Getting branding for email: ${email}`);
-  
-  // If custom branding is provided, use it
-  if (customBranding) {
-    console.log('Using custom branding');
-    return customBranding;
-  }
-  
+function shouldUseClientBranding(email) {
   // Extract domain from email
   const domain = email.split('@')[1] || '';
-  console.log(`Email domain: ${domain}`);
+  console.log(`Checking domain for client branding: ${domain}`);
+  
+  // Domain-based branding mapping - use environment variables for production
+  const clientDomains = process.env.CLIENT_DOMAINS ? 
+                       process.env.CLIENT_DOMAINS.split(',') : 
+                       ['clientdomain.com', 'company.com', 'atlasbear.co'];
+  
+  // Check if this is a client domain
+  const isClientDomain = clientDomains.some(clientDomain => 
+    domain.includes(clientDomain.trim())
+  );
+  
+  console.log(`Is client domain (for URL branding): ${isClientDomain}`);
+  return isClientDomain;
+}
+
+/**
+ * Get default MARA branding for emails
+ * @returns {Object} Default MARA branding configuration
+ */
+function getDefaultBranding() {
+  console.log('Using MARA default branding for email');
   
   // Show available environment variables for debugging
   const envVars = Object.keys(process.env)
@@ -785,48 +797,12 @@ function getBrandingForEmail(email, customBranding = null) {
   console.log('Available branding environment variables:', envVars.join(', '));
   
   // In Netlify functions, we use process.env directly
-  // Make sure not to use VITE_ prefixed variables in server-side code
-  const clientLogo = process.env.CLIENT_LOGO;
   const defaultLogo = process.env.DEFAULT_LOGO;
-  const clientName = process.env.CLIENT_NAME;
   const defaultName = process.env.DEFAULT_COMPANY_NAME;
-  
-  // Domain-based branding mapping - use environment variables for production
-  const clientDomains = process.env.CLIENT_DOMAINS ? 
-                        process.env.CLIENT_DOMAINS.split(',') : 
-                        ['clientdomain.com', 'company.com', 'atlasbear.co'];
-  
-  console.log('Client domains:', clientDomains.join(', '));
-  
-  // Check if this is a client domain
-  const isClientDomain = clientDomains.some(clientDomain => 
-    domain.includes(clientDomain.trim())
-  );
-  
-  console.log(`Is client domain: ${isClientDomain}`);
-  
-  if (isClientDomain) {
-    // Use Cloudinary URL for client logo if available
-    const logoUrl = clientLogo || 
-                  'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/client/client_logo_vf7snt.png';
-    
-    console.log(`Using client branding with logo: ${logoUrl}`);
-    
-    return {
-      logo: logoUrl,
-      companyName: clientName || 'Atlas Bear Maritime',
-      colors: {
-        primary: process.env.CLIENT_PRIMARY_COLOR || '#0047AB',
-        secondary: process.env.CLIENT_SECONDARY_COLOR || '#FF6B00'
-      }
-    };
-  }
   
   // Use Cloudinary URL for default logo if available
   const defaultLogoUrl = defaultLogo || 
                       'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/public/mara_logo_k4epmo.png';
-  
-  console.log(`Using default branding with logo: ${defaultLogoUrl}`);
   
   // Default branding
   return {
@@ -835,6 +811,30 @@ function getBrandingForEmail(email, customBranding = null) {
     colors: {
       primary: process.env.DEFAULT_PRIMARY_COLOR || '#234567',
       secondary: process.env.DEFAULT_SECONDARY_COLOR || '#890123'
+    }
+  };
+}
+
+/**
+ * Get client branding (kept for reference but not used in emails)
+ * @returns {Object} Client branding configuration
+ */
+function getClientBranding() {
+  console.log('Getting client branding (for reference)');
+  
+  const clientLogo = process.env.CLIENT_LOGO;
+  const clientName = process.env.CLIENT_NAME;
+  
+  // Use Cloudinary URL for client logo if available
+  const logoUrl = clientLogo || 
+                'https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/client/client_logo_vf7snt.png';
+  
+  return {
+    logo: logoUrl,
+    companyName: clientName || 'Atlas Bear Maritime',
+    colors: {
+      primary: process.env.CLIENT_PRIMARY_COLOR || '#0047AB',
+      secondary: process.env.CLIENT_SECONDARY_COLOR || '#FF6B00'
     }
   };
 }
