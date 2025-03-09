@@ -87,6 +87,12 @@ export default async (req, context) => {
         .join(" ");
     };
 
+    // Helper function to format arrays as bulleted lists
+    const formatAsBulletList = (items) => {
+      if (!items || items.length === 0) return "";
+      return items.map((item) => `• ${item}`).join("\n");
+    };
+
     // First, try to find the incident type in the incident_type table
     let incidentTypeId = null;
     if (recordToProcess.fields.incident_type_name) {
@@ -293,11 +299,15 @@ If you specify "Other" in any category, please include details in the correspond
       // LLM-enriched fields
       analysis: enrichedData.analysis,
       recommendations: enrichedData.recommendations,
-      weapons_used: enrichedData.weapons_used,
+
+      // Convert arrays to bulleted text for multi-select fields
+      weapons_used: formatAsBulletList(enrichedData.weapons_used),
       number_of_attackers: enrichedData.number_of_attackers,
-      items_stolen: enrichedData.items_stolen,
-      response_type: enrichedData.response_type,
-      authorities_notified: enrichedData.authorities_notified,
+      items_stolen: formatAsBulletList(enrichedData.items_stolen),
+      response_type: formatAsBulletList(enrichedData.response_type),
+      authorities_notified: formatAsBulletList(
+        enrichedData.authorities_notified
+      ),
     };
 
     // Add incident_type_name reference only if we found a matching ID
