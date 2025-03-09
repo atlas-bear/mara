@@ -42,3 +42,7 @@ schedule = "25,55 * * * *"
 # PDF generation function scheduled to run weekly
 [functions."scheduled-pdf-generation"]
 schedule = "@weekly"
+
+# Background processing function to process raw data
+[functions."process-raw-data-background"]
+background = true
