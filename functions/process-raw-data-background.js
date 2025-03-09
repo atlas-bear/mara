@@ -42,6 +42,7 @@ export default async (req, context) => {
     console.log("Found record to process:", {
       id: recordToProcess.id,
       title: recordToProcess.fields.title,
+      region: recordToProcess.fields.region,
     });
 
     // Update the record to mark it as processing
@@ -49,7 +50,7 @@ export default async (req, context) => {
       `${rawDataUrl}/${recordToProcess.id}`,
       {
         fields: {
-          processing_status: "processing",
+          processing_status: "Processing",
           processing_notes: `Started processing at ${new Date().toISOString()}`,
         },
       },
@@ -57,6 +58,19 @@ export default async (req, context) => {
     );
 
     console.log("Updated record status to processing");
+
+    // Function to convert snake_case to Title Case
+    const formatRegion = (region) => {
+      if (!region) return "Unknown";
+
+      // Convert formats like "west_africa" to "West Africa"
+      return region
+        .split("_")
+        .map(
+          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        )
+        .join(" ");
+    };
 
     // Create a basic incident record with minimal fields
     const incidentFields = {
@@ -66,8 +80,8 @@ export default async (req, context) => {
       date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
       latitude: recordToProcess.fields.latitude,
       longitude: recordToProcess.fields.longitude,
-      status: "active",
-      region: recordToProcess.fields.region || "unknown",
+      status: "Active", // Correct case
+      region: formatRegion(recordToProcess.fields.region), // Format properly
       analysis: "Test analysis from background function",
       recommendations: "• Test recommendation",
     };
@@ -97,15 +111,14 @@ export default async (req, context) => {
       incidentId: incidentResponse.data.id,
     });
 
-    // Mark the raw data record as processed - without link fields for now
+    // Mark the raw data record as processed - with correct case for status
     await axios.patch(
       `${rawDataUrl}/${recordToProcess.id}`,
       {
         fields: {
           has_incident: true,
-          processing_status: "complete",
+          processing_status: "Complete", // Correct case
           processing_notes: `Successfully processed at ${new Date().toISOString()}`,
-          // We're deliberately not setting linked_incident for now
         },
       },
       { headers }
@@ -113,6 +126,26 @@ export default async (req, context) => {
 
     console.log("Marked record as processed");
     console.log("Background processing completed successfully");
+
+    // Check if more records exist to process
+    const moreRecords = await checkMoreRecordsExist(rawDataUrl, headers);
+
+    if (moreRecords) {
+      console.log("More records exist, triggering next processing job");
+
+      // Trigger another processing run via API call
+      try {
+        const siteUrl = process.env.URL || "https://mara-v2.netlify.app";
+        await axios.post(
+          `${siteUrl}/.netlify/functions/process-raw-data-background`
+        );
+      } catch (triggerError) {
+        console.error(
+          "Failed to trigger next processing job",
+          triggerError.message
+        );
+      }
+    }
   } catch (error) {
     console.error("Background processing error:", error.message);
 
@@ -126,3 +159,24 @@ export default async (req, context) => {
     }
   }
 };
+
+// Helper function to check if more records exist to process
+async function checkMoreRecordsExist(rawDataUrl, headers) {
+  try {
+    const response = await axios({
+      method: "get",
+      url: rawDataUrl,
+      headers,
+      params: {
+        filterByFormula:
+          "AND(NOT({has_incident}), OR(NOT({processing_status}), {processing_status} = 'pending'))",
+        maxRecords: 1,
+      },
+    });
+
+    return response.data.records.length > 0;
+  } catch (error) {
+    console.error("Error checking for more records", error.message);
+    return false;
+  }
+}
