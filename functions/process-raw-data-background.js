@@ -59,18 +59,64 @@ export default async (req, context) => {
 
     console.log("Updated record status to processing");
 
-    // Function to convert snake_case to Title Case
-    const formatRegion = (region) => {
-      if (!region) return "Unknown";
-
-      // Convert formats like "west_africa" to "West Africa"
-      return region
-        .split("_")
+    // Function to properly capitalize all words in a string
+    const toTitleCase = (str) => {
+      if (!str) return "";
+      return str
+        .split(" ")
         .map(
           (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
         )
         .join(" ");
     };
+
+    // Function to format region name properly (from snake_case if needed)
+    const formatRegion = (region) => {
+      if (!region) return "Unknown";
+
+      // First, split by underscores if they exist
+      const words = region.includes("_")
+        ? region.split("_")
+        : region.split(" ");
+
+      // Then capitalize each word
+      return words
+        .map(
+          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        )
+        .join(" ");
+    };
+
+    // First, try to find the incident type in the incident_type table
+    let incidentTypeId = null;
+    if (recordToProcess.fields.incident_type_name) {
+      const incidentTypeName = toTitleCase(
+        recordToProcess.fields.incident_type_name
+      );
+      console.log(`Looking up incident type: "${incidentTypeName}"`);
+
+      try {
+        const incidentTypeUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_type`;
+        const typeResponse = await axios.get(incidentTypeUrl, {
+          headers,
+          params: {
+            filterByFormula: `{name} = '${incidentTypeName}'`,
+            maxRecords: 1,
+          },
+        });
+
+        if (typeResponse.data.records.length > 0) {
+          incidentTypeId = typeResponse.data.records[0].id;
+          console.log(`Found incident type ID: ${incidentTypeId}`);
+        } else {
+          console.log(
+            `No matching incident type found for: ${incidentTypeName}`
+          );
+        }
+      } catch (typeError) {
+        console.error("Error looking up incident type:", typeError.message);
+      }
+    }
 
     // Create a basic incident record with minimal fields
     const incidentFields = {
@@ -81,15 +127,15 @@ export default async (req, context) => {
       latitude: recordToProcess.fields.latitude,
       longitude: recordToProcess.fields.longitude,
       status: "Active", // Correct case
-      region: formatRegion(recordToProcess.fields.region), // Format properly
+      region: formatRegion(recordToProcess.fields.region), // Proper capitalization
       analysis: "Test analysis from background function",
       recommendations: "• Test recommendation",
     };
 
-    // Add incident_type_name only if it exists to avoid errors
-    if (recordToProcess.fields.incident_type_name) {
-      incidentFields.incident_type_name =
-        recordToProcess.fields.incident_type_name;
+    // Add incident_type_name reference only if we found a matching ID
+    if (incidentTypeId) {
+      // The field is named incident_type_name, but as a link field it needs array of IDs
+      incidentFields.incident_type_name = [incidentTypeId];
     }
 
     // Add location_name only if it exists
