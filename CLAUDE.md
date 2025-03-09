@@ -11,6 +11,7 @@ MARA is a maritime security application that tracks and reports on maritime inci
 ### March 2025: Flash Report Email and Vessel Data Enhancements
 
 1. **Improved vessel data extraction in flash report emails**:
+
    - Added multiple lookup strategies (ID, IMO, name) in `vessel-utils.js`
    - Fixed variable scoping issues in `send-flash-report.js`
    - Enhanced error handling and logging for vessel data
@@ -41,6 +42,7 @@ Key components related to the Flash Report system:
 To check logs from the `send-flash-report` function, go to the Netlify dashboard > Functions > send-flash-report > Recent invocations.
 
 Look for log lines containing:
+
 - "DEBUG - VESSEL DATA BEING SENT TO EMAIL"
 - "VESSEL DATA DEBUG"
 - "Using vessel data source:"
@@ -48,6 +50,7 @@ Look for log lines containing:
 ### Development Flow
 
 When making changes to the flash report system:
+
 1. Update the appropriate files in `/functions/` or `/src/`
 2. Commit changes with descriptive messages
 3. Deploy to Netlify
