@@ -1,45 +1,34 @@
 import axios from "axios";
 
 export default async (req, context) => {
-  console.log("Background function triggered with export default format", {
+  console.log("Background function triggered", {
     time: new Date().toISOString(),
-    functionName: context.functionName,
   });
 
   try {
     console.log("Background processing started");
 
+    // Check environment variables
     console.log("Environment check:", {
       hasAirtableKey: !!process.env.AT_API_KEY,
       hasAirtableBaseId: !!process.env.AT_BASE_ID_CSER,
       hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
     });
 
-    // First, get the table schema to understand required fields
-    const airtableUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`;
-    const headers = { Authorization: `Bearer ${process.env.AT_API_KEY}` };
+    const headers = {
+      Authorization: `Bearer ${process.env.AT_API_KEY}`,
+      "Content-Type": "application/json",
+    };
 
-    // Get a sample record to understand the structure
-    const response = await axios({
-      method: "get",
-      url: airtableUrl,
-      headers,
-      params: { maxRecords: 1 },
-    });
-
-    console.log("Airtable connection successful", {
-      recordCount: response.data.records.length,
-      firstRecordId: response.data.records[0]?.id,
-      sampleFields: Object.keys(response.data.records[0]?.fields || {}),
-    });
-
-    // Try to fetch and process the next available record that needs processing
+    // Get next unprocessed record
+    const rawDataUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`;
     const unprocessedResponse = await axios({
       method: "get",
-      url: airtableUrl,
+      url: rawDataUrl,
       headers,
       params: {
-        filterByFormula: "NOT({has_incident})",
+        filterByFormula:
+          "AND(NOT({has_incident}), OR(NOT({processing_status}), {processing_status} = 'pending'))",
         maxRecords: 1,
       },
     });
@@ -56,8 +45,8 @@ export default async (req, context) => {
     });
 
     // Update the record to mark it as processing
-    const updateResponse = await axios.patch(
-      `${airtableUrl}/${recordToProcess.id}`,
+    await axios.patch(
+      `${rawDataUrl}/${recordToProcess.id}`,
       {
         fields: {
           processing_status: "processing",
@@ -69,27 +58,51 @@ export default async (req, context) => {
 
     console.log("Updated record status to processing");
 
-    // Create a simple incident record
+    // First, try to get incident schema by fetching a sample record
+    const incidentUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`;
+    let incidentFields = {};
+
+    try {
+      const sampleIncident = await axios.get(incidentUrl, {
+        headers,
+        params: { maxRecords: 1 },
+      });
+
+      if (sampleIncident.data.records.length > 0) {
+        console.log("Found sample incident for schema reference");
+        const sampleFields = Object.keys(sampleIncident.data.records[0].fields);
+        console.log("Sample incident fields:", sampleFields);
+      }
+    } catch (schemaError) {
+      console.log("Could not get sample incident schema:", schemaError.message);
+    }
+
+    // Create incident record with the appropriate structure
+    incidentFields = {
+      title: recordToProcess.fields.title || "Untitled Incident",
+      description:
+        recordToProcess.fields.description || "No description available",
+      date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
+      latitude: recordToProcess.fields.latitude,
+      longitude: recordToProcess.fields.longitude,
+      location_name: recordToProcess.fields.location,
+      incident_type_name:
+        recordToProcess.fields.incident_type_name || "Unknown",
+      status: "active",
+      region: recordToProcess.fields.region || "unknown",
+      analysis: "Test analysis from background function",
+      recommendations: "• Test recommendation",
+
+      // Corrected field name: raw_data instead of raw_data_source
+      raw_data: [recordToProcess.id],
+    };
+
+    console.log("Creating incident with fields:", incidentFields);
+
+    // Create the incident record
     const incidentResponse = await axios.post(
-      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
-      {
-        fields: {
-          title: recordToProcess.fields.title || "Untitled Incident",
-          description:
-            recordToProcess.fields.description || "No description available",
-          date_time_utc:
-            recordToProcess.fields.date || new Date().toISOString(),
-          latitude: recordToProcess.fields.latitude,
-          longitude: recordToProcess.fields.longitude,
-          location_name: recordToProcess.fields.location,
-          incident_type_name:
-            recordToProcess.fields.incident_type_name || "Unknown",
-          status: "active",
-          region: recordToProcess.fields.region || "unknown",
-          analysis: "Test analysis from background function",
-          recommendations: "• Test recommendation",
-        },
-      },
+      incidentUrl,
+      { fields: incidentFields },
       { headers }
     );
 
@@ -99,7 +112,7 @@ export default async (req, context) => {
 
     // Mark the raw data record as processed
     await axios.patch(
-      `${airtableUrl}/${recordToProcess.id}`,
+      `${rawDataUrl}/${recordToProcess.id}`,
       {
         fields: {
           has_incident: true,
@@ -123,14 +136,6 @@ export default async (req, context) => {
         JSON.stringify(error.response.data, null, 2)
       );
       console.error("Error response status:", error.response.status);
-      console.error(
-        "Error response headers:",
-        JSON.stringify(error.response.headers, null, 2)
-      );
-    } else if (error.request) {
-      console.error("Error request:", JSON.stringify(error.request, null, 2));
     }
-
-    console.error("Error details:", JSON.stringify(error, null, 2));
   }
 };
