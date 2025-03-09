@@ -9,6 +9,11 @@ const CACHE_KEY_LAST_PROCESSED = "last-processed-raw-data";
 const CACHE_KEY_RUNS = "function-runs";
 
 export const handler = async (event, context) => {
+  console.log("process-raw-data-background function triggered", {
+    time: new Date().toISOString(),
+    functionName: context.functionName,
+  });
+
   // Return immediately with a success response
   const response = {
     statusCode: 200,
@@ -31,40 +36,70 @@ async function processNextRecord(event, context) {
   const startTime = Date.now();
 
   try {
-    await logRun(context.functionName, "started");
+    try {
+      await logRun(context.functionName, "started");
+    } catch (logError) {
+      log.error("Failed to log run start, continuing", logError);
+    }
+
     log.info("Process raw data function started in background");
 
-    // Verify environment variables
-    verifyEnvironmentVariables([
-      "AT_BASE_ID_CSER",
-      "AT_API_KEY",
-      "ANTHROPIC_API_KEY",
-    ]);
+    try {
+      // Verify environment variables
+      verifyEnvironmentVariables([
+        "AT_BASE_ID_CSER",
+        "AT_API_KEY",
+        "ANTHROPIC_API_KEY",
+      ]);
+    } catch (envError) {
+      log.error("Environment variable verification failed", envError);
+      return; // Stop processing if environment variables are missing
+    }
 
     // Process a specific record if ID is provided
     const specificRecordId = event.queryStringParameters?.recordId;
 
     // Fetch the next record to process
-    const record = specificRecordId
-      ? await fetchSpecificRecord(specificRecordId)
-      : await fetchNextRecordToProcess();
+    let record;
+    try {
+      record = specificRecordId
+        ? await fetchSpecificRecord(specificRecordId)
+        : await fetchNextRecordToProcess();
+    } catch (fetchError) {
+      log.error("Failed to fetch record to process", fetchError);
+      return; // Stop if we can't fetch records
+    }
 
     if (!record) {
       log.info("No records to process");
-      await logRun(context.functionName, "success", {
-        duration: Date.now() - startTime,
-        status: "no-records",
-      });
+      try {
+        await logRun(context.functionName, "success", {
+          duration: Date.now() - startTime,
+          status: "no-records",
+        });
+      } catch (logError) {
+        log.error(
+          "Failed to log completion, but no records to process",
+          logError
+        );
+      }
       return;
     }
 
     log.info(`Processing record: ${record.id}`, {
-      title: record.fields.title,
-      source: record.fields.source,
+      title: record.fields?.title,
+      source: record.fields?.source,
     });
 
     // Update record status to "processing"
-    await updateRecordStatus(record.id, "processing");
+    try {
+      await updateRecordStatus(record.id, "processing");
+    } catch (updateError) {
+      log.error(
+        "Failed to update record status to processing, continuing",
+        updateError
+      );
+    }
 
     try {
       // Process the record
@@ -85,25 +120,38 @@ async function processNextRecord(event, context) {
       log.error(`Error processing record ${record.id}`, error);
 
       // Update record status to "error"
-      await updateRecordStatus(record.id, "error", {
-        processing_notes: `Error: ${error.message}`,
-      });
+      try {
+        await updateRecordStatus(record.id, "error", {
+          processing_notes: `Error: ${error.message}`,
+        });
+      } catch (updateError) {
+        log.error("Failed to update record status after error", updateError);
+      }
     }
 
-    await logRun(context.functionName, "success", {
-      duration: Date.now() - startTime,
-      recordId: record.id,
-    });
+    try {
+      await logRun(context.functionName, "success", {
+        duration: Date.now() - startTime,
+        recordId: record.id,
+      });
+    } catch (logError) {
+      log.error("Failed to log completion, but processing completed", logError);
+    }
 
     // Check if there are more records to process
-    const moreRecords = await checkMoreRecordsExist();
+    let moreRecords = false;
+    try {
+      moreRecords = await checkMoreRecordsExist();
+    } catch (checkError) {
+      log.error("Failed to check for more records", checkError);
+    }
 
     if (moreRecords) {
       log.info("More records exist, triggering next processing job");
 
       // Trigger another processing run via API call
       try {
-        const siteUrl = process.env.URL || "http://localhost:8888";
+        const siteUrl = process.env.URL || "https://mara-v2.netlify.app";
         await axios.post(
           `${siteUrl}/.netlify/functions/process-raw-data-background`
         );
@@ -114,10 +162,14 @@ async function processNextRecord(event, context) {
   } catch (error) {
     log.error("Process raw data function failed", error);
 
-    await logRun(context.functionName, "error", {
-      error: error.message,
-      duration: Date.now() - startTime,
-    });
+    try {
+      await logRun(context.functionName, "error", {
+        error: error.message,
+        duration: Date.now() - startTime,
+      });
+    } catch (logError) {
+      log.error("Failed to log error", logError);
+    }
   }
 }
 
@@ -235,10 +287,19 @@ async function processRecord(record) {
   };
 }
 
-// Helper function to log function runs
+// Helper function to log function runs with error handling
 async function logRun(functionName, status, details = {}) {
   try {
-    const cached = (await cacheOps.get(CACHE_KEY_RUNS)) || { runs: [] };
+    let cached;
+    try {
+      cached = await cacheOps.get(CACHE_KEY_RUNS);
+    } catch (cacheError) {
+      log.error("Cache retrieval failed, continuing without cache", cacheError);
+      cached = { runs: [] };
+    }
+
+    if (!cached) cached = { runs: [] };
+
     cached.runs.unshift({
       function: functionName,
       status,
@@ -250,9 +311,14 @@ async function logRun(functionName, status, details = {}) {
       cached.runs = cached.runs.slice(0, 100);
     }
 
-    await cacheOps.store(CACHE_KEY_RUNS, cached);
+    try {
+      await cacheOps.store(CACHE_KEY_RUNS, cached);
+    } catch (storageError) {
+      log.error("Failed to store cache, continuing processing", storageError);
+    }
   } catch (error) {
-    log.error("Error logging run", error);
+    log.error("Error in logRun, continuing processing", error);
+    // Continue processing despite logging errors
   }
 }
 
