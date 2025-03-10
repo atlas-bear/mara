@@ -87,11 +87,64 @@ export default async (req, context) => {
         .join(" ");
     };
 
-    // Helper function to format arrays as bulleted lists
-    const formatAsBulletList = (items) => {
-      if (!items || items.length === 0) return "";
-      return items.map((item) => `• ${item}`).join("\n");
-    };
+    // Helper function to find or create a reference record in a lookup table
+    async function findOrCreateReferenceItem(itemName, tableName) {
+      if (!itemName) return null;
+
+      const formattedName = toTitleCase(itemName);
+      const tableUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/${tableName}`;
+
+      try {
+        // Try to find existing record
+        const response = await axios.get(tableUrl, {
+          headers,
+          params: {
+            filterByFormula: `{name} = '${formattedName}'`,
+            maxRecords: 1,
+          },
+        });
+
+        if (response.data.records.length > 0) {
+          console.log(`Found existing ${tableName} item: ${formattedName}`);
+          return response.data.records[0].id;
+        }
+
+        // Create new record if not found
+        const createResponse = await axios.post(
+          tableUrl,
+          {
+            fields: {
+              name: formattedName,
+            },
+          },
+          { headers }
+        );
+
+        console.log(`Created new ${tableName} item: ${formattedName}`);
+        return createResponse.data.id;
+      } catch (error) {
+        console.error(
+          `Error finding/creating ${tableName} item:`,
+          error.message
+        );
+        return null;
+      }
+    }
+
+    // Helper function to process an array of items for a reference table
+    async function processReferenceItems(items, tableName) {
+      if (!items || items.length === 0) return [];
+
+      const itemIds = [];
+      for (const item of items) {
+        const itemId = await findOrCreateReferenceItem(item, tableName);
+        if (itemId) {
+          itemIds.push(itemId);
+        }
+      }
+
+      return itemIds;
+    }
 
     // First, try to find the incident type in the incident_type table
     let incidentTypeId = null;
@@ -153,7 +206,8 @@ You are an expert maritime security analyst. Based on the maritime incident deta
      * Knives
      * Armed individuals (type unspecified)
      * Parangs
-     * AK-47s, Machine Guns
+     * AK-47s
+     * Machine Guns
      * UAVs
      * Handguns
      * Other weapons (specify)
@@ -285,6 +339,31 @@ If you specify "Other" in any category, please include details in the correspond
       console.error("Error calling Claude API:", claudeError.message);
     }
 
+    // Process reference items for linked fields
+    console.log("Processing weapons_used items");
+    const weaponsUsedIds = await processReferenceItems(
+      enrichedData.weapons_used,
+      "weapons"
+    );
+
+    console.log("Processing items_stolen items");
+    const itemsStolenIds = await processReferenceItems(
+      enrichedData.items_stolen,
+      "items_stolen"
+    );
+
+    console.log("Processing response_type items");
+    const responseTypeIds = await processReferenceItems(
+      enrichedData.response_type,
+      "response_type"
+    );
+
+    console.log("Processing authorities_notified items");
+    const authoritiesNotifiedIds = await processReferenceItems(
+      enrichedData.authorities_notified,
+      "authorities_notified"
+    );
+
     // Create a basic incident record with minimal fields plus LLM-enriched data
     const incidentFields = {
       title: recordToProcess.fields.title || "Untitled Incident",
@@ -299,15 +378,14 @@ If you specify "Other" in any category, please include details in the correspond
       // LLM-enriched fields
       analysis: enrichedData.analysis,
       recommendations: enrichedData.recommendations,
-
-      // Convert arrays to bulleted text for multi-select fields
-      weapons_used: formatAsBulletList(enrichedData.weapons_used),
       number_of_attackers: enrichedData.number_of_attackers,
-      items_stolen: formatAsBulletList(enrichedData.items_stolen),
-      response_type: formatAsBulletList(enrichedData.response_type),
-      authorities_notified: formatAsBulletList(
-        enrichedData.authorities_notified
-      ),
+
+      // Linked fields with IDs
+      weapons_used: weaponsUsedIds.length > 0 ? weaponsUsedIds : undefined,
+      items_stolen: itemsStolenIds.length > 0 ? itemsStolenIds : undefined,
+      response_type: responseTypeIds.length > 0 ? responseTypeIds : undefined,
+      authorities_notified:
+        authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : undefined,
     };
 
     // Add incident_type_name reference only if we found a matching ID
