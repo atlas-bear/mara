@@ -133,12 +133,12 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           </p>
           {regionalStats[currentRegion]?.changeDirection === "up" && (
             <p className="text-xs text-red-600">
-              ⬆️ Up {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
+              ↑ Up {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
             </p>
           )}
           {regionalStats[currentRegion]?.changeDirection === "down" && (
             <p className="text-xs text-green-600">
-              ⬇️ Down {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
+              ↓ Down {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
             </p>
           )}
           {regionalStats[currentRegion]?.changeDirection === "none" && (
