@@ -20,13 +20,14 @@ export default async (req, context) => {
       "Content-Type": "application/json",
     };
 
-    // Get next unprocessed record
+    // Get next unprocessed record from the "Process" view
     const rawDataUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`;
     const unprocessedResponse = await axios({
       method: "get",
       url: rawDataUrl,
       headers,
       params: {
+        view: "Process", // Use the specific view
         filterByFormula:
           "AND(NOT({has_incident}), OR(NOT({processing_status}), {processing_status} = 'pending'))",
         maxRecords: 1,
@@ -34,7 +35,7 @@ export default async (req, context) => {
     });
 
     if (unprocessedResponse.data.records.length === 0) {
-      console.log("No unprocessed records found");
+      console.log("No unprocessed records found in the Process view");
       return;
     }
 
@@ -177,10 +178,11 @@ export default async (req, context) => {
       }
     }
 
-    // Use Claude to enrich the incident data
+    // Use Claude to enrich the incident data with improved analysis and custom title
     let enrichedData = {
-      analysis: "Test analysis from background function",
-      recommendations: "• Test recommendation",
+      analysis: "Analysis pending.",
+      recommendations: "• Recommendations pending.",
+      title: recordToProcess.fields.title,
       weapons_used: [],
       number_of_attackers: null,
       items_stolen: [],
@@ -189,17 +191,35 @@ export default async (req, context) => {
     };
 
     try {
-      console.log("Calling Claude API for incident analysis");
+      console.log(
+        "Calling Claude API for incident analysis and title generation"
+      );
 
       // Create the prompt
       const prompt = `
 You are an expert maritime security analyst. Based on the maritime incident details below, please:
 
-1. Provide a concise, focused analysis of the incident (1 paragraph only). Focus on key facts, operational impacts, and security implications. 
+1. Create a concise but descriptive title for this incident (max 10 words). The title should clearly convey the incident type, location, and any distinctive characteristics. Examples of good titles:
+   - "Armed Boarding of Bulk Carrier off Indonesia"
+   - "Missile Attack on Commercial Vessel in Red Sea" 
+   - "Pirate Kidnapping of Crew Near Nigeria"
+   - "Drone Strike on Russian Naval Base in Sevastopol"
 
-2. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
+2. Provide an insightful analysis of the incident (1-2 paragraphs). Your analysis should go beyond restating the facts to include:
+   - Context of this incident within regional security trends
+   - Tactical significance or unique aspects of this attack
+   - Potential implications for maritime security
+   - Possible motives or capabilities of the attackers
+   - Comparison to similar incidents if relevant
 
-3. Extract specific details in JSON format:
+   Examples of good analyses:
+   - "This attack follows the pattern of recent escalation in the Red Sea region. The targeting of navigation systems suggests a sophisticated approach aimed at disabling vessel capabilities."
+   - "At least three of the armed robbers reportedly fired warning shots, injuring some crew members and forcibly transferring funds from crew members' savings accounts. This marks the second such incident in ten days, with both events following a similar modus operandi: assailants armed with handguns approached the vessel, coerced crew members into transferring funds, and assaulted crew."
+   - "The port, which hosts a Russian Naval base, reportedly suffered damage to two missile ships and possibly several smaller vessels, according to Ukrainian sources. The extent of the damage is still unknown, but it has been reported that the impacted warships included the DAGESTAN (FFG-693) and TATARSTAN (FFG-691). Russian sources confirmed that four UAVs targeted the area, with one drone potentially exploding over the Russian Naval garrison. This is the first time Kyiv has attacked a target in the Caspian, about 1,500km from the frontline."
+
+3. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
+
+4. Extract specific details in JSON format:
 
    - Weapons used (select all that apply):
      * Missiles
@@ -257,7 +277,7 @@ You are an expert maritime security analyst. Based on the maritime incident deta
      * None mentioned
 
 INCIDENT DETAILS:
-Title: ${recordToProcess.fields.title || "No title available"}
+Original Title: ${recordToProcess.fields.title || "No title available"}
 Date: ${recordToProcess.fields.date || "No date available"}
 Location: ${recordToProcess.fields.location || "Unknown"} (${recordToProcess.fields.latitude || "?"}, ${recordToProcess.fields.longitude || "?"})
 Description: ${recordToProcess.fields.description || "No description available"}
@@ -268,7 +288,8 @@ Source: ${recordToProcess.fields.source || "Unknown source"}
 
 Please respond in JSON format ONLY, like this:
 {
-  "analysis": "Your concise analysis here...",
+  "title": "Your concise title here",
+  "analysis": "Your insightful analysis here...",
   "recommendations": ["Brief recommendation 1", "Brief recommendation 2", "Brief recommendation 3"],
   "weapons_used": ["Option1", "Option2"],
   "number_of_attackers": 5,
@@ -280,12 +301,12 @@ Please respond in JSON format ONLY, like this:
 If you specify "Other" in any category, please include details in the corresponding field.
       `;
 
-      // Call Claude API
+      // Call Claude API with updated model
       const claudeResponse = await axios.post(
         "https://api.anthropic.com/v1/messages",
         {
-          model: "claude-3-haiku-20240307",
-          max_tokens: 1000,
+          model: "claude-3-5-sonnet-20240620", // Updated model
+          max_tokens: 1500,
           temperature: 0.2,
           messages: [{ role: "user", content: prompt }],
         },
@@ -315,6 +336,7 @@ If you specify "Other" in any category, please include details in the correspond
             : parsedData.recommendations;
 
           enrichedData = {
+            title: parsedData.title || enrichedData.title,
             analysis: parsedData.analysis || enrichedData.analysis,
             recommendations:
               formattedRecommendations || enrichedData.recommendations,
@@ -328,7 +350,10 @@ If you specify "Other" in any category, please include details in the correspond
             authorities_notified: parsedData.authorities_notified || [],
           };
 
-          console.log("Successfully processed Claude response");
+          console.log(
+            "Successfully processed Claude response with generated title"
+          );
+          console.log("Generated title:", enrichedData.title);
         } else {
           console.error("Could not extract JSON from Claude response");
         }
@@ -364,9 +389,9 @@ If you specify "Other" in any category, please include details in the correspond
       "authorities_notified"
     );
 
-    // Create a basic incident record with minimal fields plus LLM-enriched data
+    // Create incident record with LLM-generated title and enriched data
     const incidentFields = {
-      title: recordToProcess.fields.title || "Untitled Incident",
+      title: enrichedData.title, // Use the LLM-generated title
       description:
         recordToProcess.fields.description || "No description available",
       date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
@@ -539,6 +564,7 @@ async function checkMoreRecordsExist(rawDataUrl, headers) {
       url: rawDataUrl,
       headers,
       params: {
+        view: "Process", // Use the specific view
         filterByFormula:
           "AND(NOT({has_incident}), OR(NOT({processing_status}), {processing_status} = 'pending'))",
         maxRecords: 1,
