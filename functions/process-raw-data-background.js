@@ -44,6 +44,7 @@ export default async (req, context) => {
       id: recordToProcess.id,
       title: recordToProcess.fields.title,
       region: recordToProcess.fields.region,
+      incident_type_name: recordToProcess.fields.incident_type_name,
     });
 
     // Update the record to mark it as processing
@@ -147,34 +148,50 @@ export default async (req, context) => {
       return itemIds;
     }
 
-    // First, try to find the incident type in the incident_type table
+    // Process the incident_type_name from raw_data
     let incidentTypeId = null;
+    let incidentTypeName = null;
+
     if (recordToProcess.fields.incident_type_name) {
-      const incidentTypeName = toTitleCase(
-        recordToProcess.fields.incident_type_name
-      );
+      incidentTypeName = toTitleCase(recordToProcess.fields.incident_type_name);
       console.log(`Looking up incident type: "${incidentTypeName}"`);
 
       try {
-        const incidentTypeUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_type`;
-        const typeResponse = await axios.get(incidentTypeUrl, {
-          headers,
-          params: {
-            filterByFormula: `{name} = '${incidentTypeName}'`,
-            maxRecords: 1,
-          },
-        });
+        // Ensure the incident type exists in the reference table
+        incidentTypeId = await findOrCreateReferenceItem(
+          incidentTypeName,
+          "incident_type"
+        );
 
-        if (typeResponse.data.records.length > 0) {
-          incidentTypeId = typeResponse.data.records[0].id;
-          console.log(`Found incident type ID: ${incidentTypeId}`);
+        if (incidentTypeId) {
+          console.log(`Found/created incident type ID: ${incidentTypeId}`);
         } else {
-          console.log(
-            `No matching incident type found for: ${incidentTypeName}`
-          );
+          console.log(`Unable to process incident type: ${incidentTypeName}`);
         }
       } catch (typeError) {
-        console.error("Error looking up incident type:", typeError.message);
+        console.error("Error handling incident type:", typeError.message);
+      }
+    }
+
+    // Extract location from description if not provided
+    let extractedLocation = null;
+    if (!recordToProcess.fields.location) {
+      // We'll use Claude to extract this later, but also do basic extraction here
+      const description = recordToProcess.fields.description || "";
+
+      // Check for common location references
+      const locationMatches =
+        description.match(
+          /in the ([\w\s]+Strait|Gulf of \w+|Red Sea|Mediterranean|Caribbean|[\w\s]+ Anchorage)/i
+        ) ||
+        description.match(/near ([\w\s]+)/i) ||
+        description.match(/off ([\w\s]+)/i);
+
+      if (locationMatches && locationMatches[1]) {
+        extractedLocation = locationMatches[1].trim();
+        console.log(
+          `Extracted location from description: ${extractedLocation}`
+        );
       }
     }
 
@@ -183,6 +200,7 @@ export default async (req, context) => {
       analysis: "Analysis pending.",
       recommendations: "• Recommendations pending.",
       title: recordToProcess.fields.title,
+      location: recordToProcess.fields.location || extractedLocation,
       weapons_used: [],
       number_of_attackers: null,
       items_stolen: [],
@@ -205,24 +223,27 @@ You are an expert maritime security analyst. Based on the maritime incident deta
    - "Pirate Kidnapping of Crew Near Nigeria"
    - "Drone Strike on Russian Naval Base in Sevastopol"
 
-2. Provide an insightful analysis of the incident (1-2 paragraphs). Your analysis should go beyond restating the facts to include:
-   - Context of this incident within regional security trends
-   - Tactical significance or unique aspects of this attack
-   - Potential implications for maritime security
-   - Possible motives or capabilities of the attackers
-   - Comparison to similar incidents if relevant
+2. If location information is missing, extract the specific body of water or nearest point of reference from the description (e.g., "Singapore Strait", "Gulf of Guinea", "Takoradi Anchorage, Ghana", "North of Eyl, Somalia").
 
-   Examples of good analyses:
-   - "This attack follows the pattern of recent escalation in the Red Sea region. The targeting of navigation systems suggests a sophisticated approach aimed at disabling vessel capabilities."
-   - "At least three of the armed robbers reportedly fired warning shots, injuring some crew members and forcibly transferring funds from crew members' savings accounts. This marks the second such incident in ten days, with both events following a similar modus operandi: assailants armed with handguns approached the vessel, coerced crew members into transferring funds, and assaulted crew."
-   - "The port, which hosts a Russian Naval base, reportedly suffered damage to two missile ships and possibly several smaller vessels, according to Ukrainian sources. The extent of the damage is still unknown, but it has been reported that the impacted warships included the DAGESTAN (FFG-693) and TATARSTAN (FFG-691). Russian sources confirmed that four UAVs targeted the area, with one drone potentially exploding over the Russian Naval garrison. This is the first time Kyiv has attacked a target in the Caspian, about 1,500km from the frontline."
+3. Carefully identify any weapons mentioned in the description, even if described vaguely. Examples:
+   - "gun-like object" should be classified as "Firearms (unspecified)"
+   - "hammers" or similar tools used as weapons should be listed as "Improvised weapons"
+   - If no weapons are explicitly mentioned, but the incident involves force, include "Unknown weapons"
+   - If clearly no weapons were used, indicate "None"
 
-3. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
+4. Provide an insightful analysis of the incident (1-2 paragraphs). Focus on specific tactical details and operational significance, NOT on general statements about maritime chokepoints or well-known regional challenges. Your analysis should:
+   - Skip obvious contextual statements (like "the Singapore Strait is a critical maritime chokepoint")
+   - Analyze the attackers' tactics, techniques, or procedures
+   - Note anything unusual or significant about this specific incident
+   - Identify patterns if this incident follows a known trend of similar attacks
+   - Discuss the effectiveness of any countermeasures employed
 
-4. Extract specific details in JSON format:
+5. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
 
-   - Weapons used (select all that apply):
-     * Missiles
+6. Extract specific details in JSON format:
+
+   - Weapons used (select all that apply, be thorough in identifying weapons from the description):
+     * Firearms (unspecified)
      * Knives
      * Armed individuals (type unspecified)
      * Parangs
@@ -230,8 +251,9 @@ You are an expert maritime security analyst. Based on the maritime incident deta
      * Machine Guns
      * UAVs
      * Handguns
+     * Improvised weapons
+     * None
      * Other weapons (specify)
-     * None mentioned
 
    - Number of attackers (numeric value, null if unknown)
 
@@ -279,7 +301,8 @@ You are an expert maritime security analyst. Based on the maritime incident deta
 INCIDENT DETAILS:
 Original Title: ${recordToProcess.fields.title || "No title available"}
 Date: ${recordToProcess.fields.date || "No date available"}
-Location: ${recordToProcess.fields.location || "Unknown"} (${recordToProcess.fields.latitude || "?"}, ${recordToProcess.fields.longitude || "?"})
+Location: ${recordToProcess.fields.location || "Not specified in record"}
+Coordinates: (${recordToProcess.fields.latitude || "?"}, ${recordToProcess.fields.longitude || "?"})
 Description: ${recordToProcess.fields.description || "No description available"}
 Updates: ${recordToProcess.fields.update || "None"}
 Incident Type: ${recordToProcess.fields.incident_type_name || "Unknown type"}
@@ -289,6 +312,7 @@ Source: ${recordToProcess.fields.source || "Unknown source"}
 Please respond in JSON format ONLY, like this:
 {
   "title": "Your concise title here",
+  "location": "Extracted or provided location",
   "analysis": "Your insightful analysis here...",
   "recommendations": ["Brief recommendation 1", "Brief recommendation 2", "Brief recommendation 3"],
   "weapons_used": ["Option1", "Option2"],
@@ -337,6 +361,10 @@ If you specify "Other" in any category, please include details in the correspond
 
           enrichedData = {
             title: parsedData.title || enrichedData.title,
+            location:
+              parsedData.location ||
+              recordToProcess.fields.location ||
+              extractedLocation,
             analysis: parsedData.analysis || enrichedData.analysis,
             recommendations:
               formattedRecommendations || enrichedData.recommendations,
@@ -354,6 +382,8 @@ If you specify "Other" in any category, please include details in the correspond
             "Successfully processed Claude response with generated title"
           );
           console.log("Generated title:", enrichedData.title);
+          console.log("Extracted location:", enrichedData.location);
+          console.log("Identified weapons:", enrichedData.weapons_used);
         } else {
           console.error("Could not extract JSON from Claude response");
         }
@@ -399,6 +429,7 @@ If you specify "Other" in any category, please include details in the correspond
       longitude: recordToProcess.fields.longitude,
       status: "Active",
       region: formatRegion(recordToProcess.fields.region),
+      location_name: enrichedData.location, // Use extracted or provided location
 
       // LLM-enriched fields
       analysis: enrichedData.analysis,
@@ -413,15 +444,9 @@ If you specify "Other" in any category, please include details in the correspond
         authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : undefined,
     };
 
-    // Add incident_type_name reference only if we found a matching ID
+    // Add incident_type_name reference if available
     if (incidentTypeId) {
-      // The field is named incident_type_name, but as a link field it needs array of IDs
       incidentFields.incident_type_name = [incidentTypeId];
-    }
-
-    // Add location_name only if it exists
-    if (recordToProcess.fields.location) {
-      incidentFields.location_name = recordToProcess.fields.location;
     }
 
     console.log("Creating incident with fields:", incidentFields);
