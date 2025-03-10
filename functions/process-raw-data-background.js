@@ -662,9 +662,7 @@ If you specify "Other" in any category, please include details in the correspond
             vessel_id: [vesselId],
             // Use extracted or default status
             vessel_status_during_incident: vesselStatus,
-            vessel_role: "Target", // This is correct from your options
-            // Add date_added field
-            date_added: new Date().toISOString(),
+            vessel_role: "Target", // Default value
           },
         };
 
