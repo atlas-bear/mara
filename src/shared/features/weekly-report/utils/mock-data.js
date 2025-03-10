@@ -95,34 +95,44 @@ export const regionalStats = {
     ytdIncidents: 10,
     changeFromLastYear: 42.86, // positive percentage
     lastYearIncidents: 7,
-    changeDirection: "up" // up, down, or none
+    changeDirection: "up", // up, down, or none
+    lastWeekIncidents: 1,  // incidents from last week
+    weeklyChangeDirection: "up" // compared to current week
   },
   
   "Indian Ocean": {
     ytdIncidents: 2,
     changeFromLastYear: 97.10, // positive percentage 
     lastYearIncidents: 69,
-    changeDirection: "down"
+    changeDirection: "down",
+    lastWeekIncidents: 0,
+    weeklyChangeDirection: "none"
   },
   
   "West Africa": {
     ytdIncidents: 4,
     changeFromLastYear: 63.64, // positive percentage
     lastYearIncidents: 11,
-    changeDirection: "down"
+    changeDirection: "down",
+    lastWeekIncidents: 1,
+    weeklyChangeDirection: "up"
   },
   
   "Europe": {
     ytdIncidents: 0,
     changeFromLastYear: 100, // positive percentage
     lastYearIncidents: 1,
-    changeDirection: "down"
+    changeDirection: "down",
+    lastWeekIncidents: 0,
+    weeklyChangeDirection: "none"
   },
   
   "Americas": {
     ytdIncidents: 0,
     changeFromLastYear: 0, // percentage
     lastYearIncidents: 0,
-    changeDirection: "none"
+    changeDirection: "none",
+    lastWeekIncidents: 0,
+    weeklyChangeDirection: "none"
   }
 };

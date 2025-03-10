@@ -124,7 +124,35 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Weekly Incidents</p>
           <p className="text-2xl font-bold text-gray-900">{regionIncidents.length}</p>
-          <p className="text-xs text-gray-600">Current reporting period</p>
+          
+          {/* Calculate the change percentage if possible */}
+          {(regionalStats[currentRegion]?.lastWeekIncidents === 0 && regionIncidents.length === 0) && (
+            <p className="text-xs text-gray-600">No change from last week</p>
+          )}
+          
+          {(regionalStats[currentRegion]?.lastWeekIncidents === 0 && regionIncidents.length > 0) && (
+            <p className="text-xs text-red-600">
+              ↑ Up from 0 last week
+            </p>
+          )}
+          
+          {(regionalStats[currentRegion]?.lastWeekIncidents > 0 && regionIncidents.length === 0) && (
+            <p className="text-xs text-green-600">
+              ↓ Down from {regionalStats[currentRegion]?.lastWeekIncidents} last week
+            </p>
+          )}
+          
+          {(regionalStats[currentRegion]?.lastWeekIncidents > 0 && regionIncidents.length > 0) && (
+            <p className={`text-xs ${regionIncidents.length > regionalStats[currentRegion]?.lastWeekIncidents ? 'text-red-600' : 
+                                     regionIncidents.length < regionalStats[currentRegion]?.lastWeekIncidents ? 'text-green-600' : 
+                                     'text-gray-600'}`}>
+              {regionIncidents.length > regionalStats[currentRegion]?.lastWeekIncidents ? 
+                `↑ Up from ${regionalStats[currentRegion]?.lastWeekIncidents} last week` : 
+                regionIncidents.length < regionalStats[currentRegion]?.lastWeekIncidents ? 
+                `↓ Down from ${regionalStats[currentRegion]?.lastWeekIncidents} last week` : 
+                `No change from last week (${regionalStats[currentRegion]?.lastWeekIncidents})`}
+            </p>
+          )}
         </div>
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">YTD Incidents (2025)</p>
