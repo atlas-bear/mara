@@ -2,6 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
 import MaritimeMap from '@shared/components/MaritimeMap';
 import { getFirstSentence } from '@shared/features/weekly-report';
+import { regionalMonthlyData } from '../../utils/mock-data';
 
 // Define regions info
 const REGIONS = {
@@ -80,13 +81,16 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
     };
   }).filter(inc => inc.latitude && inc.longitude);
 
-  const monthlyData = [
-    { month: 'May', incidents: 8, robberies: 6, attacks: 2, boardings: 4 },
-    { month: 'Jun', incidents: 6, robberies: 4, attacks: 2, boardings: 3 },
-    { month: 'Jul', incidents: 5, robberies: 3, attacks: 2, boardings: 2 },
-    { month: 'Aug', incidents: 7, robberies: 5, attacks: 2, boardings: 4 },
-    { month: 'Sep', incidents: 6, robberies: 4, attacks: 2, boardings: 3 },
-    { month: 'Oct', incidents: 9, robberies: 7, attacks: 2, boardings: 5 }
+  // Get the region-specific monthly data or use a default if not found
+  const monthlyData = regionalMonthlyData[currentRegion] || [
+    { month: 'Aug', incidents: 0 },
+    { month: 'Sep', incidents: 0 },
+    { month: 'Oct', incidents: 0 },
+    { month: 'Nov', incidents: 0 },
+    { month: 'Dec', incidents: 0 },
+    { month: 'Jan', incidents: 0 },
+    { month: 'Feb', incidents: 0 },
+    { month: 'Mar', incidents: 0 }
   ];
 
   return (
@@ -178,6 +182,9 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           <span className="flex items-center">
             <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span> Military
           </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Other
+          </span>
         </div>
       </div>
 
@@ -192,9 +199,28 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
               <Tooltip />
               <Area type="monotone" dataKey="incidents" stroke="#f97316" fill="#fed7aa" />
               <Area type="monotone" dataKey="robberies" stroke="#ef4444" fill="#fecaca" />
+              <Area type="monotone" dataKey="attacks" stroke="#86198f" fill="#e9d5ff" />
               <Area type="monotone" dataKey="boardings" stroke="#3b82f6" fill="#bfdbfe" />
+              <Area type="monotone" dataKey="other" stroke="#059669" fill="#a7f3d0" />
             </AreaChart>
           </ResponsiveContainer>
+          <div className="mt-2 text-xs text-gray-500 flex justify-center gap-3 flex-wrap">
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> All Incidents
+            </span>
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Robberies
+            </span>
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-purple-500 mr-1"></span> Attacks
+            </span>
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span> Boardings
+            </span>
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Other
+            </span>
+          </div>
         </div>
       </div>
 
