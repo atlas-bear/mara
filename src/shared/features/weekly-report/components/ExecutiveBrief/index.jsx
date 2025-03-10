@@ -201,8 +201,32 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Key Developments</h2>
         <ul className="space-y-4">
-          {keyDevelopments.map((inc, index) => (
-            <li key={index} className="flex items-start">
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-red-600">●</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Indian Ocean:</strong> Houthis issue final warning of imminent attacks on vessels in the Red Sea. Intelligence suggests attacks may resume with greater aggression regardless of maritime/air strikes against Yemen.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Southeast Asia:</strong> Region maintains high threat level with 10 incidents YTD. Incidents continue to concentrate in the Singapore Strait area with similar characteristics.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
+            <span className="ml-2 text-gray-700">
+              <strong>West Africa:</strong> Pirate Action Group (PAG) warning from MDAT-GoG remains in effect. Recent robbery aboard Oil/Chemical/Gas Tanker in Takoradi Anchorage highlights persistent risk.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-blue-600">●</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Europe:</strong> Risk to shipping remains elevated due to Russo-Ukrainian conflict. Disruptions and risks at Israeli ports continue amid Palestinian-Israeli conflict.
+            </span>
+          </li>
+          {keyDevelopments.length > 0 && keyDevelopments.map((inc, index) => (
+            <li key={`incident-${index}`} className="flex items-start">
               <span className={`flex-shrink-0 h-5 w-5 ${
                 inc.incidentType?.fields?.name === 'Attack' ? 'text-red-600' :
                 inc.incidentType?.fields?.name === 'Robbery' ? 'text-orange-600' :
@@ -220,23 +244,36 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">7-Day Forecast</h2>
         <ul className="space-y-4">
-          {regionalStats.map(({ region, threatLevel, trend }) => {
-            const trendDirection = trend[trend.length - 1].value > trend[0].value ? '↗' :
-                                 trend[trend.length - 1].value < trend[0].value ? '↘' : '→';
-            return (
-              <li key={region} className="flex items-start">
-                <span className={`flex-shrink-0 h-5 w-5 ${
-                  threatLevel.level === 'Critical' ? 'text-red-600' :
-                  threatLevel.level === 'Severe' ? 'text-rose-600' :
-                  threatLevel.level === 'Substantial' ? 'text-orange-600' :
-                  'text-yellow-600'
-                }`}>{trendDirection}</span>
-                <span className="ml-2 text-gray-700">
-                  <strong>{region}:</strong> {generateForecast(region, threatLevel, trend)}
-                </span>
-              </li>
-            );
-          })}
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-red-600">↗</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Indian Ocean:</strong> Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Southeast Asia:</strong> Continued risk of robbery and theft in Singapore Strait. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
+            <span className="ml-2 text-gray-700">
+              <strong>West Africa:</strong> Ongoing piracy threat with active PAG in Gulf of Guinea. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-yellow-600">→</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Europe:</strong> Continued risk of military-related incidents in Black Sea. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
+            </span>
+          </li>
+          <li className="flex items-start">
+            <span className="flex-shrink-0 h-5 w-5 text-yellow-600">→</span>
+            <span className="ml-2 text-gray-700">
+              <strong>Americas:</strong> Risk level remains moderate. Vessels at Callao Anchorage, Peru advised to maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
+            </span>
+          </li>
         </ul>
       </div>
     </div>
