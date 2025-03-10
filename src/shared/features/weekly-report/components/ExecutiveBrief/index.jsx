@@ -163,39 +163,45 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
         </span>
       </div>
 
-      {/* Global Threat Overview Table */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Region</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Threat Level</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">Incidents</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">6-Month Trend</th>
-              </tr>
-            </thead>
-            <tbody>
-              {regionalStats.map(({ region, threatLevel, incidents, trend }) => (
-                <tr key={region} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 border">{region}</td>
-                  <td className="px-4 py-3 border">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${threatLevel.class}`}>
-                      {threatLevel.icon} {threatLevel.level}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center border">{incidents}</td>
-                  <td className="px-4 py-3 border">
-                    <div className="h-5">
-                      <Sparkline data={trend} />
-                    </div>
-                  </td>
+      {/* Global Threat Overview Table - only show if there's at least one region with incidents */}
+      {regionalStats.some(stat => stat.incidents > 0) ? (
+        <div className="p-6 border-b border-gray-200">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Region</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Threat Level</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">Incidents</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border">6-Month Trend</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {regionalStats.map(({ region, threatLevel, incidents, trend }) => (
+                  <tr key={region} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 border">{region}</td>
+                    <td className="px-4 py-3 border">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${threatLevel.class}`}>
+                        {threatLevel.icon} {threatLevel.level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center border">{incidents}</td>
+                    <td className="px-4 py-3 border">
+                      <div className="h-5">
+                        <Sparkline data={trend} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-6 border-b border-gray-200">
+          <p className="text-sm text-gray-600 italic text-center">No incidents reported during this period.</p>
+        </div>
+      )}
 
       {/* Key Developments */}
       <div className="p-6 border-b border-gray-200">
