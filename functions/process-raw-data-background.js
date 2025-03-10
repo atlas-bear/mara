@@ -569,17 +569,114 @@ If you specify "Other" in any category, please include details in the correspond
     // Create incident_vessel linking record if both records exist
     if (incidentResponse.data.id && vesselId) {
       try {
+        // Determine vessel status based on raw_data or description
+        let vesselStatus = "Underway"; // Default value
+
+        if (recordToProcess.fields.vessel_status) {
+          // If vessel_status is provided in raw_data, use it directly
+          const statusValue = recordToProcess.fields.vessel_status.trim();
+
+          // Map of possible raw status values to valid single select options
+          const statusMap = {
+            underway: "Underway",
+            "at anchor": "Anchored",
+            anchored: "Anchored",
+            moored: "Moored",
+            berthed: "Berthed",
+            "under tow": "Under Tow",
+            towed: "Under Tow",
+            "not under command": "Not Under Command",
+            nuc: "Not Under Command",
+            operating: "Operating",
+          };
+
+          // Check for exact or partial matches in the statusMap
+          const lowerStatus = statusValue.toLowerCase();
+          let matchFound = false;
+
+          for (const [key, value] of Object.entries(statusMap)) {
+            if (lowerStatus === key || lowerStatus.includes(key)) {
+              vesselStatus = value;
+              matchFound = true;
+              console.log(
+                `Matched vessel status "${statusValue}" to "${vesselStatus}"`
+              );
+              break;
+            }
+          }
+
+          if (!matchFound) {
+            vesselStatus = "Other"; // Default to "Other" if no match found
+            console.log(
+              `No match found for vessel status "${statusValue}", using "Other"`
+            );
+          }
+        } else if (recordToProcess.fields.description) {
+          // Try to extract vessel status from description
+          const description = recordToProcess.fields.description.toLowerCase();
+
+          if (
+            description.includes("at anchor") ||
+            description.includes("anchored")
+          ) {
+            vesselStatus = "Anchored";
+          } else if (
+            description.includes("moored") ||
+            description.includes("alongside")
+          ) {
+            vesselStatus = "Moored";
+          } else if (
+            description.includes("berthed") ||
+            description.includes("at berth")
+          ) {
+            vesselStatus = "Berthed";
+          } else if (
+            description.includes("tow") ||
+            description.includes("towing")
+          ) {
+            vesselStatus = "Under Tow";
+          } else if (
+            description.includes("not under command") ||
+            description.includes("nuc")
+          ) {
+            vesselStatus = "Not Under Command";
+          } else if (
+            description.includes("underway") ||
+            description.includes("sailing") ||
+            description.includes("transiting") ||
+            description.includes("en route")
+          ) {
+            vesselStatus = "Underway";
+          }
+
+          console.log(
+            `Extracted vessel status "${vesselStatus}" from description`
+          );
+        }
+
+        // Prepare the data with arrays for link fields and extracted single select values
+        const incidentVesselData = {
+          fields: {
+            // Keep as arrays since these are link fields
+            incident_id: [incidentResponse.data.id],
+            vessel_id: [vesselId],
+            // Use extracted or default status
+            vessel_status_during_incident: vesselStatus,
+            vessel_role: "Target", // This is correct from your options
+            // Add date_added field
+            date_added: new Date().toISOString(),
+          },
+        };
+
+        console.log(
+          "Attempting to create incident_vessel link with data:",
+          JSON.stringify(incidentVesselData, null, 2)
+        );
+
         const incidentVesselUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_vessel`;
         const incidentVesselResponse = await axios.post(
           incidentVesselUrl,
-          {
-            fields: {
-              incident_id: [incidentResponse.data.id],
-              vessel_id: [vesselId],
-              vessel_status_during_incident: "Normal", // Default
-              vessel_role: "Target", // Default
-            },
-          },
+          incidentVesselData,
           { headers }
         );
 
@@ -591,6 +688,45 @@ If you specify "Other" in any category, please include details in the correspond
           "Error creating incident_vessel link:",
           linkError.message
         );
+
+        // Detailed error logging
+        if (linkError.response) {
+          console.error(
+            "Link error response data:",
+            JSON.stringify(linkError.response.data, null, 2)
+          );
+
+          // Try again with minimal required fields
+          try {
+            console.log("Trying with minimal required fields only");
+
+            // Try with only the required link fields
+            const minimalData = {
+              fields: {
+                incident_id: [incidentResponse.data.id],
+                vessel_id: [vesselId],
+              },
+            };
+
+            const minResponse = await axios.post(
+              incidentVesselUrl,
+              minimalData,
+              { headers }
+            );
+
+            console.log(
+              `Created incident_vessel link with minimal fields: ${minResponse.data.id}`
+            );
+          } catch (minError) {
+            console.error("Error with minimal fields:", minError.message);
+            if (minError.response) {
+              console.error(
+                "Minimal fields error data:",
+                JSON.stringify(minError.response.data, null, 2)
+              );
+            }
+          }
+        }
       }
     }
 
