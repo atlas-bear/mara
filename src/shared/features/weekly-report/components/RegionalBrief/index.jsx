@@ -2,7 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
 import MaritimeMap from '@shared/components/MaritimeMap';
 import { getFirstSentence } from '@shared/features/weekly-report';
-import { regionalMonthlyData } from '../../utils/mock-data';
+import { regionalMonthlyData, regionalStats } from '../../utils/mock-data';
 
 // Define regions info
 const REGIONS = {
@@ -124,17 +124,28 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Weekly Incidents</p>
           <p className="text-2xl font-bold text-gray-900">{regionIncidents.length}</p>
-          <p className="text-xs text-orange-600">↑ 50% from last week</p>
+          <p className="text-xs text-gray-600">Current reporting period</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-sm text-gray-600">YTD Incidents</p>
+          <p className="text-sm text-gray-600">YTD Incidents (2025)</p>
           <p className="text-2xl font-bold text-gray-900">
-          {new Set(incidents
-            .filter(i => i.incident?.fields?.region === currentRegion)
-            .filter(i => new Date(i.incident?.fields?.date_time_utc).getFullYear() === new Date().getFullYear())
-          ).size}
+            {regionalStats[currentRegion]?.ytdIncidents || 0}
           </p>
-          <p className="text-xs text-green-600">↓ 15% from 2023</p>
+          {regionalStats[currentRegion]?.changeDirection === "up" && (
+            <p className="text-xs text-red-600">
+              ⬆️ Up {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
+            </p>
+          )}
+          {regionalStats[currentRegion]?.changeDirection === "down" && (
+            <p className="text-xs text-green-600">
+              ⬇️ Down {regionalStats[currentRegion]?.changeFromLastYear}% from 2024 ({regionalStats[currentRegion]?.lastYearIncidents})
+            </p>
+          )}
+          {regionalStats[currentRegion]?.changeDirection === "none" && (
+            <p className="text-xs text-gray-600">
+              No change ({regionalStats[currentRegion]?.lastYearIncidents} in 2024)
+            </p>
+          )}
         </div>
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Armed Incidents</p>
@@ -144,23 +155,25 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
               return incidentType.includes('Armed');
             }).length}
           </p>
-          <p className="text-xs text-gray-600">67% of weekly total</p>
-        </div>
-        {/* <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Vessels Affected</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {new Set(regionIncidents.map(i => i.vessel?.fields?.type)).size}
+          <p className="text-xs text-gray-600">
+            {regionIncidents.length > 0 ? 
+              Math.round((regionIncidents.filter(i => {
+                const incidentType = i.incidentType?.fields?.name || '';
+                return incidentType.includes('Armed');
+              }).length / regionIncidents.length) * 100) + "% of weekly total" 
+              : "No weekly incidents"
+            }
           </p>
-        </div> */}
+        </div>
         <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">High-Risk Areas</p>
           {uniqueLocations.length > 0 ? (
-    uniqueLocations.map((location, idx) => (
-      <div key={idx} className="text-sm text-gray-800">{location}</div>
-    ))
-  ) : (
-    <div className="text-sm text-gray-600">No active areas</div>
-  )}
+            uniqueLocations.map((location, idx) => (
+              <div key={idx} className="text-sm text-gray-800">{location}</div>
+            ))
+          ) : (
+            <div className="text-sm text-gray-600">No active areas</div>
+          )}
         </div>
       </div>
 

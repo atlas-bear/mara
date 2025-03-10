@@ -88,3 +88,41 @@ export const regionalMonthlyData = {
     { month: "Mar", incidents: 0 },
   ],
 };
+
+// Regional statistics for Quick Stats section
+export const regionalStats = {
+  "Southeast Asia": {
+    ytdIncidents: 10,
+    changeFromLastYear: 42.86, // positive percentage
+    lastYearIncidents: 7,
+    changeDirection: "up" // up, down, or none
+  },
+  
+  "Indian Ocean": {
+    ytdIncidents: 2,
+    changeFromLastYear: 97.10, // positive percentage 
+    lastYearIncidents: 69,
+    changeDirection: "down"
+  },
+  
+  "West Africa": {
+    ytdIncidents: 4,
+    changeFromLastYear: 63.64, // positive percentage
+    lastYearIncidents: 11,
+    changeDirection: "down"
+  },
+  
+  "Europe": {
+    ytdIncidents: 0,
+    changeFromLastYear: 100, // positive percentage
+    lastYearIncidents: 1,
+    changeDirection: "down"
+  },
+  
+  "Americas": {
+    ytdIncidents: 0,
+    changeFromLastYear: 0, // percentage
+    lastYearIncidents: 0,
+    changeDirection: "none"
+  }
+};
