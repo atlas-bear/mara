@@ -249,9 +249,12 @@ You are an expert maritime security analyst. Based on the maritime incident deta
      * Parangs
      * AK-47s
      * Machine Guns
-     * UAVs
      * Handguns
      * Improvised weapons
+     * Missiles
+     * UAVs
+     * USVs
+     * Limpet mines
      * None
      * Other weapons (specify)
 
@@ -352,6 +355,9 @@ If you specify "Other" in any category, please include details in the correspond
         if (jsonMatch) {
           const parsedData = JSON.parse(jsonMatch[0]);
 
+          // Log the raw weapons data from Claude
+          console.log("Claude identified weapons:", parsedData.weapons_used);
+
           // Format recommendations as bullet points
           const formattedRecommendations = Array.isArray(
             parsedData.recommendations
@@ -368,14 +374,22 @@ If you specify "Other" in any category, please include details in the correspond
             analysis: parsedData.analysis || enrichedData.analysis,
             recommendations:
               formattedRecommendations || enrichedData.recommendations,
-            weapons_used: parsedData.weapons_used || [],
+            weapons_used: Array.isArray(parsedData.weapons_used)
+              ? parsedData.weapons_used
+              : [],
             number_of_attackers:
               typeof parsedData.number_of_attackers === "number"
                 ? parsedData.number_of_attackers
                 : null,
-            items_stolen: parsedData.items_stolen || [],
-            response_type: parsedData.response_type || [],
-            authorities_notified: parsedData.authorities_notified || [],
+            items_stolen: Array.isArray(parsedData.items_stolen)
+              ? parsedData.items_stolen
+              : [],
+            response_type: Array.isArray(parsedData.response_type)
+              ? parsedData.response_type
+              : [],
+            authorities_notified: Array.isArray(parsedData.authorities_notified)
+              ? parsedData.authorities_notified
+              : [],
           };
 
           console.log(
@@ -394,12 +408,58 @@ If you specify "Other" in any category, please include details in the correspond
       console.error("Error calling Claude API:", claudeError.message);
     }
 
+    // If weapons array is empty but description mentions weapons, try to extract them
+    if (
+      (!enrichedData.weapons_used || enrichedData.weapons_used.length === 0) &&
+      recordToProcess.fields.description
+    ) {
+      const description = recordToProcess.fields.description.toLowerCase();
+
+      // Expanded pattern matching for various weapon types
+      const weaponPatterns = {
+        "Firearms (unspecified)": /gun|firearm|pistol|revolver|shot/,
+        "AK-47": /ak-?47|kalashnikov/,
+        "Machine Guns": /machine gun|machinegun|automatic/,
+        Handguns: /handgun|pistol|revolver/,
+        Knives: /knife|knives|blade/,
+        Parangs: /parang|machete/,
+        "Improvised weapons": /hammer|stick|pipe|tool|improvised/,
+        Missiles: /missile|rocket|projectile/,
+        UAVs: /uav|drone|unmanned aerial|unmanned aircraft/,
+        USVs: /usv|unmanned surface|unmanned vessel|unmanned boat/,
+        "Limpet mines": /limpet|mine|explosive device/,
+        "Armed individuals (type unspecified)": /armed|weapon|arm/,
+      };
+
+      const detectedWeapons = [];
+
+      for (const [weaponType, pattern] of Object.entries(weaponPatterns)) {
+        if (pattern.test(description)) {
+          detectedWeapons.push(weaponType);
+          console.log(`Detected weapon type from description: ${weaponType}`);
+        }
+      }
+
+      if (detectedWeapons.length > 0) {
+        enrichedData.weapons_used = detectedWeapons;
+        console.log("Extracted weapons from description:", detectedWeapons);
+      } else if (description.match(/attack|board|rob|pirat|threat|force/)) {
+        // If description suggests hostile action but no weapons detected
+        enrichedData.weapons_used = ["Unknown weapons"];
+        console.log(
+          "Added 'Unknown weapons' as incident suggests hostile action"
+        );
+      }
+    }
+
     // Process reference items for linked fields
     console.log("Processing weapons_used items");
+    console.log("Raw weapons data:", enrichedData.weapons_used);
     const weaponsUsedIds = await processReferenceItems(
       enrichedData.weapons_used,
       "weapons"
     );
+    console.log("Processed weapons used IDs:", weaponsUsedIds);
 
     console.log("Processing items_stolen items");
     const itemsStolenIds = await processReferenceItems(
@@ -436,12 +496,12 @@ If you specify "Other" in any category, please include details in the correspond
       recommendations: enrichedData.recommendations,
       number_of_attackers: enrichedData.number_of_attackers,
 
-      // Linked fields with IDs
-      weapons_used: weaponsUsedIds.length > 0 ? weaponsUsedIds : undefined,
-      items_stolen: itemsStolenIds.length > 0 ? itemsStolenIds : undefined,
-      response_type: responseTypeIds.length > 0 ? responseTypeIds : undefined,
+      // Linked fields with IDs - never set to undefined
+      weapons_used: weaponsUsedIds.length > 0 ? weaponsUsedIds : null,
+      items_stolen: itemsStolenIds.length > 0 ? itemsStolenIds : null,
+      response_type: responseTypeIds.length > 0 ? responseTypeIds : null,
       authorities_notified:
-        authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : undefined,
+        authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : null,
     };
 
     // Add incident_type_name reference if available
@@ -449,7 +509,10 @@ If you specify "Other" in any category, please include details in the correspond
       incidentFields.incident_type_name = [incidentTypeId];
     }
 
-    console.log("Creating incident with fields:", incidentFields);
+    console.log("Creating incident with fields:", {
+      ...incidentFields,
+      weapons_used: incidentFields.weapons_used, // Explicitly log weapons field
+    });
 
     // Create the incident record
     const incidentUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`;
