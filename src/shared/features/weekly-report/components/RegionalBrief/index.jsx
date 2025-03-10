@@ -190,14 +190,13 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
 
       {/* 6-Month Trend */}
       <div className="p-6 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">6-Month Trend</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">6-Month Incident Type Breakdown</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={monthlyData}>
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Area type="monotone" dataKey="incidents" stroke="#f97316" fill="#fed7aa" />
               <Area type="monotone" dataKey="robberies" stroke="#ef4444" fill="#fecaca" />
               <Area type="monotone" dataKey="attacks" stroke="#86198f" fill="#e9d5ff" />
               <Area type="monotone" dataKey="boardings" stroke="#3b82f6" fill="#bfdbfe" />
@@ -205,9 +204,6 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
             </AreaChart>
           </ResponsiveContainer>
           <div className="mt-2 text-xs text-gray-500 flex justify-center gap-3 flex-wrap">
-            <span className="flex items-center">
-              <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> All Incidents
-            </span>
             <span className="flex items-center">
               <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Robberies
             </span>
