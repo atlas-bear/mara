@@ -106,25 +106,25 @@ const EmailTemplate = ({ incident, branding }) => {
             <p style={styles.contentText}>{incidentData.description}</p>
           </div>
 
-          {(incidentData.response_type || incidentData.responseActions) && (
+          {(incidentData.response_type || incidentData.response_type_names || incidentData.responseActions) && (
             <div style={styles.contentBox}>
               <h3 style={styles.contentTitle}>Response Actions</h3>
               <ul style={styles.contentList}>
-                {(incidentData.response_type || incidentData.responseActions || []).map((action, index) => (
+                {(incidentData.response_type_names || incidentData.response_type || incidentData.responseActions || []).map((action, index) => (
                   <li key={index} style={styles.listItem}>{action}</li>
                 ))}
-                {(incidentData.authorities_notified || []).map((authority, index) => (
+                {(incidentData.authorities_notified_names || incidentData.authorities_notified || []).map((authority, index) => (
                   <li key={`auth-${index}`} style={styles.listItem}>{authority}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {incidentData.items_stolen && (
+          {(incidentData.items_stolen || incidentData.items_stolen_names) && (
             <div style={styles.contentBox}>
               <h3 style={styles.contentTitle}>Stolen Items</h3>
               <ul style={styles.contentList}>
-                {incidentData.items_stolen.map((item, index) => (
+                {(incidentData.items_stolen_names || incidentData.items_stolen || []).map((item, index) => (
                   <li key={index} style={styles.listItem}>{item}</li>
                 ))}
               </ul>

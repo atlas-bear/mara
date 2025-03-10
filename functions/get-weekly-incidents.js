@@ -38,9 +38,75 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
       incidentType = typeResponse.data.records[0];
       console.log(`Found incident type:`, incidentType?.fields?.name);
     }
+    
+    // Fetch weapons_used linked records
+    let weaponsUsed = [];
+    if (incident.fields.weapons_used && incident.fields.weapons_used.length > 0) {
+      const weaponIds = incident.fields.weapons_used.join(',');
+      const weaponsResponse = await axios.get(
+        `https://api.airtable.com/v0/${baseId}/weapons?filterByFormula=OR(${incident.fields.weapons_used.map(id => `RECORD_ID()="${id}"`).join(',')})`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        }
+      );
+      weaponsUsed = weaponsResponse.data.records.map(record => record.fields.name);
+      console.log(`Found weapons:`, weaponsUsed.length);
+    }
+    
+    // Fetch items_stolen linked records
+    let itemsStolen = [];
+    if (incident.fields.items_stolen && incident.fields.items_stolen.length > 0) {
+      const itemsResponse = await axios.get(
+        `https://api.airtable.com/v0/${baseId}/items_stolen?filterByFormula=OR(${incident.fields.items_stolen.map(id => `RECORD_ID()="${id}"`).join(',')})`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        }
+      );
+      itemsStolen = itemsResponse.data.records.map(record => record.fields.name);
+      console.log(`Found stolen items:`, itemsStolen.length);
+    }
+    
+    // Fetch response_type linked records
+    let responseTypes = [];
+    if (incident.fields.response_type && incident.fields.response_type.length > 0) {
+      const responseResponse = await axios.get(
+        `https://api.airtable.com/v0/${baseId}/response_type?filterByFormula=OR(${incident.fields.response_type.map(id => `RECORD_ID()="${id}"`).join(',')})`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        }
+      );
+      responseTypes = responseResponse.data.records.map(record => record.fields.name);
+      console.log(`Found response types:`, responseTypes.length);
+    }
+    
+    // Fetch authorities_notified linked records
+    let authoritiesNotified = [];
+    if (incident.fields.authorities_notified && incident.fields.authorities_notified.length > 0) {
+      const authoritiesResponse = await axios.get(
+        `https://api.airtable.com/v0/${baseId}/authorities_notified?filterByFormula=OR(${incident.fields.authorities_notified.map(id => `RECORD_ID()="${id}"`).join(',')})`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        }
+      );
+      authoritiesNotified = authoritiesResponse.data.records.map(record => record.fields.name);
+      console.log(`Found authorities:`, authoritiesNotified.length);
+    }
+    
+    // Create a modified copy of the incident with resolved linked field values
+    const modifiedIncident = {
+      ...incident,
+      fields: {
+        ...incident.fields,
+        // Keep the original IDs for reference, but add the resolved names for display
+        weapons_used_names: weaponsUsed,
+        items_stolen_names: itemsStolen,
+        response_type_names: responseTypes,
+        authorities_notified_names: authoritiesNotified
+      }
+    };
 
     return {
-      incident,
+      incident: modifiedIncident,
       incidentVessel,
       vessel,
       incidentType,

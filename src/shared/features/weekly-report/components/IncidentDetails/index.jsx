@@ -122,27 +122,51 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
             <p className="text-gray-700">{fields.description}</p>
           </div>
 
-          {fields.response_type && (
+          {(fields.response_type || fields.response_type_names) && (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-semibold text-gray-900 mb-2">Response Actions</h3>
               <ul className="list-disc list-inside text-gray-700 space-y-1">
-                {fields.response_type.map((action, index) => (
-                  <li key={index}>{action}</li>
-                ))}
-                {fields.authorities_notified?.map((authority, index) => (
-                  <li key={`auth-${index}`}>{authority}</li>
-                ))}
+                {fields.response_type_names ? (
+                  // Use the resolved names if available
+                  fields.response_type_names.map((action, index) => (
+                    <li key={index}>{action}</li>
+                  ))
+                ) : (
+                  // Fall back to record IDs if names are not available
+                  fields.response_type.map((action, index) => (
+                    <li key={index}>{action}</li>
+                  ))
+                )}
+                {fields.authorities_notified_names ? (
+                  // Use the resolved names if available
+                  fields.authorities_notified_names.map((authority, index) => (
+                    <li key={`auth-${index}`}>{authority}</li>
+                  ))
+                ) : (
+                  // Fall back to record IDs if names are not available
+                  fields.authorities_notified?.map((authority, index) => (
+                    <li key={`auth-${index}`}>{authority}</li>
+                  ))
+                )}
               </ul>
             </div>
           )}
 
-          {fields.items_stolen && (
+          {(fields.items_stolen || fields.items_stolen_names) && (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-semibold text-gray-900 mb-2">Stolen Items</h3>
               <ul className="list-disc list-inside text-gray-700">
-                {fields.items_stolen.map((item, index) => (
-                  <li key={index}>{item}</li>
-                ))}
+                {fields.items_stolen_names ? (
+                  // Use the resolved names if available
+                  fields.items_stolen_names.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))
+                ) : (
+                  // Fall back to record IDs if names are not available
+                  fields.items_stolen.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))
+                )}
               </ul>
             </div>
           )}
