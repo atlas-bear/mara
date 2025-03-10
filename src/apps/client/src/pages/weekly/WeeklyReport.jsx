@@ -9,6 +9,7 @@ import {
   fetchWeeklyIncidents
 } from '@shared/features/weekly-report';
 import '@shared/components/print-styles.css';
+import { useBranding } from '../../hooks/useBranding';
 
 // Define regions with their display properties
 const REGIONS = {
@@ -69,12 +70,14 @@ function WeeklyReport() {
   const [latestIncidents, setLatestIncidents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { branding } = useBranding();
 
   const [searchParams] = useSearchParams();
   const isPrintMode = searchParams.get('print') === 'true';
   
   useEffect(() => {
-    document.title = 'MARA Weekly Report';
+    // Use client branding in the page title instead of hardcoded "MARA"
+    document.title = `${branding.companyName} Weekly Report`;
     
     // Apply print mode class if needed
     if (isPrintMode) {
@@ -89,7 +92,7 @@ function WeeklyReport() {
         document.documentElement.classList.remove('print-mode');
       };
     }
-  }, [isPrintMode]);
+  }, [isPrintMode, branding.companyName]);
 
   // For testing, use week 6 of 2025
   const testYearWeek = '2025-06';
