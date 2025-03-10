@@ -44,57 +44,47 @@ export const mockHistoricalTrends = {
 // Detailed monthly data for each region
 export const regionalMonthlyData = {
   "Southeast Asia": [
-    { month: "Aug", incidents: 1, robberies: 1 },
-    { month: "Sep", incidents: 0 },
     { month: "Oct", incidents: 7, robberies: 7 },
     { month: "Nov", incidents: 6, robberies: 5, boardings: 1 },
     { month: "Dec", incidents: 8, robberies: 8 },
     { month: "Jan", incidents: 6, robberies: 6 },
     { month: "Feb", incidents: 4, robberies: 4 },
-    { month: "Mar", incidents: 0 }
+    { month: "Mar", incidents: 0 },
   ],
-  
+
   "Indian Ocean": [
-    { month: "Aug", incidents: 7, attacks: 2, other: 5 },
-    { month: "Sep", incidents: 7, attacks: 4, other: 3 },
     { month: "Oct", incidents: 8, attacks: 5, other: 3 },
     { month: "Nov", incidents: 9, attacks: 3, other: 6 },
     { month: "Dec", incidents: 3, attacks: 2, other: 1 },
     { month: "Jan", incidents: 0 },
     { month: "Feb", incidents: 2, other: 2 },
-    { month: "Mar", incidents: 0 }
+    { month: "Mar", incidents: 0 },
   ],
-  
-  "Americas": [
-    { month: "Aug", incidents: 1, robberies: 1 },
-    { month: "Sep", incidents: 1, robberies: 1 },
+
+  Americas: [
     { month: "Oct", incidents: 3, robberies: 3 },
     { month: "Nov", incidents: 0 },
     { month: "Dec", incidents: 0 },
     { month: "Jan", incidents: 0 },
     { month: "Feb", incidents: 0 },
-    { month: "Mar", incidents: 0 }
+    { month: "Mar", incidents: 0 },
   ],
-  
-  "Europe": [
-    { month: "Aug", incidents: 0 },
-    { month: "Sep", incidents: 3, attacks: 3 },
+
+  Europe: [
     { month: "Oct", incidents: 4, attacks: 4 },
     { month: "Nov", incidents: 1, attacks: 1 },
     { month: "Dec", incidents: 0 },
     { month: "Jan", incidents: 0 },
     { month: "Feb", incidents: 0 },
-    { month: "Mar", incidents: 0 }
+    { month: "Mar", incidents: 0 },
   ],
-  
+
   "West Africa": [
-    { month: "Aug", incidents: 0 },
-    { month: "Sep", incidents: 1, other: 1 },
     { month: "Oct", incidents: 1, robberies: 1 },
     { month: "Nov", incidents: 1, other: 1 },
     { month: "Dec", incidents: 3, attacks: 1, boardings: 2 },
     { month: "Jan", incidents: 2, robberies: 1, boardings: 1 },
     { month: "Feb", incidents: 2, robberies: 1, boardings: 1 },
-    { month: "Mar", incidents: 0 }
-  ]
+    { month: "Mar", incidents: 0 },
+  ],
 };
