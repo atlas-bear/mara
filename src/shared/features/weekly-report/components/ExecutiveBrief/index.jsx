@@ -147,28 +147,30 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
         </div>
       </div>
 
-      {/* Threat Level Legend */}
-      <div className="px-6 pt-4 flex flex-wrap gap-2 text-sm">
-        <span className="font-semibold text-gray-700">Threat Levels:</span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">
-          ⚠⚠ Critical
-        </span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-rose-100 text-rose-800">
-          ⚠ Severe
-        </span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
-          ▲ Substantial
-        </span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-          ► Moderate
-        </span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
-          ● Low
-        </span>
-      </div>
-
-      {/* Global Threat Overview Table - only show if there's at least one region with incidents */}
+      {/* Only show Threat Level Legend and Global Threat Overview Table if there's at least one region with incidents */}
       {regionalStats.some(stat => stat.incidents > 0) ? (
+        <>
+          {/* Threat Level Legend */}
+          <div className="px-6 pt-4 flex flex-wrap gap-2 text-sm">
+            <span className="font-semibold text-gray-700">Threat Levels:</span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">
+              ⚠⚠ Critical
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-rose-100 text-rose-800">
+              ⚠ Severe
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+              ▲ Substantial
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+              ► Moderate
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              ● Low
+            </span>
+          </div>
+
+          {/* Global Threat Overview Table */}
         <div className="p-6 border-b border-gray-200">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -201,6 +203,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
             </table>
           </div>
         </div>
+        </>
       ) : (
         <div className="p-6 border-b border-gray-200">
           <p className="text-sm text-gray-600 italic text-center">No incidents reported during this period.</p>
