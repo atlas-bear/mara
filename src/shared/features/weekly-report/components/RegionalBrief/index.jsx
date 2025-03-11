@@ -105,26 +105,29 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
   
 
   const mapIncidents = displayIncidents.map(incident => {
-    // Get fields from the nested structure like in IncidentDetails component
+    // Get fields from the nested structure 
     const fields = incident.incident?.fields || incident;
-    const vesselFields = incident.vessel?.fields || {};
-    const incidentTypeFields = incident.incidentType?.fields || {};
     
-    // Get incident type using the same pattern as IncidentDetails component
-    const incidentType = incidentTypeFields.name || 
-                        fields.incident_type_name || 
-                        fields.incident_type || 
-                        fields.type || 
+    // The incidentVessel field links to the junction table, not directly to vessel
+    const incidentVesselFields = incident.incidentVessel?.fields || {};
+    
+    // For vessel data, we need to handle vessels linked through the junction table
+    const vesselFields = incident.vessel?.fields || {};
+    
+    // For incident type, use incident_type_name from the fields
+    const incidentType = fields.incident_type_name || 
+                        (typeof fields.incident_type === 'string' ? fields.incident_type : null) ||
                         'Unknown';
                         
     console.log('Map Incident Debug - Vessel:', vesselFields?.name, 
                 'Type:', incidentType,
                 'Lat/Long:', fields.latitude, fields.longitude);
                 
+    // Based on the debug info, title appears to be the vessel name in this context
     return {
       latitude: parseFloat(fields.latitude),
       longitude: parseFloat(fields.longitude),
-      title: vesselFields.name || fields.vessel_name || 'Unknown Vessel',
+      title: fields.title || vesselFields.name || 'Unknown Vessel',
       description: fields.description,
       // Keep original casing for better matching in map component
       type: incidentType
@@ -319,26 +322,28 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Incident Details</h2>
         <div className="space-y-4">
           {displayIncidents.map((incident, idx) => {
-            // Use the same structure as the IncidentDetails component
+            // Get fields using the correct data structure based on debug output
             const fields = incident.incident?.fields || incident;
             const vesselFields = incident.vessel?.fields || {};
-            const incidentTypeFields = incident.incidentType?.fields || {};
+            const incidentVesselFields = incident.incidentVessel?.fields || {};
             
             // Log the structure for debugging
             console.log(`Incident Details Debug [${idx}]:`, {
               'incident structure': Object.keys(incident),
               'fields structure': fields ? Object.keys(fields) : 'no fields',
               'vesselFields': vesselFields ? Object.keys(vesselFields) : 'no vesselFields',
-              'incidentTypeFields': incidentTypeFields ? Object.keys(incidentTypeFields) : 'no incidentTypeFields'
+              'incident_vessel field': fields.incident_vessel || 'not found'
             });
             
-            // Get the vessel name, type and incident type consistently
-            const vesselName = vesselFields.name || fields.vessel_name || fields.vessel?.name || 'Unknown Vessel';
-            const vesselType = vesselFields.type || fields.vessel_type || fields.vessel?.type;
-            const incidentType = incidentTypeFields.name || 
-                                fields.incident_type_name || 
-                                fields.incident_type || 
-                                'Unknown Type';
+            // Get vessel name and type from the appropriate places
+            // Based on the debug info, title field seems to contain the vessel name
+            const vesselName = fields.title || vesselFields.name || 'Unknown Vessel';
+            
+            // We don't have vessel type directly accessible, so have to use sensible fallbacks
+            const vesselType = vesselFields.type || null;
+            
+            // Use incident_type_name directly from fields
+            const incidentType = fields.incident_type_name || 'Unknown Type';
             
             return (
               <div key={idx} className="bg-gray-50 p-4 rounded-lg">
