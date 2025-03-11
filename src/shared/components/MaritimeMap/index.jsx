@@ -23,9 +23,6 @@ const MaritimeMap = ({
       setMapError(true);
       return;
     }
-    
-    // For security, create a reference to the token rather than logging it
-    console.log('MapBox token found:', token ? 'yes' : 'no');
 
     try {
       // Set access token for MapBox GL
@@ -83,7 +80,7 @@ const MaritimeMap = ({
       
       // Add error handler specifically for style loading
       map.on('style.load', () => {
-        console.log('Map style loaded successfully');
+        // Map style loaded successfully
       });
       
       // Handle various error scenarios including resource loading
@@ -119,7 +116,6 @@ const MaritimeMap = ({
       }, 5000); // Give map time to load resources
 
       map.on('load', () => {
-        console.log('Map loaded successfully');
 
         // Add pulsing dot image
         const size = 200;
@@ -186,8 +182,6 @@ const MaritimeMap = ({
           // Convert to lowercase for case-insensitive matching
           const lowerType = type.toLowerCase().trim();
           
-          console.log('Normalizing incident type:', type, '→ lowercase:', lowerType);
-          
           // VIOLENT INCIDENTS - Red
           if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
             return 'violent';
@@ -214,12 +208,10 @@ const MaritimeMap = ({
           
           // Handle "unknown" type more gracefully
           if (lowerType === 'unknown' || lowerType === 'unknown type') {
-            console.log('Found unknown incident type, defaulting to suspicious category');
             return 'suspicious';
           }
           
           // If we can't categorize, use a default
-          console.log('Could not categorize incident type:', type, 'using default');
           return 'default';
         };
         
@@ -247,8 +239,6 @@ const MaritimeMap = ({
             features: incidents.map(incident => {
               // Get normalized category for this incident type
               const normalizedType = normalizeIncidentType(incident.type);
-              
-              console.log(`Normalized incident type: ${incident.type} → ${normalizedType}`);
               
               return {
                 type: 'Feature',
@@ -341,8 +331,6 @@ const MaritimeMap = ({
       // Convert to lowercase for case-insensitive matching
       const lowerType = type.toLowerCase().trim();
       
-      console.log('Normalizing incident type (update):', type, '→ lowercase:', lowerType);
-      
       // VIOLENT INCIDENTS - Red
       if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
         return 'violent';
@@ -369,12 +357,10 @@ const MaritimeMap = ({
       
       // Handle "unknown" type more gracefully
       if (lowerType === 'unknown' || lowerType === 'unknown type') {
-        console.log('Found unknown incident type, defaulting to suspicious category');
         return 'suspicious';
       }
       
       // If we can't categorize, use a default
-      console.log('Could not categorize incident type:', type, 'using default');
       return 'default';
     };
 
