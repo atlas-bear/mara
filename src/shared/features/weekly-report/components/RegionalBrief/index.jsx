@@ -114,14 +114,24 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
     // For vessel data, we need to handle vessels linked through the junction table
     const vesselFields = incident.vessel?.fields || {};
     
-    // For incident type, use incident_type_name from the fields
-    const incidentType = fields.incident_type_name || 
-                        (typeof fields.incident_type === 'string' ? fields.incident_type : null) ||
-                        'Unknown';
+    // For incident type, use the same approach as IncidentDetails component
+    const incidentTypeFields = incident.incidentType?.fields || {};
+    
+    // Use incident type name from the fields, using incidentTypeFields.name for linked records
+    // This way we get the readable name instead of the record ID
+    const incidentType = incidentTypeFields.name || 
+                       (typeof fields.incident_type === 'string' ? fields.incident_type : null) ||
+                       'Unknown';
                         
-    console.log('Map Incident Debug - Vessel:', vesselFields?.name, 
-                'Type:', incidentType,
-                'Lat/Long:', fields.latitude, fields.longitude);
+    // Add detailed debugging for incident type fields
+    console.log('Map Incident Debug:', {
+      'Vessel': vesselFields?.name,
+      'Incident Type (final)': incidentType,
+      'Has incidentType object?': incident.incidentType ? 'YES' : 'NO',
+      'incidentTypeFields available?': Object.keys(incidentTypeFields).length > 0 ? Object.keys(incidentTypeFields) : 'EMPTY',
+      'incident_type_name field value': fields.incident_type_name,
+      'Lat/Long': `${fields.latitude}, ${fields.longitude}`
+    });
                 
     // Based on the debug info, title appears to be the vessel name in this context
     return {
@@ -332,7 +342,10 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
               'incident structure': Object.keys(incident),
               'fields structure': fields ? Object.keys(fields) : 'no fields',
               'vesselFields': vesselFields ? Object.keys(vesselFields) : 'no vesselFields',
-              'incident_vessel field': fields.incident_vessel || 'not found'
+              'incident_vessel field': fields.incident_vessel || 'not found',
+              'Has incidentType object?': incident.incidentType ? 'YES' : 'NO',
+              'incidentTypeFields': incidentTypeFields ? Object.keys(incidentTypeFields) : 'no incidentTypeFields object',
+              'incident_type_name value': fields.incident_type_name
             });
             
             // Get vessel name and type from the appropriate places
@@ -342,8 +355,11 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
             // We don't have vessel type directly accessible, so have to use sensible fallbacks
             const vesselType = vesselFields.type || null;
             
-            // Use incident_type_name directly from fields
-            const incidentType = fields.incident_type_name || 'Unknown Type';
+            // Get incident type fields like in the IncidentDetails component
+            const incidentTypeFields = incident.incidentType?.fields || {};
+            
+            // Use incident type name from the incidentTypeFields object to get readable name
+            const incidentType = incidentTypeFields.name || 'Unknown Type';
             
             return (
               <div key={idx} className="bg-gray-50 p-4 rounded-lg">
