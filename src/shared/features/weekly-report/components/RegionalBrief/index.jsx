@@ -119,14 +119,25 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         throw new Error('Fields is null');
       }
       
-      // For vessel data, safely extract
-      const vesselFields = {};
+      // For vessel data, safely extract from the incident object
+      // Looking at the get-weekly-incidents.js, we can see it returns vessel data as a separate object
+      const vesselFields = incident.vessel?.fields || {};
       
-      // For incident type, use a safer approach to avoid reference errors
-      let incidentType = 'Unknown';
-      if (fields.incident_type_name) {
-        // For linked fields, this will be the record ID
-        incidentType = 'Incident'; // Default to a generic type to fix map markers
+      // Add extensive debugging to understand the incident structure
+      console.log('Full incident structure:', {
+        'Has incidentType?': !!incident.incidentType,
+        'incidentType structure': incident.incidentType ? Object.keys(incident.incidentType) : 'N/A',
+        'incidentType.fields?': incident.incidentType?.fields ? Object.keys(incident.incidentType.fields) : 'N/A',
+        'incidentType.fields.name?': incident.incidentType?.fields?.name
+      });
+      
+      // For incident type, get it from the full incident object like in IncidentDetails
+      let incidentType = incident.incidentType?.fields?.name || 'Unknown';
+      
+      // If that failed, try to get it from the incident_type_name field
+      if (incidentType === 'Unknown' && fields.incident_type_name) {
+        console.log('Falling back to incident_type_name:', fields.incident_type_name);
+        // This will be the record ID, not very useful for display
       }
       
       console.log('Map Incident Debug - Safe version:', {
@@ -365,14 +376,22 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                 'incident_type_name': fields.incident_type_name || 'not available'
               });
               
-              // Get vessel name from title
-              const vesselName = fields.title || 'Unknown Vessel';
+              // Log full incident structure to debug
+              console.log('Full incident details:', {
+                'Has vessel?': !!incident.vessel,
+                'Has incidentType?': !!incident.incidentType,
+                'incidentType.fields?.name': incident.incidentType?.fields?.name
+              });
               
-              // Simplify vessel type handling
-              const vesselType = null;
+              // Get vessel name from title or from vessel fields like in the map
+              const vesselFields = incident.vessel?.fields || {};
+              const vesselName = fields.title || vesselFields.name || 'Unknown Vessel';
               
-              // Simplify incident type to avoid crashes
-              const incidentType = 'Incident';
+              // Get vessel type from vessel fields
+              const vesselType = vesselFields.type || null;
+              
+              // Get incident type from incidentType fields like in IncidentDetails
+              const incidentType = incident.incidentType?.fields?.name || 'Unknown Type';
             
               return (
                 <div key={idx} className="bg-gray-50 p-4 rounded-lg">
