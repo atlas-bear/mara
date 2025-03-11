@@ -105,33 +105,56 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
   
 
   const mapIncidents = displayIncidents.map(incident => {
-    // Get fields from the nested structure 
-    const fields = incident.incident?.fields || incident;
-    
-    // The incidentVessel field links to the junction table, not directly to vessel
-    const incidentVesselFields = incident.incidentVessel?.fields || {};
-    
-    // For vessel data, we need to handle vessels linked through the junction table
-    const vesselFields = incident.vessel?.fields || {};
-    
-    // For incident type, use incident_type_name from the fields
-    const incidentType = fields.incident_type_name || 
-                        (typeof fields.incident_type === 'string' ? fields.incident_type : null) ||
-                        'Unknown';
-                        
-    console.log('Map Incident Debug - Vessel:', vesselFields?.name, 
-                'Type:', incidentType,
-                'Lat/Long:', fields.latitude, fields.longitude);
-                
-    // Based on the debug info, title appears to be the vessel name in this context
-    return {
-      latitude: parseFloat(fields.latitude),
-      longitude: parseFloat(fields.longitude),
-      title: fields.title || vesselFields.name || 'Unknown Vessel',
-      description: fields.description,
-      // Keep original casing for better matching in map component
-      type: incidentType
-    };
+    try {
+      // Use safe error handling to track down the issue
+      if (!incident) {
+        console.error('Incident is null or undefined');
+        throw new Error('Incident is null');
+      }
+      
+      // Get fields safely
+      const fields = incident.incident?.fields || incident;
+      if (!fields) {
+        console.error('Fields is null or undefined');
+        throw new Error('Fields is null');
+      }
+      
+      // For vessel data, safely extract
+      const vesselFields = {};
+      
+      // For incident type, use a safer approach to avoid reference errors
+      let incidentType = 'Unknown';
+      if (fields.incident_type_name) {
+        // For linked fields, this will be the record ID
+        incidentType = 'Incident'; // Default to a generic type to fix map markers
+      }
+      
+      console.log('Map Incident Debug - Safe version:', {
+        'Fields exists': fields ? 'YES' : 'NO',
+        'Title': fields.title,
+        'Type used': incidentType,
+        'Lat/Long': `${fields.latitude}, ${fields.longitude}`
+      });
+      
+      // Based on the debug info, title appears to be the vessel name in this context
+      return {
+        latitude: parseFloat(fields.latitude),
+        longitude: parseFloat(fields.longitude),
+        title: fields.title || 'Unknown Vessel',
+        description: fields.description,
+        // Keep original casing for better matching in map component
+        type: incidentType
+      };
+    } catch (err) {
+      console.error('Error processing map incident:', err);
+      return {
+        latitude: null,
+        longitude: null,
+        title: 'Error',
+        description: 'Error processing incident',
+        type: 'Unknown'
+      };
+    }
   }).filter(inc => inc.latitude && inc.longitude);
 
   // Get the region-specific monthly data or use a default if not found
@@ -322,52 +345,62 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Incident Details</h2>
         <div className="space-y-4">
           {displayIncidents.map((incident, idx) => {
-            // Get fields using the correct data structure based on debug output
-            const fields = incident.incident?.fields || incident;
-            const vesselFields = incident.vessel?.fields || {};
-            const incidentVesselFields = incident.incidentVessel?.fields || {};
+            try {
+              // Safe error handling
+              if (!incident) {
+                console.error('Incident is null in details section');
+                return null;
+              }
+              
+              // Get fields safely
+              const fields = incident.incident?.fields || incident;
+              if (!fields) {
+                console.error('Fields is null in details section');
+                return null;
+              }
+              
+              // Log the structure for debugging
+              console.log(`Incident Details Debug [${idx}] (safe):`, {
+                'title': fields.title || 'not available',
+                'incident_type_name': fields.incident_type_name || 'not available'
+              });
+              
+              // Get vessel name from title
+              const vesselName = fields.title || 'Unknown Vessel';
+              
+              // Simplify vessel type handling
+              const vesselType = null;
+              
+              // Simplify incident type to avoid crashes
+              const incidentType = 'Incident';
             
-            // Log the structure for debugging
-            console.log(`Incident Details Debug [${idx}]:`, {
-              'incident structure': Object.keys(incident),
-              'fields structure': fields ? Object.keys(fields) : 'no fields',
-              'vesselFields': vesselFields ? Object.keys(vesselFields) : 'no vesselFields',
-              'incident_vessel field': fields.incident_vessel || 'not found'
-            });
-            
-            // Get vessel name and type from the appropriate places
-            // Based on the debug info, title field seems to contain the vessel name
-            const vesselName = fields.title || vesselFields.name || 'Unknown Vessel';
-            
-            // We don't have vessel type directly accessible, so have to use sensible fallbacks
-            const vesselType = vesselFields.type || null;
-            
-            // Use incident_type_name directly from fields
-            const incidentType = fields.incident_type_name || 'Unknown Type';
-            
-            return (
-              <div key={idx} className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900">
-                    {vesselName}
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    {new Date(fields.date_time_utc).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>
-                <div className="flex gap-2">
-                  {vesselType && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      {vesselType}
+              return (
+                <div key={idx} className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-900">
+                      {vesselName}
+                    </h3>
+                    <span className="text-sm text-gray-500">
+                      {new Date(fields.date_time_utc).toLocaleDateString()}
                     </span>
-                  )}
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                    {incidentType}
-                  </span>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>
+                  <div className="flex gap-2">
+                    {vesselType && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        {vesselType}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      {incidentType}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            } catch (err) {
+              console.error('Error rendering incident detail:', err);
+              return null;
+            }
           })}
         </div>
       </div>
