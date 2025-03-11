@@ -47,46 +47,45 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
   const region = REGIONS[currentRegion];
   if (!region) return null;
 
+  // Log key differences in data structure between RegionalBrief and IncidentDetails
+  console.log('💡 CRITICAL COMPARISON - RegionalBrief vs IncidentDetails:');
+  console.log('1. RegionalBrief gets incidents as:', typeof incidents, Array.isArray(incidents) ? 'array' : 'not array');
+  console.log('2. First incident in RegionalBrief:', incidents.length > 0 ? incidents[0] : 'empty array');
+  
+  // First, check if we have any incidents that match the current region
   const regionIncidents = incidents.filter(incident => 
     incident.incident?.fields?.region === currentRegion
   );
   
-  // Add detailed debugging to see structure
-  if (regionIncidents.length > 0) {
-    console.log('RegionalBrief data debug - regionIncidents sample:');
-    console.log('- Fields available on incident:', Object.keys(regionIncidents[0]));
-    
-    if (regionIncidents[0].incident) {
-      console.log('- Fields available on incident.incident:', Object.keys(regionIncidents[0].incident));
-      
-      if (regionIncidents[0].incident.fields) {
-        console.log('- Fields available on incident.incident.fields:', Object.keys(regionIncidents[0].incident.fields));
-      }
-    }
-    
-    if (regionIncidents[0].vessel) {
-      console.log('- Fields available on incident.vessel:', Object.keys(regionIncidents[0].vessel));
-      
-      if (regionIncidents[0].vessel.fields) {
-        console.log('- Fields available on incident.vessel.fields:', Object.keys(regionIncidents[0].vessel.fields));
-      }
-    }
-    
-    if (regionIncidents[0].incidentType) {
-      console.log('- Fields available on incident.incidentType:', Object.keys(regionIncidents[0].incidentType));
-      
-      if (regionIncidents[0].incidentType.fields) {
-        console.log('- Fields available on incident.incidentType.fields:', Object.keys(regionIncidents[0].incidentType.fields));
-      }
-    }
-  }
+  console.log('3. RegionalBrief regionIncidents (filtered):', regionIncidents.length);
   
-  const latestIncident = latestIncidents[currentRegion]?.incident?.fields;
+  // KEY DIFFERENCE: IncidentDetails receives a single incident, we receive an array
+  console.log('4. IncidentDetails receives a single incident directly');
+  console.log('5. RegionalBrief processes multiple incidents');
+  
+  const latestIncident = latestIncidents[currentRegion];
+  
+  // Direct comparison with what IncidentDetails would receive
+  if (regionIncidents.length > 0) {
+    console.log('🔍 DIRECT COMPARISON - First incident from RegionalBrief:');
+    console.log('- incident.incidentType:', regionIncidents[0].incidentType);
+    console.log('- incident.incidentType?.fields:', regionIncidents[0].incidentType?.fields);
+    console.log('- incident.incidentType?.fields?.name:', regionIncidents[0].incidentType?.fields?.name);
+  }
   
   if (latestIncident) {
-    console.log('RegionalBrief data debug - latestIncident available fields:', Object.keys(latestIncident));
+    console.log('🔍 DIRECT COMPARISON - Latest incident:');
+    console.log('- latestIncident.incidentType:', latestIncident.incidentType);
+    console.log('- latestIncident.incidentType?.fields:', latestIncident.incidentType?.fields);
+    console.log('- latestIncident.incidentType?.fields?.name:', latestIncident.incidentType?.fields?.name);
   }
   
+  // IMPORTANT: latestIncident in RegionalBrief is different from latestIncident in WeeklyReportPage
+  // In RegionalBrief, we get latestIncident through latestIncidents[currentRegion]
+  // In WeeklyReportPage, latestRegionIncident is passed directly to IncidentDetails
+  console.log('latestIncidents object structure:', Object.keys(latestIncidents));
+  
+  // This is what would match the IncidentDetails component's expectations
   const displayIncidents = regionIncidents.length > 0 ? regionIncidents : (latestIncident ? [latestIncident] : []);
 
   const uniqueLocations = Array.from(
@@ -131,13 +130,26 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         'incidentType.fields.name?': incident.incidentType?.fields?.name
       });
       
-      // For incident type, get it from the full incident object like in IncidentDetails
-      let incidentType = incident.incidentType?.fields?.name || 'Unknown';
+      // DIRECT CODE FROM INCIDENTDETAILS - Access incident type exactly the same way
+      // First log what we're trying to access
+      console.log('Accessing incident type from:', incident);
       
-      // If that failed, try to get it from the incident_type_name field
-      if (incidentType === 'Unknown' && fields.incident_type_name) {
-        console.log('Falling back to incident_type_name:', fields.incident_type_name);
-        // This will be the record ID, not very useful for display
+      // Use a consistent approach with IncidentDetails component 
+      // This is the critical line - but we need to understand why it's not working
+      let incidentType = 'Unknown';
+      
+      // Direct comparison with IncidentDetails component's access pattern
+      if (incident.incidentType && incident.incidentType.fields && incident.incidentType.fields.name) {
+        console.log('✅ Successfully found incident type in incident.incidentType.fields.name:', incident.incidentType.fields.name);
+        incidentType = incident.incidentType.fields.name;
+      } else {
+        console.log('❌ Failed to find incident type. Structure:', {
+          'has incidentType': !!incident.incidentType,
+          'has incident.incidentType.fields': !!(incident.incidentType && incident.incidentType.fields),
+          'raw incident object': incident
+        });
+        // Since we can't access it the same way as IncidentDetails, try using the title field as a fallback
+        incidentType = fields.title || 'Unknown';
       }
       
       console.log('Map Incident Debug - Safe version:', {
@@ -390,8 +402,26 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
               // Get vessel type from vessel fields
               const vesselType = vesselFields.type || null;
               
-              // Get incident type from incidentType fields like in IncidentDetails
-              const incidentType = incident.incidentType?.fields?.name || 'Unknown Type';
+              // Direct comparison with IncidentDetails component approach
+              let incidentType = 'Unknown Type';
+              
+              // Add extensive debugging for incident type access
+              console.log('DIRECT INCIDENT ACCESS:', {
+                'incident object': incident,
+                'has incidentType': !!incident.incidentType,
+                'fields if exists': incident.incidentType?.fields || 'no fields',
+                'name field': incident.incidentType?.fields?.name || 'no name'
+              });
+              
+              // Use the same approach as in IncidentDetails component, with detailed checks
+              if (incident.incidentType && incident.incidentType.fields && incident.incidentType.fields.name) {
+                console.log('✅ Found incident type in details section:', incident.incidentType.fields.name);
+                incidentType = incident.incidentType.fields.name;
+              } else {
+                // Fallback to using the title
+                console.log('❌ Failed to find incident type in details section - using title as fallback');
+                incidentType = fields.title || 'Unknown Type';
+              }
             
               return (
                 <div key={idx} className="bg-gray-50 p-4 rounded-lg">
