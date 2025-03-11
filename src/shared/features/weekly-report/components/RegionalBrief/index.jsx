@@ -51,7 +51,42 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
     incident.incident?.fields?.region === currentRegion
   );
   
+  // Add detailed debugging to see structure
+  if (regionIncidents.length > 0) {
+    console.log('RegionalBrief data debug - regionIncidents sample:');
+    console.log('- Fields available on incident:', Object.keys(regionIncidents[0]));
+    
+    if (regionIncidents[0].incident) {
+      console.log('- Fields available on incident.incident:', Object.keys(regionIncidents[0].incident));
+      
+      if (regionIncidents[0].incident.fields) {
+        console.log('- Fields available on incident.incident.fields:', Object.keys(regionIncidents[0].incident.fields));
+      }
+    }
+    
+    if (regionIncidents[0].vessel) {
+      console.log('- Fields available on incident.vessel:', Object.keys(regionIncidents[0].vessel));
+      
+      if (regionIncidents[0].vessel.fields) {
+        console.log('- Fields available on incident.vessel.fields:', Object.keys(regionIncidents[0].vessel.fields));
+      }
+    }
+    
+    if (regionIncidents[0].incidentType) {
+      console.log('- Fields available on incident.incidentType:', Object.keys(regionIncidents[0].incidentType));
+      
+      if (regionIncidents[0].incidentType.fields) {
+        console.log('- Fields available on incident.incidentType.fields:', Object.keys(regionIncidents[0].incidentType.fields));
+      }
+    }
+  }
+  
   const latestIncident = latestIncidents[currentRegion]?.incident?.fields;
+  
+  if (latestIncident) {
+    console.log('RegionalBrief data debug - latestIncident available fields:', Object.keys(latestIncident));
+  }
+  
   const displayIncidents = regionIncidents.length > 0 ? regionIncidents : (latestIncident ? [latestIncident] : []);
 
   const uniqueLocations = Array.from(
@@ -70,15 +105,26 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
   
 
   const mapIncidents = displayIncidents.map(incident => {
+    // Get fields from the nested structure like in IncidentDetails component
     const fields = incident.incident?.fields || incident;
-    const incidentType = incident.incidentType?.fields?.name || 
-                         fields.incident_type || 
-                         fields.type || 
-                         'Unknown';
+    const vesselFields = incident.vessel?.fields || {};
+    const incidentTypeFields = incident.incidentType?.fields || {};
+    
+    // Get incident type using the same pattern as IncidentDetails component
+    const incidentType = incidentTypeFields.name || 
+                        fields.incident_type_name || 
+                        fields.incident_type || 
+                        fields.type || 
+                        'Unknown';
+                        
+    console.log('Map Incident Debug - Vessel:', vesselFields?.name, 
+                'Type:', incidentType,
+                'Lat/Long:', fields.latitude, fields.longitude);
+                
     return {
       latitude: parseFloat(fields.latitude),
       longitude: parseFloat(fields.longitude),
-      title: fields.vessel_name || 'Unknown Vessel',
+      title: vesselFields.name || fields.vessel_name || 'Unknown Vessel',
       description: fields.description,
       // Keep original casing for better matching in map component
       type: incidentType
@@ -273,15 +319,32 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Incident Details</h2>
         <div className="space-y-4">
           {displayIncidents.map((incident, idx) => {
+            // Use the same structure as the IncidentDetails component
             const fields = incident.incident?.fields || incident;
             const vesselFields = incident.vessel?.fields || {};
-            const incidentType = incident.incidentType?.fields?.name || fields.incident_type || 'Unknown Type';
+            const incidentTypeFields = incident.incidentType?.fields || {};
+            
+            // Log the structure for debugging
+            console.log(`Incident Details Debug [${idx}]:`, {
+              'incident structure': Object.keys(incident),
+              'fields structure': fields ? Object.keys(fields) : 'no fields',
+              'vesselFields': vesselFields ? Object.keys(vesselFields) : 'no vesselFields',
+              'incidentTypeFields': incidentTypeFields ? Object.keys(incidentTypeFields) : 'no incidentTypeFields'
+            });
+            
+            // Get the vessel name, type and incident type consistently
+            const vesselName = vesselFields.name || fields.vessel_name || fields.vessel?.name || 'Unknown Vessel';
+            const vesselType = vesselFields.type || fields.vessel_type || fields.vessel?.type;
+            const incidentType = incidentTypeFields.name || 
+                                fields.incident_type_name || 
+                                fields.incident_type || 
+                                'Unknown Type';
             
             return (
               <div key={idx} className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-900">
-                    {vesselFields.name || fields.vessel_name || fields.vessel?.name || 'Unknown Vessel'}
+                    {vesselName}
                   </h3>
                   <span className="text-sm text-gray-500">
                     {new Date(fields.date_time_utc).toLocaleDateString()}
@@ -289,9 +352,9 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                 </div>
                 <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>
                 <div className="flex gap-2">
-                  {(vesselFields.type || fields.vessel_type || fields.vessel?.type) && (
+                  {vesselType && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      {vesselFields.type || fields.vessel_type || fields.vessel?.type}
+                      {vesselType}
                     </span>
                   )}
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
