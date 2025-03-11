@@ -186,6 +186,8 @@ const MaritimeMap = ({
           // Convert to lowercase for case-insensitive matching
           const lowerType = type.toLowerCase().trim();
           
+          console.log('Normalizing incident type:', type, '→ lowercase:', lowerType);
+          
           // VIOLENT INCIDENTS - Red
           if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
             return 'violent';
@@ -210,7 +212,14 @@ const MaritimeMap = ({
           if (/cyber/.test(lowerType)) return 'cyber';
           if (/smuggl/.test(lowerType)) return 'smuggling';
           
+          // Handle "unknown" type more gracefully
+          if (lowerType === 'unknown' || lowerType === 'unknown type') {
+            console.log('Found unknown incident type, defaulting to suspicious category');
+            return 'suspicious';
+          }
+          
           // If we can't categorize, use a default
+          console.log('Could not categorize incident type:', type, 'using default');
           return 'default';
         };
         
@@ -332,6 +341,8 @@ const MaritimeMap = ({
       // Convert to lowercase for case-insensitive matching
       const lowerType = type.toLowerCase().trim();
       
+      console.log('Normalizing incident type (update):', type, '→ lowercase:', lowerType);
+      
       // VIOLENT INCIDENTS - Red
       if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
         return 'violent';
@@ -356,7 +367,14 @@ const MaritimeMap = ({
       if (/cyber/.test(lowerType)) return 'cyber';
       if (/smuggl/.test(lowerType)) return 'smuggling';
       
+      // Handle "unknown" type more gracefully
+      if (lowerType === 'unknown' || lowerType === 'unknown type') {
+        console.log('Found unknown incident type, defaulting to suspicious category');
+        return 'suspicious';
+      }
+      
       // If we can't categorize, use a default
+      console.log('Could not categorize incident type:', type, 'using default');
       return 'default';
     };
 

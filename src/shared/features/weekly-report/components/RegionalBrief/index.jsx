@@ -71,13 +71,17 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
 
   const mapIncidents = displayIncidents.map(incident => {
     const fields = incident.incident?.fields || incident;
-    const incidentType = incident.incidentType?.fields?.name || 'unknown';
+    const incidentType = incident.incidentType?.fields?.name || 
+                         fields.incident_type || 
+                         fields.type || 
+                         'Unknown';
     return {
       latitude: parseFloat(fields.latitude),
       longitude: parseFloat(fields.longitude),
       title: fields.vessel_name || 'Unknown Vessel',
       description: fields.description,
-      type: incidentType.toLowerCase()
+      // Keep original casing for better matching in map component
+      type: incidentType
     };
   }).filter(inc => inc.latitude && inc.longitude);
 
@@ -271,13 +275,13 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           {displayIncidents.map((incident, idx) => {
             const fields = incident.incident?.fields || incident;
             const vesselFields = incident.vessel?.fields || {};
-            const incidentType = incident.incidentType?.fields?.name || 'Unknown Type';
+            const incidentType = incident.incidentType?.fields?.name || fields.incident_type || 'Unknown Type';
             
             return (
               <div key={idx} className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-900">
-                    {vesselFields.name || fields.vessel_name || 'Unknown Vessel'}
+                    {vesselFields.name || fields.vessel_name || fields.vessel?.name || 'Unknown Vessel'}
                   </h3>
                   <span className="text-sm text-gray-500">
                     {new Date(fields.date_time_utc).toLocaleDateString()}
@@ -285,9 +289,9 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                 </div>
                 <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>
                 <div className="flex gap-2">
-                  {vesselFields.type && (
+                  {(vesselFields.type || fields.vessel_type || fields.vessel?.type) && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      {vesselFields.type}
+                      {vesselFields.type || fields.vessel_type || fields.vessel?.type}
                     </span>
                   )}
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
