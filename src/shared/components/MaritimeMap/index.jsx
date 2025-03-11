@@ -179,37 +179,87 @@ const MaritimeMap = ({
           }
         });
 
-        // Add pulsing dot images for each type
-        map.addImage('pulsing-dot-robbery', pulsingDotForType('239,68,68'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-attack', pulsingDotForType('249,115,22'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-military', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-boarding', pulsingDotForType('239,68,68'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-piracy', pulsingDotForType('249,115,22'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-military-activity', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
-        map.addImage('pulsing-dot-robbery-theft', pulsingDotForType('59,130,246'), { pixelRatio: 2 });
+        // Function to normalize and categorize incident types
+        const normalizeIncidentType = (type) => {
+          if (!type) return 'default';
+          
+          // Convert to lowercase for case-insensitive matching
+          const lowerType = type.toLowerCase().trim();
+          
+          // VIOLENT INCIDENTS - Red
+          if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
+            return 'violent';
+          }
+          
+          // ROBBERY/THEFT INCIDENTS - Green
+          if (/robbery|theft|steal|stolen/.test(lowerType)) {
+            return 'robbery';
+          }
+          
+          // MILITARY/NAVAL INCIDENTS - Purple
+          if (/military|navy|coast guard|firing exercise|exercise|drill/.test(lowerType)) {
+            return 'military';
+          }
+          
+          // SUSPICIOUS/ADVISORY INCIDENTS - Orange
+          if (/suspicious|approach|attempt|advisory|alert|irregular|general alert|sighting|sight/.test(lowerType)) {
+            return 'suspicious';
+          }
+          
+          // OTHER CATEGORIZED INCIDENTS
+          if (/cyber/.test(lowerType)) return 'cyber';
+          if (/smuggl/.test(lowerType)) return 'smuggling';
+          
+          // If we can't categorize, use a default
+          return 'default';
+        };
+        
+        // Define category colors according to requested scheme
+        const typeColors = {
+          'violent': '239,68,68',    // Red - Attack, Boarding, Piracy, Kidnapping, etc.
+          'robbery': '34,197,94',    // Green - Robbery, Theft
+          'military': '139,92,246',  // Purple - Military, Navy, Firing Exercise
+          'suspicious': '249,115,22', // Orange - Suspicious, Advisory, Irregular, Sighting
+          'cyber': '6,182,212',      // Cyan - Cyber incidents
+          'smuggling': '168,85,247', // Purple-pink - Smuggling
+          'default': '107,114,128'   // Gray - Fallback for uncategorized
+        };
+        
+        // Add pulsing dot image for each category
+        Object.entries(typeColors).forEach(([type, color]) => {
+          map.addImage(`pulsing-dot-${type}`, pulsingDotForType(color), { pixelRatio: 2 });
+        });
 
-        // Add source and layer for incidents
+        // Add source and layer for incidents with normalized types
         map.addSource('incidents', {
           type: 'geojson',
           data: {
             type: 'FeatureCollection',
-            features: incidents.map(incident => ({
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [incident.longitude, incident.latitude]
-              },
-              properties: {
-                title: incident.title,
-                description: incident.description,
-                type: incident.type
-              }
-            }))
+            features: incidents.map(incident => {
+              // Get normalized category for this incident type
+              const normalizedType = normalizeIncidentType(incident.type);
+              
+              console.log(`Normalized incident type: ${incident.type} → ${normalizedType}`);
+              
+              return {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [incident.longitude, incident.latitude]
+                },
+                properties: {
+                  title: incident.title,
+                  description: incident.description,
+                  originalType: incident.type,
+                  type: normalizedType
+                }
+              };
+            })
           }
         });
 
-        // Add layers for each incident type
-        ['robbery', 'attack', 'military', 'piracy', 'robbery-theft', 'boarding', 'military-activity'].forEach(type => {
+        // Add layers for each incident category
+        Object.keys(typeColors).forEach(type => {
           map.addLayer({
             id: `incidents-${type}`,
             type: 'symbol',
@@ -222,26 +272,30 @@ const MaritimeMap = ({
           });
         });
 
-        // Add popups on click
-        map.on('click', ['incidents-robbery', 'incidents-attack', 'incidents-military', 'incidents-piracy', 'incidents-boarding'], (e) => {
+        // List of all layer IDs for event handling
+        const allLayerIds = Object.keys(typeColors).map(type => `incidents-${type}`);
+        
+        // Add popups on click for all incident types
+        map.on('click', allLayerIds, (e) => {
           const coordinates = e.features[0].geometry.coordinates.slice();
-          const { title, description } = e.features[0].properties;
+          const { title, description, originalType, type } = e.features[0].properties;
 
           new mapboxgl.Popup()
             .setLngLat(coordinates)
             .setHTML(`
               <h3 class="font-bold">${title}</h3>
               <p>${description}</p>
+              <p class="text-xs text-gray-500 mt-2">Incident type: ${originalType}</p>
             `)
             .addTo(map);
         });
 
-        // Change cursor on hover
-        map.on('mouseenter', ['incidents-robbery', 'incidents-attack', 'incidents-military'], () => {
+        // Change cursor on hover for all incident types
+        map.on('mouseenter', allLayerIds, () => {
           map.getCanvas().style.cursor = 'pointer';
         });
 
-        map.on('mouseleave', ['incidents-robbery', 'incidents-attack', 'incidents-military'], () => {
+        map.on('mouseleave', allLayerIds, () => {
           map.getCanvas().style.cursor = '';
         });
       });
@@ -271,20 +325,61 @@ const MaritimeMap = ({
     const map = mapInstance.current;
     if (!map || !map.loaded() || !map.getSource('incidents')) return;
 
+    // Function to normalize incident types (should match the one in the init effect)
+    const normalizeIncidentType = (type) => {
+      if (!type) return 'default';
+      
+      // Convert to lowercase for case-insensitive matching
+      const lowerType = type.toLowerCase().trim();
+      
+      // VIOLENT INCIDENTS - Red
+      if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
+        return 'violent';
+      }
+      
+      // ROBBERY/THEFT INCIDENTS - Green
+      if (/robbery|theft|steal|stolen/.test(lowerType)) {
+        return 'robbery';
+      }
+      
+      // MILITARY/NAVAL INCIDENTS - Purple
+      if (/military|navy|coast guard|firing exercise|exercise|drill/.test(lowerType)) {
+        return 'military';
+      }
+      
+      // SUSPICIOUS/ADVISORY INCIDENTS - Orange
+      if (/suspicious|approach|attempt|advisory|alert|irregular|general alert|sighting|sight/.test(lowerType)) {
+        return 'suspicious';
+      }
+      
+      // OTHER CATEGORIZED INCIDENTS
+      if (/cyber/.test(lowerType)) return 'cyber';
+      if (/smuggl/.test(lowerType)) return 'smuggling';
+      
+      // If we can't categorize, use a default
+      return 'default';
+    };
+
     map.getSource('incidents').setData({
       type: 'FeatureCollection',
-      features: incidents.map(incident => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [incident.longitude, incident.latitude]
-        },
-        properties: {
-          title: incident.title,
-          description: incident.description,
-          type: incident.type
-        }
-      }))
+      features: incidents.map(incident => {
+        // Get normalized category for this incident type
+        const normalizedType = normalizeIncidentType(incident.type);
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [incident.longitude, incident.latitude]
+          },
+          properties: {
+            title: incident.title,
+            description: incident.description,
+            originalType: incident.type,
+            type: normalizedType
+          }
+        };
+      })
     });
   }, [incidents]);
 

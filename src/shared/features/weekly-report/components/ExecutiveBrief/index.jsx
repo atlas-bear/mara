@@ -128,18 +128,22 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
           center={[40, 20]}
           zoom={1}
         />
-        <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3">
-          {/* Only show incident types that are present on the map */}
-          {[...new Set(mapIncidents.map(inc => inc.type))].map(type => (
-            <span key={type} className="flex items-center">
-              <span className={`w-2 h-2 rounded-full mr-1 ${
-                type === 'robbery' ? 'bg-red-500' :
-                type === 'attack' ? 'bg-orange-500' :
-                type === 'military' ? 'bg-blue-500' : 'bg-gray-500'
-              }`}></span>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </span>
-          ))}
+        <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3 flex-wrap">
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Violent (Attack, Boarding)
+          </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Robbery/Theft
+          </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-purple-500 mr-1"></span> Military Activity
+          </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> Suspicious/Advisory
+          </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-gray-500 mr-1"></span> Other
+          </span>
         </div>
       </div>
 

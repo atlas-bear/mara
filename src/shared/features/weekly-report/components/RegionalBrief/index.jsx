@@ -213,18 +213,21 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           center={region.defaultCenter}
           zoom={region.defaultZoom}
         />
-        <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3">
+        <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3 flex-wrap">
           <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Robbery
+            <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> Violent (Attack, Boarding)
           </span>
           <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> Attack
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Robbery/Theft
           </span>
           <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-blue-500 mr-1"></span> Military
+            <span className="w-2 h-2 rounded-full bg-purple-500 mr-1"></span> Military Activity
           </span>
           <span className="flex items-center">
-            <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span> Other
+            <span className="w-2 h-2 rounded-full bg-orange-500 mr-1"></span> Suspicious/Advisory
+          </span>
+          <span className="flex items-center">
+            <span className="w-2 h-2 rounded-full bg-gray-500 mr-1"></span> Other
           </span>
         </div>
       </div>
