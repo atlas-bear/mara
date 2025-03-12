@@ -5,6 +5,7 @@ import { getVesselByIMO, getVesselByName, getVesselById } from './utils/vessel-u
 import { validateData } from './utils/validation.js';
 import { corsHeaders } from './utils/environment.js';
 import { generateFlashReportToken, getPublicFlashReportUrl } from './utils/token-utils.js';
+import { renderReactEmailTemplate } from './utils/email.js';
 
 /**
  * Netlify function to send flash reports via SendGrid
@@ -895,8 +896,7 @@ function formatCoordinates(coordinate, type) {
 
 /**
  * Generate HTML content for email
- * This is a simplified version - in production, use a proper templating engine
- * or React server-side rendering with the components we created
+ * This version uses react-email to render our React EmailTemplate component
  * @param {Object} incident Incident data
  * @param {Object} branding Branding configuration
  * @param {Object} templateOverrides Template overrides
@@ -910,148 +910,145 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
     vesselFlag: incident.vesselFlag,
     vesselIMO: incident.vesselIMO
   });
-  // In production, we would use a more sophisticated HTML generation method
-  // For now, use this as a placeholder that returns a simple HTML version
   
-  // Simplified HTML template
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flash Maritime Alert</title>
-  </head>
-  <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; background-color: #ffffff;">
-    <div style="background-color: #FFF7ED; padding: 24px; border-bottom: 1px solid #FFEDD5;">
-      <img src="${branding.logo}" alt="${branding.companyName}" style="max-width: 150px; height: auto; margin-bottom: 15px;">
+  try {
+    // Import the EmailTemplate component
+    const EmailTemplateModule = await import('../src/apps/mara/components/FlashReport/EmailTemplate/index.jsx');
+    const EmailTemplate = EmailTemplateModule.default;
+    
+    // Prepare the incident data in the format expected by the EmailTemplate component
+    // The EmailTemplate expects a structure where incident data might be nested
+    const templateData = {
+      incident: incident,
+      mapImageUrl: incident.mapImageUrl,
+      publicUrl: publicUrl,
       
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-          <div>
-            <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
-            <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
-          </div>
-          <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${branding.colors.primary};">
-            ${incident.vesselName || 'Unknown Vessel'}
-          </h1>
-          <p style="font-size: 14px; color: #4B5563; margin: 0; font-weight: 600;">
-            <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${incident.vesselType || 'Unknown'}</strong></span> | 
-            <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${incident.vesselIMO || 'N/A'}</strong></span> | 
-            <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${incident.vesselFlag || 'N/A'}</strong></span>
-          </p>
-        </div>
-        <div style="text-align: right;">
-          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
-            ${new Date(incident.date).toLocaleString()}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    ${publicUrl ? `
-    <!-- View Online Banner -->
-    <div style="background-color: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #DBEAFE;">
-      <p style="margin: 0; font-size: 14px; color: #1E3A8A;">
-        This is an email snapshot. 
-        <a href="${publicUrl}" style="color: #2563EB; font-weight: 600; text-decoration: underline;">
-          View this Flash Report online
-        </a> 
-        for the latest information.
-      </p>
-    </div>
-    ` : ''}
-
-    <!-- Vessel and Crew Status Section - MOVED BEFORE MAP -->
-    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB; display: flex; flex-wrap: wrap; gap: 16px;">
-      <!-- Location Details -->
-      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
-        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Location</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0 0 8px 0;">
-          <strong>${incident.location || 'Unknown Location'}</strong><br>
-          ${incident.coordinates.latitude !== 0 ? formatCoordinates(incident.coordinates.latitude, 'lat') : 'N/A'}, 
-          ${incident.coordinates.longitude !== 0 ? formatCoordinates(incident.coordinates.longitude, 'lon') : 'N/A'}
-        </p>
-      </div>
+      // Transform the prepared incident data into the format expected by EmailTemplate
+      incidentVessel: {
+        fields: {
+          vessel_status_during_incident: incident.status,
+          crew_impact: incident.crewStatus
+        }
+      },
       
-      <!-- Vessel Status -->
-      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
-        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Vessel Status</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0 0 8px 0;">
-          <strong>${incident.status || 'Unknown'}</strong><br>
-          ${incident.destination ? `En route to ${incident.destination}` : ''}
-        </p>
-      </div>
+      // Include vessel data at the expected path
+      vessel: {
+        fields: {
+          name: incident.vesselName,
+          type: incident.vesselType,
+          flag: incident.vesselFlag,
+          imo: incident.vesselIMO
+        }
+      },
       
-      <!-- Crew Status -->
-      <div style="flex: 1; min-width: 200px; background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
-        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Crew Status</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">
-          ${incident.crewStatus || 'No information available'}
-        </p>
-      </div>
-    </div>
-
-    <!-- Location Map - MOVED AFTER QUICK FACTS -->
-    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
-      <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Location Map</h2>
-      
-      <!-- Location coordinates in text format -->
-      <p style="font-size: 14px; color: #4B5563; margin-bottom: 16px;">
-        <strong>Coordinates:</strong> ${incident.coordinates.latitude !== 0 ? incident.coordinates.latitude.toFixed(6) : 'N/A'}, 
-        ${incident.coordinates.longitude !== 0 ? incident.coordinates.longitude.toFixed(6) : 'N/A'}
-      </p>
-      
-      <!-- Map Image with fallback options -->
-      ${incident.mapImageUrl ? 
-        `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="display: block; width: 100%; max-width: 600px; height: auto; border-radius: 4px; border: 1px solid #E5E7EB;" 
-              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
-        '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
+      // Include incident type data at the expected path
+      incidentType: {
+        fields: {
+          name: incident.type
+        }
       }
-      
-      <!-- Location name (not clickable) -->
-      <p style="font-size: 16px; margin-top: 8px; text-align: center; font-weight: 600; color: #1F2937;">
-        ${incident.location || 'Unknown location'}
-      </p>
-    </div>
-
-    <!-- Incident Details -->
-    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
-      <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Incident Details</h2>
-      <div style="background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
-        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Description</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.description}</p>
+    };
+    
+    console.log('Rendering React component to HTML with react-email');
+    
+    // Use our utility function to render the React component to HTML
+    const html = await renderReactEmailTemplate(EmailTemplate, {
+      incident: templateData,
+      branding: branding,
+      publicUrl: publicUrl
+    });
+    
+    console.log('React component rendered successfully');
+    return html;
+  } catch (error) {
+    console.error('Error rendering EmailTemplate with react-email:', error);
+    
+    // Fallback to simple HTML template if there's an error
+    console.log('Falling back to simple HTML template');
+    
+    // Simple fallback HTML template
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Flash Maritime Alert</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #FFF7ED; padding: 24px; border-bottom: 1px solid #FFEDD5;">
+        <img src="${branding.logo}" alt="${branding.companyName}" style="max-width: 150px; height: auto; margin-bottom: 15px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
+            </div>
+            <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${branding.colors.primary};">
+              ${incident.vesselName || 'Unknown Vessel'}
+            </h1>
+            <p style="font-size: 14px; color: #4B5563; margin: 0; font-weight: 600;">
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${incident.vesselType || 'Unknown'}</strong></span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${incident.vesselIMO || 'N/A'}</strong></span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${incident.vesselFlag || 'N/A'}</strong></span>
+            </p>
+          </div>
+          <div style="text-align: right;">
+            <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
+            <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
+              ${new Date(incident.date).toLocaleString()}
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Analysis Section -->
-    <div style="padding: 24px;">
-      <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Analysis</h2>
-      <div style="background-color: #FFF7ED; padding: 16px; border-radius: 6px; border-left: 4px solid ${branding.colors.secondary};">
-        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Key Findings</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${Array.isArray(incident.analysis) ? incident.analysis.join('<br>') : incident.analysis}</p>
+      ${publicUrl ? `
+      <!-- View Online Banner -->
+      <div style="background-color: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #DBEAFE;">
+        <p style="margin: 0; font-size: 14px; color: #1E3A8A;">
+          This is an email snapshot. 
+          <a href="${publicUrl}" style="color: #2563EB; font-weight: 600; text-decoration: underline;">
+            View this Flash Report online
+          </a> 
+          for the latest information.
+        </p>
       </div>
-    </div>
+      ` : ''}
 
-    ${publicUrl ? `
-    <!-- View Online Button -->
-    <div style="padding: 0 24px 24px; text-align: center;">
-      <a href="${publicUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${branding.colors.primary}; color: white; font-weight: 600; text-decoration: none; border-radius: 6px;">
-        View Complete Flash Report
-      </a>
-      <p style="font-size: 12px; color: #6B7280; margin-top: 8px;">
-        This link is valid for 7 days and is uniquely generated for you.
-      </p>
-    </div>
-    ` : ''}
+      <!-- Location Map -->
+      <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
+        <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Location</h2>
+        
+        <!-- Map Image with fallback options -->
+        ${incident.mapImageUrl ? 
+          `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="display: block; width: 100%; max-width: 600px; height: auto; border-radius: 4px; border: 1px solid #E5E7EB;" 
+                onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
+          '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
+        }
+        
+        <!-- Location name -->
+        <p style="font-size: 16px; margin-top: 8px; text-align: center; font-weight: 600; color: #1F2937;">
+          ${incident.location || 'Unknown location'}
+        </p>
+      </div>
 
-    <!-- Footer -->
-    <div style="margin-top: 30px; padding: 0 24px 24px; text-align: center; color: #6B7280; font-size: 12px;">
-      <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.</p>
-      <p style="margin: 4px 0;">This alert is confidential and for the intended recipient only.</p>
-    </div>
-  </body>
-  </html>
-  `;
+      <!-- Incident Details -->
+      <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
+        <h2 style="font-size: 18px; font-weight: 600; color: ${branding.colors.primary}; margin-top: 0; margin-bottom: 16px;">Incident Details</h2>
+        <div style="background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
+          <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Description</h3>
+          <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.description}</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="margin-top: 30px; padding: 0 24px 24px; text-align: center; color: #6B7280; font-size: 12px;">
+        <p style="margin: 4px 0;">© ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.</p>
+        <p style="margin: 4px 0;">This alert is confidential and for the intended recipient only.</p>
+      </div>
+    </body>
+    </html>
+    `;
+  }
 }

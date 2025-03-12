@@ -1,6 +1,27 @@
 import React from 'react';
 import { styles } from './styles';
-import { formatCoordinates } from '@shared/features/weekly-report';
+
+// Fallback implementation for use in email rendering
+const formatCoordinates = (coordinate, isLatitude) => {
+  if (coordinate === null || coordinate === undefined || isNaN(coordinate)) {
+    return 'N/A';
+  }
+  
+  const absolute = Math.abs(coordinate);
+  const degrees = Math.floor(absolute);
+  const minutesDecimal = (absolute - degrees) * 60;
+  const minutes = Math.floor(minutesDecimal);
+  const seconds = ((minutesDecimal - minutes) * 60).toFixed(2);
+  
+  let direction = '';
+  if (isLatitude) {
+    direction = coordinate >= 0 ? 'N' : 'S';
+  } else {
+    direction = coordinate >= 0 ? 'E' : 'W';
+  }
+  
+  return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
+};
 
 // Email-safe template (static HTML with inline styles)
 const EmailTemplate = ({ incident, branding }) => {

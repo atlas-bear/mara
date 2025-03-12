@@ -1,6 +1,7 @@
 /**
  * Email utility functions for MARA
  * Contains functions to work with SendGrid email service
+ * and React email rendering
  */
 
 import sgMail from '@sendgrid/mail';
@@ -85,5 +86,40 @@ export async function sendEmail(to, subject, message, html = null, options = {})
       statusCode: error.code || 500,
       error
     };
+  }
+}
+
+/**
+ * Renders a React component to HTML for emails using react-email
+ * This is particularly useful for email templates
+ * 
+ * @param {Function} Component React component to render
+ * @param {Object} props Props to pass to the component
+ * @returns {Promise<string>} Rendered HTML
+ */
+export async function renderReactEmailTemplate(Component, props) {
+  try {
+    console.log('Attempting to render React component to email HTML');
+    
+    // Import required modules on demand
+    const [React, { render }] = await Promise.all([
+      import('react'),
+      import('react-email/render')
+    ]);
+    
+    // Check if the component is valid
+    if (typeof Component !== 'function') {
+      throw new Error('Invalid React component provided');
+    }
+    
+    // Render the component to HTML
+    const element = React.createElement(Component, props);
+    const html = render(element);
+    
+    console.log('React component rendered to HTML successfully');
+    return html;
+  } catch (error) {
+    console.error('Error rendering React component to HTML:', error);
+    throw error;
   }
 }
