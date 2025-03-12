@@ -133,14 +133,19 @@ export const handler = async (event, context) => {
           if (incidentVesselData) {
             if (incidentVesselData.vessel_status_during_incident) {
               incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
+              console.log('Adding vessel_status_during_incident:', incidentVesselData.vessel_status_during_incident);
             }
             if (incidentVesselData.crew_impact) {
               incidentData.crew_impact = incidentVesselData.crew_impact;
+              console.log('Adding crew_impact:', incidentVesselData.crew_impact);
             }
             if (incidentVesselData.damage_sustained) {
               incidentData.damage_sustained = incidentVesselData.damage_sustained;
+              console.log('Adding damage_sustained:', incidentVesselData.damage_sustained);
             }
             console.log('Added incident_vessel data to incident record');
+          } else {
+            console.warn('No incident_vessel data available to add to incident record');
           }
           
           // Log vessel data before we use it
@@ -487,6 +492,12 @@ export const handler = async (event, context) => {
       imo: vesselIMO
     });
     
+    // Add additional debug logging for vessel data
+    console.log('VESSEL DATA FINAL CHECK:');
+    console.log('- enhancedVesselData:', JSON.stringify(enhancedVesselData));
+    console.log('- vessel_status_during_incident:', incidentData.vessel_status_during_incident || 'not found');
+    console.log('- crew_impact:', incidentData.crew_impact || 'not found');
+    
     // Prepare incident data for email, aligning with the IncidentDetails component structure
     const preparedIncident = {
       id: incidentData.id,
@@ -497,16 +508,22 @@ export const handler = async (event, context) => {
         latitude: latitude !== null && !isNaN(latitude) ? parseFloat(latitude) : 0,
         longitude: longitude !== null && !isNaN(longitude) ? parseFloat(longitude) : 0
       },
-      // Vessel data from the vessel and incidentVessel tables
-      vesselName: vesselName,
-      vesselType: vesselType,
-      vesselFlag: vesselFlag,
-      vesselIMO: vesselIMO,
-      // Use vessel_status_during_incident from incidentVessel data (not incident status)
+      // Vessel data from the vessel table using enhancedVesselData
+      vesselName: enhancedVesselData.name || 'Unknown Vessel',
+      vesselType: enhancedVesselData.type || 'Unknown',
+      vesselFlag: enhancedVesselData.flag || 'Unknown',
+      vesselIMO: enhancedVesselData.imo || 'N/A',
+      
+      // Use vessel_status_during_incident from the incidentData
+      // (which we copied from incidentVesselData earlier at line 135)
       vessel_status_during_incident: incidentData.vessel_status_during_incident || 'Unknown Status',
+      
       destination: incidentData.vessel_destination || incidentData.destination || 'Unknown Destination',
-      // Use crew_impact from incidentVessel data
+      
+      // Use crew_impact from incidentData
+      // (which we copied from incidentVesselData earlier at line 139)
       crew_impact: incidentData.crew_impact || 'No information available',
+      
       description: incidentData.description || 'No description available',
       responseActions: incidentData.response_type || incidentData.responseActions || [],
       authorities_notified: incidentData.authorities_notified || [],
