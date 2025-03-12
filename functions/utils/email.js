@@ -155,34 +155,40 @@ export function renderEmailTemplate(data, options = {}) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flash Maritime Alert</title>
   </head>
-  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-    <!-- Header Section -->
-    <div style="background-color: #FFF7ED; padding: 24px; border-bottom: 1px solid #FFEDD5; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-      <img src="${logo}" alt="${companyName}" style="max-width: 150px; height: auto; margin-bottom: 15px;">
-      
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
-            <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: #f3f4f6;">
+    <!-- Logo/Branding Section - Outside the card -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img src="${logo}" alt="${companyName}" style="max-width: 180px; height: auto;">
+    </div>
+    
+    <!-- Main Content Card with Shadow -->
+    <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);">
+    
+      <!-- Header Section -->
+      <div style="background-color: #FFF7ED; padding: 24px; border-bottom: 1px solid #FFEDD5;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
+            </div>
+            <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
+              ${vesselName}
+            </h1>
+            <p style="font-size: 14px; color: #4B5563; margin: 0;">
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselType}</strong></span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselIMO}</strong></span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFlag}</strong></span>
+            </p>
           </div>
-          <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
-            ${vesselName}
-          </h1>
-          <p style="font-size: 14px; color: #4B5563; margin: 0;">
-            <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselType}</strong></span> | 
-            <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselIMO}</strong></span> | 
-            <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFlag}</strong></span>
-          </p>
-        </div>
-        <div style="text-align: right;">
-          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
-            ${new Date(incident.date).toLocaleString()}
-          </p>
+          <div style="text-align: right;">
+            <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
+            <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
+              ${new Date(incident.date).toLocaleString()}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
 
     ${publicUrl ? `
     <!-- View Online Banner -->
@@ -293,6 +299,8 @@ export function renderEmailTemplate(data, options = {}) {
       <p style="margin: 4px 0;">© ${currentYear} ${companyName}. All rights reserved.</p>
       <p style="margin: 4px 0;">This alert is confidential and for the intended recipient only.</p>
     </div>
+    
+    </div> <!-- End of Main Content Card -->
   </body>
   </html>
   `;
