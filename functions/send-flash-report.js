@@ -487,7 +487,7 @@ export const handler = async (event, context) => {
       imo: vesselIMO
     });
     
-    // Prepare incident data for email
+    // Prepare incident data for email, aligning with the IncidentDetails component structure
     const preparedIncident = {
       id: incidentData.id,
       type: incidentType,
@@ -497,13 +497,16 @@ export const handler = async (event, context) => {
         latitude: latitude !== null && !isNaN(latitude) ? parseFloat(latitude) : 0,
         longitude: longitude !== null && !isNaN(longitude) ? parseFloat(longitude) : 0
       },
+      // Vessel data from the vessel and incidentVessel tables
       vesselName: vesselName,
       vesselType: vesselType,
       vesselFlag: vesselFlag,
       vesselIMO: vesselIMO,
-      status: incidentData.vessel_status_during_incident || incidentData.status || 'Unknown Status',
+      // Use vessel_status_during_incident from incidentVessel data (not incident status)
+      vessel_status_during_incident: incidentData.vessel_status_during_incident || 'Unknown Status',
       destination: incidentData.vessel_destination || incidentData.destination || 'Unknown Destination',
-      crewStatus: incidentData.crew_impact || incidentData.crewStatus || 'No information available',
+      // Use crew_impact from incidentVessel data
+      crew_impact: incidentData.crew_impact || 'No information available',
       description: incidentData.description || 'No description available',
       responseActions: incidentData.response_type || incidentData.responseActions || [],
       authorities_notified: incidentData.authorities_notified || [],

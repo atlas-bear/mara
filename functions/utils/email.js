@@ -207,7 +207,13 @@ export function renderEmailTemplate(data, options = {}) {
     <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 24px; border-bottom: 1px solid #E5E7EB;">
       <!-- Location Details -->
       <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
-        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">📍</div>
+        <!-- Map Pin SVG Icon -->
+        <div style="width: 20px; height: 20px; margin-top: 4px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+        </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Location</p>
           <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.location || 'Unknown Location'}</p>
@@ -220,20 +226,35 @@ export function renderEmailTemplate(data, options = {}) {
       
       <!-- Vessel Status -->
       <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
-        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">🚢</div>
+        <!-- Ship SVG Icon -->
+        <div style="width: 20px; height: 20px; margin-top: 4px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.4 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+            <path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/>
+            <path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/>
+          </svg>
+        </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Vessel Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.status || 'Unknown'}</p>
-          ${incident.destination ? `<p style="font-size: 14px; color: #6B7280; margin: 0;">En route to ${incident.destination}</p>` : ''}
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.vessel_status_during_incident || 'Unknown'}</p>
+          <p style="font-size: 14px; color: #6B7280; margin: 0;">${incident.vesselType || 'Vessel'}</p>
         </div>
       </div>
       
       <!-- Crew Status -->
       <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
-        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">👥</div>
+        <!-- Users SVG Icon -->
+        <div style="width: 20px; height: 20px; margin-top: 4px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Crew Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crewStatus || 'No information available'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crew_impact || 'No injuries reported'}</p>
         </div>
       </div>
     </div>
