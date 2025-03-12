@@ -5,7 +5,7 @@ import { getVesselByIMO, getVesselByName, getVesselById } from './utils/vessel-u
 import { validateData } from './utils/validation.js';
 import { corsHeaders } from './utils/environment.js';
 import { generateFlashReportToken, getPublicFlashReportUrl } from './utils/token-utils.js';
-import { renderReactEmailTemplate } from './utils/email.js';
+import { renderEmailTemplate } from './utils/email.js';
 
 /**
  * Netlify function to send flash reports via SendGrid
@@ -912,53 +912,17 @@ async function generateEmailHtml(incident, branding, templateOverrides = {}, pub
   });
   
   try {
-    // Import the EmailTemplate component
-    const EmailTemplateModule = await import('../src/apps/mara/components/FlashReport/EmailTemplate/index.jsx');
-    const EmailTemplate = EmailTemplateModule.default;
+    console.log('Using lightweight HTML email template renderer');
     
-    // Prepare the incident data in the format expected by the EmailTemplate component
-    // The EmailTemplate expects a structure where incident data might be nested
-    const templateData = {
+    // Use the simple template renderer with our incident data
+    // This avoids the large dependencies of react-email
+    const html = renderEmailTemplate({
       incident: incident,
-      mapImageUrl: incident.mapImageUrl,
-      publicUrl: publicUrl,
-      
-      // Transform the prepared incident data into the format expected by EmailTemplate
-      incidentVessel: {
-        fields: {
-          vessel_status_during_incident: incident.status,
-          crew_impact: incident.crewStatus
-        }
-      },
-      
-      // Include vessel data at the expected path
-      vessel: {
-        fields: {
-          name: incident.vesselName,
-          type: incident.vesselType,
-          flag: incident.vesselFlag,
-          imo: incident.vesselIMO
-        }
-      },
-      
-      // Include incident type data at the expected path
-      incidentType: {
-        fields: {
-          name: incident.type
-        }
-      }
-    };
-    
-    console.log('Rendering React component to HTML with react-email');
-    
-    // Use our utility function to render the React component to HTML
-    const html = await renderReactEmailTemplate(EmailTemplate, {
-      incident: templateData,
       branding: branding,
       publicUrl: publicUrl
     });
     
-    console.log('React component rendered successfully');
+    console.log('Email template rendered successfully');
     return html;
   } catch (error) {
     console.error('Error rendering EmailTemplate with react-email:', error);

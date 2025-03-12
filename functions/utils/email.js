@@ -90,36 +90,210 @@ export async function sendEmail(to, subject, message, html = null, options = {})
 }
 
 /**
- * Renders a React component to HTML for emails using react-email
- * This is particularly useful for email templates
+ * Lightweight HTML template renderer for email
+ * This simpler approach avoids the large dependencies of react-email
  * 
- * @param {Function} Component React component to render
- * @param {Object} props Props to pass to the component
- * @returns {Promise<string>} Rendered HTML
+ * @param {Object} data Data to use in the template 
+ * @param {Object} options Additional options
+ * @returns {string} Rendered HTML
  */
-export async function renderReactEmailTemplate(Component, props) {
-  try {
-    console.log('Attempting to render React component to email HTML');
-    
-    // Import required modules on demand
-    const [React, { render }] = await Promise.all([
-      import('react'),
-      import('react-email/render')
-    ]);
-    
-    // Check if the component is valid
-    if (typeof Component !== 'function') {
-      throw new Error('Invalid React component provided');
+export function renderEmailTemplate(data, options = {}) {
+  // Extract commonly used values
+  const {
+    incident,
+    branding = {},
+    publicUrl = null
+  } = data;
+  
+  // Extract branding details
+  const {
+    logo = '/default-logo.png',
+    companyName = 'Maritime Risk Analysis',
+    colors = {}
+  } = branding;
+  
+  const primaryColor = colors.primary || '#234567';
+  const secondaryColor = colors.secondary || '#890123';
+  
+  // Format coordinates helper
+  const formatCoord = (coordinate, isLatitude) => {
+    if (coordinate === null || coordinate === undefined || isNaN(coordinate)) {
+      return 'N/A';
     }
     
-    // Render the component to HTML
-    const element = React.createElement(Component, props);
-    const html = render(element);
+    const absolute = Math.abs(coordinate);
+    const degrees = Math.floor(absolute);
+    const minutesDecimal = (absolute - degrees) * 60;
+    const minutes = Math.floor(minutesDecimal);
+    const seconds = ((minutesDecimal - minutes) * 60).toFixed(2);
     
-    console.log('React component rendered to HTML successfully');
-    return html;
-  } catch (error) {
-    console.error('Error rendering React component to HTML:', error);
-    throw error;
-  }
+    let direction = '';
+    if (isLatitude) {
+      direction = coordinate >= 0 ? 'N' : 'S';
+    } else {
+      direction = coordinate >= 0 ? 'E' : 'W';
+    }
+    
+    return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
+  };
+  
+  // Vessel data
+  const vesselName = incident.vesselName || 'Unknown Vessel';
+  const vesselType = incident.vesselType || 'Unknown';
+  const vesselFlag = incident.vesselFlag || 'Unknown';
+  const vesselIMO = incident.vesselIMO || 'N/A';
+  
+  // Current year for copyright
+  const currentYear = new Date().getFullYear();
+  
+  // Render HTML based on the style of the React component
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flash Maritime Alert</title>
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+    <!-- Header Section -->
+    <div style="background-color: #FFF7ED; padding: 24px; border-bottom: 1px solid #FFEDD5; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+      <img src="${logo}" alt="${companyName}" style="max-width: 150px; height: auto; margin-bottom: 15px;">
+      
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
+            <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
+          </div>
+          <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
+            ${vesselName}
+          </h1>
+          <p style="font-size: 14px; color: #4B5563; margin: 0;">
+            <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselType}</strong></span> | 
+            <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselIMO}</strong></span> | 
+            <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFlag}</strong></span>
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
+            ${new Date(incident.date).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    ${publicUrl ? `
+    <!-- View Online Banner -->
+    <div style="background-color: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #DBEAFE;">
+      <p style="margin: 0; font-size: 14px; color: #1E3A8A;">
+        This is an email snapshot. 
+        <a href="${publicUrl}" style="color: #2563EB; font-weight: 600; text-decoration: underline;">
+          View this Flash Report online
+        </a> 
+        for the latest information.
+      </p>
+    </div>
+    ` : ''}
+
+    <!-- Quick Facts Grid -->
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 24px; border-bottom: 1px solid #E5E7EB;">
+      <!-- Location Details -->
+      <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">📍</div>
+        <div style="flex: 1;">
+          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Location</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.location || 'Unknown Location'}</p>
+          <p style="font-size: 14px; color: #6B7280; margin: 0;">
+            ${formatCoord(incident.coordinates?.latitude, true)}, 
+            ${formatCoord(incident.coordinates?.longitude, false)}
+          </p>
+        </div>
+      </div>
+      
+      <!-- Vessel Status -->
+      <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">🚢</div>
+        <div style="flex: 1;">
+          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Vessel Status</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.status || 'Unknown'}</p>
+          ${incident.destination ? `<p style="font-size: 14px; color: #6B7280; margin: 0;">En route to ${incident.destination}</p>` : ''}
+        </div>
+      </div>
+      
+      <!-- Crew Status -->
+      <div style="flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 20px; height: 20px; margin-top: 4px; font-size: 20px;">👥</div>
+        <div style="flex: 1;">
+          <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Crew Status</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crewStatus || 'No information available'}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location Map -->
+    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
+      <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Location Map</h2>
+      
+      <!-- Map Image with fallback options -->
+      ${incident.mapImageUrl ? 
+        `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="width: 100%; border-radius: 4px; border: 1px solid #E5E7EB;" 
+              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
+        '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
+      }
+      
+      <div style="margin-top: 8px; font-size: 12px; color: #6B7280; display: flex; align-items: center;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${secondaryColor}; display: inline-block; margin-right: 5px;"></span>
+        <span>Incident Location</span>
+      </div>
+    </div>
+
+    <!-- Incident Details -->
+    <div style="padding: 24px; border-bottom: 1px solid #E5E7EB;">
+      <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Incident Details</h2>
+      <div style="background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Description</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.description}</p>
+      </div>
+    </div>
+
+    <!-- Analysis Section -->
+    <div style="padding: 24px;">
+      <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Analysis</h2>
+      <div style="background-color: #FFF7ED; padding: 16px; border-radius: 6px; border-left: 4px solid ${secondaryColor};">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Key Findings</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">
+          ${Array.isArray(incident.analysis) ? incident.analysis.join('<br>') : incident.analysis}
+        </p>
+      </div>
+      
+      ${incident.recommendations ? `
+      <div style="background-color: #F0F9FF; padding: 16px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin-top: 24px;">
+        <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Recommendations</h3>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.recommendations}</p>
+      </div>
+      ` : ''}
+    </div>
+
+    ${publicUrl ? `
+    <!-- View Online Button -->
+    <div style="padding: 0 24px 24px; text-align: center;">
+      <a href="${publicUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${primaryColor}; color: white; font-weight: 600; text-decoration: none; border-radius: 6px;">
+        View Complete Flash Report
+      </a>
+      <p style="font-size: 12px; color: #6B7280; margin-top: 8px;">
+        This link is valid for 365 days and is uniquely generated for you.
+      </p>
+    </div>
+    ` : ''}
+
+    <!-- Footer -->
+    <div style="margin-top: 30px; padding: 20px 24px 24px; text-align: center; color: #6B7280; font-size: 12px; border-top: 1px solid #E5E7EB;">
+      <p style="margin: 4px 0;">© ${currentYear} ${companyName}. All rights reserved.</p>
+      <p style="margin: 4px 0;">This alert is confidential and for the intended recipient only.</p>
+    </div>
+  </body>
+  </html>
+  `;
 }
