@@ -105,6 +105,14 @@ export function renderEmailTemplate(data, options = {}) {
     publicUrl = null
   } = data;
   
+  // IMPORTANT: Follow the exact structure used in IncidentDetails component
+  // Instead of using incident.field directly, we'll use the nested fields
+  // structure that match what IncidentDetails uses
+  const fields = incident.incident?.fields || incident;
+  const vesselFields = incident.vessel?.fields || {};
+  const incidentVesselFields = incident.incidentVessel?.fields || {};
+  const incidentTypeFields = incident.incidentType?.fields || {};
+  
   // Extract branding details
   const {
     logo = '/default-logo.png',
@@ -137,18 +145,12 @@ export function renderEmailTemplate(data, options = {}) {
     return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
   };
   
-  // Vessel data - support both camelCase (from client) and snake_case (from server) formats
-  const vesselName = incident.vesselName || 'Unknown Vessel';
-  const vesselType = incident.vesselType || 'Unknown';
-  const vesselFlag = incident.vesselFlag || 'Unknown';
-  const vesselIMO = incident.vesselIMO || 'N/A';
-  
-  // Log vessel data to debug
-  console.log('EMAIL TEMPLATE - VESSEL DATA:');
-  console.log('vesselName:', vesselName);
-  console.log('vesselType:', vesselType);
-  console.log('vesselFlag:', vesselFlag);
-  console.log('vesselIMO:', vesselIMO);
+  // Log the complete data structure to debug
+  console.log('EMAIL TEMPLATE - DATA STRUCTURE:');
+  console.log('- incident fields keys:', fields ? Object.keys(fields).join(', ') : 'none');
+  console.log('- vessel fields keys:', vesselFields ? Object.keys(vesselFields).join(', ') : 'none');
+  console.log('- incidentVessel fields keys:', incidentVesselFields ? Object.keys(incidentVesselFields).join(', ') : 'none');
+  console.log('- incidentType fields keys:', incidentTypeFields ? Object.keys(incidentTypeFields).join(', ') : 'none');
   
   // Current year for copyright
   const currentYear = new Date().getFullYear();
@@ -176,22 +178,22 @@ export function renderEmailTemplate(data, options = {}) {
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${incident.id}</span>
-              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incident.type}</span>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${fields.id}</span>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incidentTypeFields.name || fields.type || 'Incident'}</span>
             </div>
             <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
-              ${vesselName}
+              ${vesselFields.name || 'Unknown Vessel'}
             </h1>
             <p style="font-size: 14px; color: #4B5563; margin: 0;">
-              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselType}</strong></span> | 
-              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselIMO}</strong></span> | 
-              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFlag}</strong></span>
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselFields.type || 'Unknown'}</strong></span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselFields.imo || 'N/A'}</strong></span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFields.flag || 'Unknown'}</strong></span>
             </p>
           </div>
           <div style="text-align: right;">
             <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Reported</p>
             <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
-              ${new Date(incident.date).toLocaleString()}
+              ${new Date(fields.date_time_utc || fields.date).toLocaleString()}
             </p>
           </div>
         </div>
@@ -223,10 +225,10 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Location</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.location || 'Unknown Location'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${fields.location_name || fields.location || 'Unknown Location'}</p>
           <p style="font-size: 14px; color: #6B7280; margin: 0;">
-            ${formatCoord(incident.coordinates?.latitude, true)}, 
-            ${formatCoord(incident.coordinates?.longitude, false)}
+            ${formatCoord(fields.latitude, true)}, 
+            ${formatCoord(fields.longitude, false)}
           </p>
         </div>
       </div>
@@ -243,8 +245,8 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Vessel Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.vessel_status_during_incident || incident.status || 'Unknown'}</p>
-          <p style="font-size: 14px; color: #6B7280; margin: 0;">${vesselType}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incidentVesselFields.vessel_status_during_incident || 'Unknown'}</p>
+          <p style="font-size: 14px; color: #6B7280; margin: 0;">${vesselFields.type || 'Vessel'}</p>
         </div>
       </div>
       
@@ -261,7 +263,7 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Crew Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crew_impact || incident.crewStatus || 'No injuries reported'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incidentVesselFields.crew_impact || 'No injuries reported'}</p>
         </div>
       </div>
     </div>
@@ -271,8 +273,8 @@ export function renderEmailTemplate(data, options = {}) {
       <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Location Map</h2>
       
       <!-- Map Image with fallback options -->
-      ${incident.mapImageUrl ? 
-        `<img src="${incident.mapImageUrl}" alt="Incident Location Map" style="width: 100%; border-radius: 4px; border: 1px solid #E5E7EB;" 
+      ${fields.map_image_url ? 
+        `<img src="${fields.map_image_url}" alt="Incident Location Map" style="width: 100%; border-radius: 4px; border: 1px solid #E5E7EB;" 
               onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
         '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
       }
@@ -288,7 +290,7 @@ export function renderEmailTemplate(data, options = {}) {
       <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Incident Details</h2>
       <div style="background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Description</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.description}</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${fields.description || 'No description available'}</p>
       </div>
     </div>
 
@@ -298,14 +300,14 @@ export function renderEmailTemplate(data, options = {}) {
       <div style="background-color: #FFF7ED; padding: 16px; border-radius: 6px; border-left: 4px solid ${secondaryColor};">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Key Findings</h3>
         <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">
-          ${Array.isArray(incident.analysis) ? incident.analysis.join('<br>') : incident.analysis}
+          ${Array.isArray(fields.analysis) ? fields.analysis.join('<br>') : fields.analysis || 'No analysis available'}
         </p>
       </div>
       
-      ${incident.recommendations ? `
+      ${fields.recommendations ? `
       <div style="background-color: #F0F9FF; padding: 16px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin-top: 24px;">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Recommendations</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${incident.recommendations}</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${fields.recommendations}</p>
       </div>
       ` : ''}
     </div>

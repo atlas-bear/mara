@@ -715,15 +715,33 @@ export const handler = async (event, context) => {
           vesselIMO: preparedIncident.vesselIMO
         });
         
+        // Prepare the data structure exactly like the IncidentDetails component expects
+        const emailData = {
+          incident: {
+            incident: { fields: incidentData },
+            vessel: { fields: vesselData },
+            incidentVessel: { fields: incidentData }, // Use incidentData for vessel_status_during_incident and crew_impact
+            incidentType: { fields: { name: incidentType } }
+          },
+          branding: branding,
+          publicUrl: publicUrl
+        };
+        
+        // Log what we're sending to the email template
+        console.log('EMAIL TEMPLATE INPUT STRUCTURE:');
+        console.log('- vessel.fields:', vesselData ? Object.keys(vesselData).join(', ') : 'none');
+        console.log('- vessel name:', vesselData?.name);
+        console.log('- incidentVessel fields has crew_impact:', incidentData && 'crew_impact' in incidentData);
+        console.log('- incidentVessel fields has vessel_status:', incidentData && 'vessel_status_during_incident' in incidentData);
+        
+        // Generate HTML using the standardized structure
         const htmlContent = await generateEmailHtml(
-          preparedIncident, 
-          branding, 
-          templateOverrides, 
-          publicUrl // Pass public URL to the template
+          emailData, 
+          templateOverrides
         );
         
-        // Create email object
-        const emailData = {
+        // Create email object - renamed to avoid variable collision
+        const sendGridEmailData = {
           to: recipient.email,
           from: {
             email: sendGridFromEmail || 'alerts@example.com',
@@ -741,13 +759,13 @@ export const handler = async (event, context) => {
         try {
           // Log email sending attempt
           console.log(`Attempting to send email to ${recipient.email} with SendGrid...`);
-          console.log(`From: ${emailData.from.email} (${emailData.from.name})`);
-          console.log(`To: ${emailData.to}`);
-          console.log(`Subject: ${emailData.subject}`);
+          console.log(`From: ${sendGridEmailData.from.email} (${sendGridEmailData.from.name})`);
+          console.log(`To: ${sendGridEmailData.to}`);
+          console.log(`Subject: ${sendGridEmailData.subject}`);
           console.log(`Public URL in email: ${publicUrl}`);
           
           // Send email
-          await sgMail.send(emailData);
+          await sgMail.send(sendGridEmailData);
           
           console.log(`Email successfully sent to ${recipient.email}`);
           
@@ -959,31 +977,22 @@ function formatCoordinates(coordinate, type) {
 
 /**
  * Generate HTML content for email
- * This version uses react-email to render our React EmailTemplate component
- * @param {Object} incident Incident data
- * @param {Object} branding Branding configuration
+ * This function passes the data to the email template renderer
+ * @param {Object} data Full data structure for the email template
  * @param {Object} templateOverrides Template overrides
- * @param {string} publicUrl Public URL for viewing the report
+ * @returns {string} Generated HTML for the email
  */
-async function generateEmailHtml(incident, branding, templateOverrides = {}, publicUrl = null) {
-  // Debug vessel data to ensure it's available
-  console.log('GENERATE_EMAIL_HTML - RECEIVED VESSEL DATA:', {
-    vesselName: incident.vesselName,
-    vesselType: incident.vesselType,
-    vesselFlag: incident.vesselFlag,
-    vesselIMO: incident.vesselIMO
-  });
+async function generateEmailHtml(data, templateOverrides = {}) {
+  // Debug data structure we're sending to the template
+  console.log('GENERATE_EMAIL_HTML - RECEIVED DATA STRUCTURE FOR EMAIL');
+  console.log('- Structure provided to generateEmailHtml:', Object.keys(data));
   
   try {
     console.log('Using lightweight HTML email template renderer');
     
-    // Use the simple template renderer with our incident data
-    // This avoids the large dependencies of react-email
-    const html = renderEmailTemplate({
-      incident: incident,
-      branding: branding,
-      publicUrl: publicUrl
-    });
+    // Use the simple template renderer with the data structure
+    // This matches what the IncidentDetails component expects
+    const html = renderEmailTemplate(data);
     
     console.log('Email template rendered successfully');
     return html;
