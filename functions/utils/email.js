@@ -137,11 +137,18 @@ export function renderEmailTemplate(data, options = {}) {
     return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
   };
   
-  // Vessel data
+  // Vessel data - support both camelCase (from client) and snake_case (from server) formats
   const vesselName = incident.vesselName || 'Unknown Vessel';
   const vesselType = incident.vesselType || 'Unknown';
   const vesselFlag = incident.vesselFlag || 'Unknown';
   const vesselIMO = incident.vesselIMO || 'N/A';
+  
+  // Log vessel data to debug
+  console.log('EMAIL TEMPLATE - VESSEL DATA:');
+  console.log('vesselName:', vesselName);
+  console.log('vesselType:', vesselType);
+  console.log('vesselFlag:', vesselFlag);
+  console.log('vesselIMO:', vesselIMO);
   
   // Current year for copyright
   const currentYear = new Date().getFullYear();
@@ -236,8 +243,8 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Vessel Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.vessel_status_during_incident || 'Unknown'}</p>
-          <p style="font-size: 14px; color: #6B7280; margin: 0;">${incident.vesselType || 'Vessel'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incident.vessel_status_during_incident || incident.status || 'Unknown'}</p>
+          <p style="font-size: 14px; color: #6B7280; margin: 0;">${vesselType}</p>
         </div>
       </div>
       
@@ -254,7 +261,7 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Crew Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crew_impact || 'No injuries reported'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incident.crew_impact || incident.crewStatus || 'No injuries reported'}</p>
         </div>
       </div>
     </div>

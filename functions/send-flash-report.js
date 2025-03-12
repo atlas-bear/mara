@@ -78,6 +78,34 @@ export const handler = async (event, context) => {
     // Fetch incident data from Airtable or use sample data for testing
     let incidentData;
     
+    // Check if incident data was directly provided in the payload
+    if (payload.incident && typeof payload.incident === 'object') {
+      console.log('Using incident data directly from payload');
+      incidentData = payload.incident;
+      
+      // If coordinates are provided directly, extract them
+      if (incidentData.coordinates) {
+        if (incidentData.coordinates.latitude) {
+          incidentData.latitude = incidentData.coordinates.latitude;
+        }
+        if (incidentData.coordinates.longitude) {
+          incidentData.longitude = incidentData.coordinates.longitude;
+        }
+      }
+      
+      // Log what we received directly from client
+      console.log('INCIDENT DATA FROM CLIENT:');
+      console.log('- id:', incidentData.id);
+      console.log('- vesselName:', incidentData.vesselName);
+      console.log('- vesselType:', incidentData.vesselType); 
+      console.log('- vesselFlag:', incidentData.vesselFlag);
+      console.log('- vesselIMO:', incidentData.vesselIMO);
+      console.log('- status:', incidentData.status);
+      console.log('- crewStatus:', incidentData.crewStatus);
+    } else {
+      console.log('No incident data in payload, will query Airtable');
+    }
+    
     // For testing purposes - this is a sample incident to use when Airtable is not available
     // or when testing with sample data
     const sampleIncidentData = {
@@ -103,20 +131,22 @@ export const handler = async (event, context) => {
     };
 
     try {
-      // Try to get real incident data first
-      try {
-        console.log('Attempting to fetch incident data from Airtable...');
-        // This will now return a complex object with incident, vessel, and incidentType data
-        const airtableData = await getIncident(incidentId);
-        
-        if (airtableData) {
-          console.log('Airtable data fetch successful!');
+      // Skip Airtable fetch if we already have data from the client
+      if (!incidentData) {
+        // Try to get real incident data from Airtable
+        try {
+          console.log('Attempting to fetch incident data from Airtable...');
+          // This will now return a complex object with incident, vessel, and incidentType data
+          const airtableData = await getIncident(incidentId);
           
-          // Extract the data components - note the new incidentVessel data
-          incidentData = airtableData.incident || {};
-          const fetchedVesselData = airtableData.vessel || {};
-          const fetchedIncidentVesselData = airtableData.incidentVessel || {}; 
-          const incidentTypeData = airtableData.incidentType || {};
+          if (airtableData) {
+            console.log('Airtable data fetch successful!');
+            
+            // Extract the data components - note the new incidentVessel data
+            incidentData = airtableData.incident || {};
+            const fetchedVesselData = airtableData.vessel || {};
+            const fetchedIncidentVesselData = airtableData.incidentVessel || {}; 
+            const incidentTypeData = airtableData.incidentType || {};
           
           // Log what we found
           console.log('Incident data:', Object.keys(incidentData).join(', '));
@@ -167,24 +197,37 @@ export const handler = async (event, context) => {
           }
         } else {
           console.log('No data found in Airtable');
-        }
-      } catch (airtableError) {
-        console.warn('Could not fetch from Airtable:', airtableError.message);
-        console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
+            }
+          } catch (airtableError) {
+            console.warn('Could not fetch from Airtable:', airtableError.message);
+            console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
+            
+            // If Airtable fetch fails and this is the sample incident ID, use sample data
+            if (incidentId === '2025-0010') {
+              console.log('Using sample incident data instead');
+              incidentData = sampleIncidentData;
+              
+              // Create sample vessel data since we're using the sample data
+              vesselData = {
+                name: incidentData.vessel_name,
+                type: incidentData.vessel_type,
+                flag: incidentData.vessel_flag,
+                imo: incidentData.vessel_imo
+              };
+            }
+          }
+      } else {
+        console.log('Using client-provided incident data, skipping Airtable fetch');
         
-        // If Airtable fetch fails and this is the sample incident ID, use sample data
-        if (incidentId === '2025-0010') {
-          console.log('Using sample incident data instead');
-          incidentData = sampleIncidentData;
-          
-          // Create sample vessel data since we're using the sample data
-          vesselData = {
-            name: incidentData.vessel_name,
-            type: incidentData.vessel_type,
-            flag: incidentData.vessel_flag,
-            imo: incidentData.vessel_imo
-          };
-        }
+        // Create vessel data from the client-provided incident data
+        vesselData = {
+          name: incidentData.vesselName,
+          type: incidentData.vesselType,
+          flag: incidentData.vesselFlag,
+          imo: incidentData.vesselIMO
+        };
+        
+        console.log('Created vessel data from client data:', JSON.stringify(vesselData));
       }
       
       // If we still don't have incident data, return an error
@@ -497,6 +540,8 @@ export const handler = async (event, context) => {
     console.log('- enhancedVesselData:', JSON.stringify(enhancedVesselData));
     console.log('- vessel_status_during_incident:', incidentData.vessel_status_during_incident || 'not found');
     console.log('- crew_impact:', incidentData.crew_impact || 'not found');
+    console.log('- status (for fallback):', incidentData.status || 'not found');
+    console.log('- crewStatus (for fallback):', incidentData.crewStatus || 'not found');
     
     // Prepare incident data for email, aligning with the IncidentDetails component structure
     const preparedIncident = {
@@ -514,15 +559,13 @@ export const handler = async (event, context) => {
       vesselFlag: enhancedVesselData.flag || 'Unknown',
       vesselIMO: enhancedVesselData.imo || 'N/A',
       
-      // Use vessel_status_during_incident from the incidentData
-      // (which we copied from incidentVesselData earlier at line 135)
-      vessel_status_during_incident: incidentData.vessel_status_during_incident || 'Unknown Status',
+      // Use vessel_status_during_incident from incidentData, falling back to status (client-side name)
+      vessel_status_during_incident: incidentData.vessel_status_during_incident || incidentData.status || 'Unknown Status',
       
       destination: incidentData.vessel_destination || incidentData.destination || 'Unknown Destination',
       
-      // Use crew_impact from incidentData
-      // (which we copied from incidentVesselData earlier at line 139)
-      crew_impact: incidentData.crew_impact || 'No information available',
+      // Use crew_impact from incidentData, falling back to crewStatus (client-side name)
+      crew_impact: incidentData.crew_impact || incidentData.crewStatus || 'No information available',
       
       description: incidentData.description || 'No description available',
       responseActions: incidentData.response_type || incidentData.responseActions || [],
