@@ -715,28 +715,102 @@ export const handler = async (event, context) => {
           vesselIMO: preparedIncident.vesselIMO
         });
         
-        // Prepare the data structure exactly like the IncidentDetails component expects
-        const emailData = {
-          incident: {
-            incident: { fields: incidentData },
-            vessel: { fields: vesselData },
-            incidentVessel: { fields: incidentData }, // Use incidentData for vessel_status_during_incident and crew_impact
-            incidentType: { fields: { name: incidentType } }
-          },
-          branding: branding,
-          publicUrl: publicUrl
-        };
+        // Log what data we have available
+        console.log('DATA AVAILABLE FOR EMAIL:');
+        console.log('- incidentData has keys:', incidentData ? Object.keys(incidentData).join(', ') : 'no data');
+        console.log('- Does client directly provide incident?', !!payload.incident);
         
-        // Log what we're sending to the email template
-        console.log('EMAIL TEMPLATE INPUT STRUCTURE:');
-        console.log('- vessel.fields:', vesselData ? Object.keys(vesselData).join(', ') : 'none');
-        console.log('- vessel name:', vesselData?.name);
-        console.log('- incidentVessel fields has crew_impact:', incidentData && 'crew_impact' in incidentData);
-        console.log('- incidentVessel fields has vessel_status:', incidentData && 'vessel_status_during_incident' in incidentData);
+        // Create the right data structure for the email template
+        let templateData;
+        
+        // The client directly sends data in the payload.incident object
+        if (payload.incident) {
+          console.log('USING CLIENT-PROVIDED INCIDENT DATA');
+          console.log('- Client vessel name:', payload.incident.vesselName);
+          console.log('- Client vessel status:', payload.incident.status);
+          console.log('- Client crew status:', payload.incident.crewStatus);
+          
+          // Prepare the data structure exactly like the IncidentDetails component expects
+          // but using the client-provided data which has different field names
+          templateData = {
+            incident: {
+              incident: { 
+                fields: { 
+                  id: payload.incident.id, 
+                  title: payload.incident.title,
+                  description: payload.incident.description,
+                  map_image_url: payload.incident.map_image_url,
+                  analysis: payload.incident.analysis,
+                  recommendations: payload.incident.recommendations,
+                  date_time_utc: payload.incident.date,
+                  location_name: payload.incident.location,
+                  latitude: payload.incident.coordinates?.latitude,
+                  longitude: payload.incident.coordinates?.longitude
+                } 
+              },
+              vessel: { 
+                fields: { 
+                  name: payload.incident.vesselName,
+                  type: payload.incident.vesselType,
+                  flag: payload.incident.vesselFlag,
+                  imo: payload.incident.vesselIMO
+                } 
+              },
+              incidentVessel: { 
+                fields: {
+                  vessel_status_during_incident: payload.incident.status,
+                  crew_impact: payload.incident.crewStatus
+                } 
+              },
+              incidentType: { 
+                fields: { 
+                  name: payload.incident.type 
+                } 
+              }
+            },
+            branding: branding,
+            publicUrl: publicUrl
+          };
+          
+          // Log the newly structured data
+          console.log('CLIENT DATA - Key fields:');
+          console.log('- Vessel name:', templateData.incident.vessel.fields.name);
+          console.log('- Vessel status:', templateData.incident.incidentVessel.fields.vessel_status_during_incident);
+          console.log('- Crew status:', templateData.incident.incidentVessel.fields.crew_impact);
+        } else {
+          // Using server-fetched data
+          console.log('USING SERVER-FETCHED INCIDENT DATA');
+          
+          // Create proper incidentVessel fields object 
+          const incidentVesselFields = {};
+          if (incidentData.vessel_status_during_incident) {
+            incidentVesselFields.vessel_status_during_incident = incidentData.vessel_status_during_incident;
+          }
+          if (incidentData.crew_impact) {
+            incidentVesselFields.crew_impact = incidentData.crew_impact;
+          }
+          
+          // Log what's available
+          console.log('- Server vessel name:', vesselData?.name);
+          console.log('- Server vessel status:', incidentVesselFields.vessel_status_during_incident);
+          console.log('- Server crew status:', incidentVesselFields.crew_impact);
+          
+          // Prepare the data structure with server-fetched data
+          templateData = {
+            incident: {
+              incident: { fields: incidentData },
+              vessel: { fields: vesselData },
+              incidentVessel: { fields: incidentVesselFields },
+              incidentType: { fields: { name: incidentType } }
+            },
+            branding: branding,
+            publicUrl: publicUrl
+          };
+        }
         
         // Generate HTML using the standardized structure
         const htmlContent = await generateEmailHtml(
-          emailData, 
+          templateData, 
           templateOverrides
         );
         
