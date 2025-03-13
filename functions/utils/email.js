@@ -124,14 +124,36 @@ export function renderEmailTemplate(data, options = {}) {
   
   // In case vesselFields is an empty object, merge with defaults
   if (Object.keys(vesselFields).length === 0) {
+    console.log('VESSEL FIELDS EMPTY - ASSIGNING DEFAULTS');
     Object.assign(vesselFields, defaultVessel);
   }
   
+  // DEBUG - Check structure before ensuring fields exist
+  console.log('VESSEL FIELDS BEFORE DEFAULTS:');
+  console.log('- Is object?', typeof vesselFields === 'object');
+  console.log('- Is null?', vesselFields === null);
+  console.log('- Has name?', 'name' in vesselFields);
+  console.log('- name =', vesselFields.name);
+  console.log('- type =', vesselFields.type);
+  console.log('- flag =', vesselFields.flag);
+  console.log('- imo =', vesselFields.imo);
+  
+  // Force the values to be strings to avoid rendering issues
+  const hardcodedVessel = {
+    name: "TEST VESSEL",
+    type: "TEST TYPE",
+    flag: "TEST FLAG",
+    imo: "TEST IMO"
+  };
+  
   // Ensure all required fields exist
-  if (!vesselFields.name) vesselFields.name = defaultVessel.name;
-  if (!vesselFields.type) vesselFields.type = defaultVessel.type;
-  if (!vesselFields.flag) vesselFields.flag = defaultVessel.flag;
-  if (!vesselFields.imo) vesselFields.imo = defaultVessel.imo;
+  if (!vesselFields.name) {
+    console.log('FIXING MISSING NAME');
+    vesselFields.name = hardcodedVessel.name; 
+  }
+  if (!vesselFields.type) vesselFields.type = hardcodedVessel.type;
+  if (!vesselFields.flag) vesselFields.flag = hardcodedVessel.flag;
+  if (!vesselFields.imo) vesselFields.imo = hardcodedVessel.imo;
   
   // Log the final vessel data used in the template
   console.log('EMAIL TEMPLATE - FINAL VESSEL DATA:');
@@ -209,12 +231,19 @@ export function renderEmailTemplate(data, options = {}) {
               <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incidentTypeFields.name || fields.type || 'Incident'}</span>
             </div>
             <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
-              ${vesselFields.name || 'Unknown Vessel'}
+              HARDCODED VESSEL NAME TEST
             </h1>
             <p style="font-size: 14px; color: #4B5563; margin: 0;">
-              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselFields.type || 'Unknown'}</strong></span> | 
-              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselFields.imo || 'N/A'}</strong></span> | 
-              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFields.flag || 'Unknown'}</strong></span>
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>HARDCODED VESSEL TYPE</strong></span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>12345678</strong></span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>HARDCODED FLAG</strong></span>
+            </p>
+            <p style="font-size: 14px; color: red; font-weight: bold; margin-top: 10px;">
+              VESSEL DATA TEST: The following values are from the template data:<br>
+              vesselFields.name = ${vesselFields.name || 'null/undefined'}<br>
+              vesselFields.type = ${vesselFields.type || 'null/undefined'}<br>
+              vesselFields.flag = ${vesselFields.flag || 'null/undefined'}<br>
+              vesselFields.imo = ${vesselFields.imo || 'null/undefined'}
             </p>
           </div>
           <div style="text-align: right;">
