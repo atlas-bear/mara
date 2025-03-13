@@ -150,6 +150,20 @@ export const handler = async (event, context) => {
             console.log('Cached data fetch successful!');
             console.log('DEBUG - Cached data content:', JSON.stringify(cachedData).substring(0, 500));
             
+            // Enhanced debugging for vessel data structure
+            console.log('VESSEL DATA STRUCTURE CHECK:');
+            console.log('- Has nested property:', !!cachedData.nested);
+            if (cachedData.nested) {
+              console.log('- Has nested.vessel property:', !!cachedData.nested.vessel);
+              if (cachedData.nested.vessel) {
+                console.log('- nested.vessel structure:', JSON.stringify(cachedData.nested.vessel).substring(0, 200));
+                console.log('- Has nested.vessel.fields?', !!cachedData.nested.vessel.fields);
+                if (cachedData.nested.vessel.fields) {
+                  console.log('- vessel fields:', Object.keys(cachedData.nested.vessel.fields).join(', '));
+                }
+              }
+            }
+            
             // Validate cache data is usable
             if (!cachedData.nested || 
                 !cachedData.nested.incident || 
@@ -175,9 +189,10 @@ export const handler = async (event, context) => {
               
               // Extract the data components from the standardized nested structure
               incidentData = cachedData.nested.incident.fields || {};
-              const fetchedVesselData = cachedData.nested.vessel.fields || {};
-              const fetchedIncidentVesselData = cachedData.nested.incidentVessel.fields || {}; 
-              const incidentTypeData = cachedData.nested.incidentType.fields || {};
+              // Add optional chaining to handle null nested objects
+              const fetchedVesselData = cachedData.nested.vessel?.fields || {};
+              const fetchedIncidentVesselData = cachedData.nested.incidentVessel?.fields || {}; 
+              const incidentTypeData = cachedData.nested.incidentType?.fields || {};
               
               // Log what we found
               console.log('Incident data:', Object.keys(incidentData).join(', '));
@@ -187,8 +202,10 @@ export const handler = async (event, context) => {
               
               // Combine data for easier access in the template
               // Update vesselData with data from relationship
-              vesselData = fetchedVesselData || {};
-              const incidentVesselData = fetchedIncidentVesselData || {};
+              // Make a deep copy to prevent reference issues
+              vesselData = { ...fetchedVesselData };
+              console.log('DEEP COPY OF VESSEL DATA:', JSON.stringify(vesselData));
+              const incidentVesselData = { ...fetchedIncidentVesselData };
               
               // Add vessel status and crew impact from incident_vessel if available
               if (incidentVesselData) {
@@ -269,11 +286,21 @@ export const handler = async (event, context) => {
               if (airtableData) {
                 console.log('Airtable direct fetch successful!');
                 
-                // Use the same data extraction as before
-                incidentData = airtableData.incident || {};
-                vesselData = airtableData.vessel || {};
-                const incidentVesselData = airtableData.incidentVessel || {};
-                const incidentTypeData = airtableData.incidentType || {};
+                // Use the same data extraction as before, but handle fields correctly
+                incidentData = airtableData.incident?.fields || airtableData.incident || {};
+                
+                // CRITICAL: Make sure we get vessel fields properly
+                if (airtableData.vessel) {
+                  console.log('DEBUG: Direct Airtable vessel data:', JSON.stringify(airtableData.vessel).substring(0, 200));
+                  vesselData = airtableData.vessel.fields || airtableData.vessel || {};
+                  console.log('DEBUG: Extracted vessel data:', JSON.stringify(vesselData));
+                } else {
+                  console.log('No vessel data from direct Airtable fetch');
+                  vesselData = {};
+                }
+                
+                const incidentVesselData = airtableData.incidentVessel?.fields || airtableData.incidentVessel || {};
+                const incidentTypeData = airtableData.incidentType?.fields || airtableData.incidentType || {};
                 
                 // Add vessel status and crew impact from incident_vessel if available
                 if (incidentVesselData) {
@@ -893,10 +920,16 @@ export const handler = async (event, context) => {
           // This is critical for the email template to work correctly
           console.log('VESSEL DATA VALIDATION FOR EMAIL:');
           console.log('- Initial vessel data:', JSON.stringify(vesselData || {}));
+          console.log('- Enhanced vessel data:', JSON.stringify(enhancedVesselData || {}));
           
-          // If vesselData is missing or empty, create it from preparedIncident
+          // If vesselData is missing or empty, but we have enhancedVesselData, use that first
+          if ((!vesselData || Object.keys(vesselData).length === 0) && enhancedVesselData && Object.keys(enhancedVesselData).length > 0) {
+            console.log('⚠️ Using enhanced vessel data instead of empty vesselData');
+            vesselData = { ...enhancedVesselData };
+          }
+          // If we still don't have vessel data, create it from preparedIncident
           // This ensures we always have vessel data in the email
-          if (!vesselData || Object.keys(vesselData).length === 0) {
+          else if (!vesselData || Object.keys(vesselData).length === 0) {
             console.log('⚠️ vesselData missing or empty, using prepared data instead');
             vesselData = {
               name: preparedIncident.vesselName,

@@ -138,10 +138,23 @@ export function enrichIncidentData(rawData) {
   
   // Extract the individual components
   const { incident, vessel, incidentVessel, incidentType } = rawData;
-  const incidentFields = incident ? incident.fields || {} : {};
-  const vesselFields = vessel ? vessel.fields || {} : {};
-  const incidentVesselFields = incidentVessel ? incidentVessel.fields || {} : {};
-  const incidentTypeFields = incidentType ? incidentType.fields || {} : {};
+  
+  // Handle both formats - direct objects or {id, fields} structure
+  const incidentFields = incident ? 
+    (incident.fields ? incident.fields : incident) : 
+    {};
+    
+  const vesselFields = vessel ? 
+    (vessel.fields ? vessel.fields : vessel) : 
+    {};
+    
+  const incidentVesselFields = incidentVessel ? 
+    (incidentVessel.fields ? incidentVessel.fields : incidentVessel) : 
+    {};
+    
+  const incidentTypeFields = incidentType ? 
+    (incidentType.fields ? incidentType.fields : incidentType) : 
+    {};
   
   // Debug vessel data structure in cache
   console.log('CACHE VESSEL DATA CHECK:');

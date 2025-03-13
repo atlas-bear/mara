@@ -285,12 +285,13 @@ export async function getIncident(incidentId) {
     }
     console.log('======================================');
     
-    // Prepare the return data
+    // Prepare the return data - IMPORTANT: We must pass the full Airtable record structure
+    // with id AND fields to match what getCachedIncident and the rest of the app expects
     const returnData = {
-      incident: incidentData,
-      vessel: vesselData,
-      incidentVessel: incidentVesselDetails,
-      incidentType: incidentTypeData
+      incident: { id: incidentRecord.id, fields: incidentData },
+      vessel: vesselData ? { id: vesselId, fields: vesselData } : null,
+      incidentVessel: incidentVesselDetails ? { id: incidentVesselDetails.id, fields: incidentVesselDetails } : null,
+      incidentType: incidentTypeData ? { id: incidentData.incident_type?.[0], fields: incidentTypeData } : null
     };
     
     // Debug log the full structure we're returning
