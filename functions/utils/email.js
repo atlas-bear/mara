@@ -109,7 +109,34 @@ export function renderEmailTemplate(data, options = {}) {
   // Instead of using incident.field directly, we'll use the nested fields
   // structure that match what IncidentDetails uses
   const fields = incident.incident?.fields || incident;
-  const vesselFields = incident.vessel?.fields || {};
+  
+  // CRITICAL: Create a default vessel object with required properties
+  // This ensures we always have a vessel object with name/type/flag/imo
+  const defaultVessel = {
+    name: 'Unknown Vessel',
+    type: 'Unknown',
+    flag: 'Unknown',
+    imo: 'N/A'
+  };
+  
+  // Use the vessel fields from the incident or fall back to default
+  const vesselFields = incident.vessel?.fields || defaultVessel;
+  
+  // In case vesselFields is an empty object, merge with defaults
+  if (Object.keys(vesselFields).length === 0) {
+    Object.assign(vesselFields, defaultVessel);
+  }
+  
+  // Ensure all required fields exist
+  if (!vesselFields.name) vesselFields.name = defaultVessel.name;
+  if (!vesselFields.type) vesselFields.type = defaultVessel.type;
+  if (!vesselFields.flag) vesselFields.flag = defaultVessel.flag;
+  if (!vesselFields.imo) vesselFields.imo = defaultVessel.imo;
+  
+  // Log the final vessel data used in the template
+  console.log('EMAIL TEMPLATE - FINAL VESSEL DATA:');
+  console.log(JSON.stringify(vesselFields));
+  
   const incidentVesselFields = incident.incidentVessel?.fields || {};
   const incidentTypeFields = incident.incidentType?.fields || {};
   

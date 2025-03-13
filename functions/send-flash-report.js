@@ -858,6 +858,17 @@ export const handler = async (event, context) => {
           
           // Prepare the data structure exactly like the IncidentDetails component expects
           // but using the client-provided data which has different field names
+          
+          // Create a specific vessel data object with guaranteed values (not undefined)
+          const clientVesselData = {
+            name: payload.incident.vesselName || 'Unknown Vessel',
+            type: payload.incident.vesselType || 'Unknown',
+            flag: payload.incident.vesselFlag || 'Unknown',
+            imo: payload.incident.vesselIMO || 'N/A'
+          };
+          
+          console.log('CLIENT PROVIDED VESSEL DATA:', JSON.stringify(clientVesselData));
+          
           templateData = {
             incident: {
               incident: { 
@@ -875,12 +886,7 @@ export const handler = async (event, context) => {
                 } 
               },
               vessel: { 
-                fields: { 
-                  name: payload.incident.vesselName,
-                  type: payload.incident.vesselType,
-                  flag: payload.incident.vesselFlag,
-                  imo: payload.incident.vesselIMO
-                } 
+                fields: clientVesselData
               },
               incidentVessel: { 
                 fields: {
@@ -956,10 +962,22 @@ export const handler = async (event, context) => {
           // Prepare the data structure with server-fetched data
           // IMPORTANT: Use the enhancedVesselData instead of the old vesselData
           // This ensures the email has access to the vessel data from all lookup methods
+          // CRITICAL FIX: Copy the prepared vessel data directly (not reference)
+          const emailVesselData = {
+            name: preparedIncident.vesselName,
+            type: preparedIncident.vesselType,
+            flag: preparedIncident.vesselFlag,
+            imo: preparedIncident.vesselIMO
+          };
+          
+          // Log the vessel data we're using for email
+          console.log('VESSEL DATA BEFORE EMAIL TEMPLATE:');
+          console.log(JSON.stringify(emailVesselData));
+          
           templateData = {
             incident: {
               incident: { fields: incidentData },
-              vessel: { fields: enhancedVesselData || vesselData }, // Use enhanced data with fallback
+              vessel: { fields: emailVesselData }, // Use directly prepared data
               incidentVessel: { fields: incidentVesselFields },
               incidentType: { fields: { name: incidentType } }
             },
