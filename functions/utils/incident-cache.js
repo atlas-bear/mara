@@ -143,6 +143,19 @@ export function enrichIncidentData(rawData) {
   const incidentVesselFields = incidentVessel ? incidentVessel.fields || {} : {};
   const incidentTypeFields = incidentType ? incidentType.fields || {} : {};
   
+  // Debug vessel data structure in cache
+  console.log('CACHE VESSEL DATA CHECK:');
+  console.log('- Raw vessel object exists:', !!vessel);
+  console.log('- Raw vessel fields exists:', !!vesselFields);
+  if (vessel) {
+    console.log('- Raw vessel structure:', JSON.stringify(vessel).substring(0, 200));
+  }
+  
+  console.log('- Raw incidentVessel exists:', !!incidentVessel);
+  if (incidentVessel) {
+    console.log('- Raw incidentVessel structure:', JSON.stringify(incidentVessel).substring(0, 200));
+  }
+  
   // Log available fields for debugging
   console.log('Available fields in incident:', Object.keys(incidentFields).join(', '));
   if (vesselFields) console.log('Available fields in vessel:', Object.keys(vesselFields).join(', '));

@@ -883,10 +883,36 @@ export const handler = async (event, context) => {
             incidentVesselFields.crew_impact = incidentData.crew_impact;
           }
           
-          // Log what's available
-          console.log('- Server vessel name:', vesselData?.name);
-          console.log('- Server vessel status:', incidentVesselFields.vessel_status_during_incident);
-          console.log('- Server crew status:', incidentVesselFields.crew_impact);
+          // IMPORTANT: For server-side data, we need to ensure vesselData exists and has required fields
+          // This is critical for the email template to work correctly
+          console.log('VESSEL DATA VALIDATION FOR EMAIL:');
+          console.log('- Initial vessel data:', JSON.stringify(vesselData || {}));
+          
+          // If vesselData is missing or empty, create it from preparedIncident
+          // This ensures we always have vessel data in the email
+          if (!vesselData || Object.keys(vesselData).length === 0) {
+            console.log('⚠️ vesselData missing or empty, using prepared data instead');
+            vesselData = {
+              name: preparedIncident.vesselName,
+              type: preparedIncident.vesselType,
+              flag: preparedIncident.vesselFlag,
+              imo: preparedIncident.vesselIMO
+            };
+          }
+          
+          // Final validation - ensure we have at least a vessel name
+          if (!vesselData.name && preparedIncident.vesselName) {
+            console.log('⚠️ vesselData.name missing, using prepared data');
+            vesselData.name = preparedIncident.vesselName;
+          }
+          
+          // Log what's available after fixes
+          console.log('- Final vessel name:', vesselData?.name);
+          console.log('- Final vessel type:', vesselData?.type);
+          console.log('- Final vessel flag:', vesselData?.flag);
+          console.log('- Final vessel IMO:', vesselData?.imo);
+          console.log('- Final vessel status:', incidentVesselFields.vessel_status_during_incident);
+          console.log('- Final crew status:', incidentVesselFields.crew_impact);
           
           // Prepare the data structure with server-fetched data
           templateData = {
