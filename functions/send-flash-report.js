@@ -47,7 +47,13 @@ export const handler = async (event, context) => {
     let longitude = null;
     
     // Define vesselData at the top level to ensure it's always defined
-    let vesselData = {};
+    // The empty object is a fallback to ensure it's never undefined
+    let vesselData = {
+      name: null,
+      type: null,
+      flag: null,
+      imo: null
+    };
     
     // Configure SendGrid - in Netlify functions use process.env directly
     const apiKey = process.env.SENDGRID_API_KEY;
@@ -915,10 +921,12 @@ export const handler = async (event, context) => {
           console.log('- Final crew status:', incidentVesselFields.crew_impact);
           
           // Prepare the data structure with server-fetched data
+          // IMPORTANT: Use the enhancedVesselData instead of the old vesselData
+          // This ensures the email has access to the vessel data from all lookup methods
           templateData = {
             incident: {
               incident: { fields: incidentData },
-              vessel: { fields: vesselData },
+              vessel: { fields: enhancedVesselData || vesselData }, // Use enhanced data with fallback
               incidentVessel: { fields: incidentVesselFields },
               incidentType: { fields: { name: incidentType } }
             },
@@ -926,6 +934,13 @@ export const handler = async (event, context) => {
             publicUrl: publicUrl
           };
         }
+        
+        // Add detailed debug logging before sending to email renderer
+        console.log('FINAL EMAIL TEMPLATE DATA STRUCTURE:');
+        console.log('- vessel data sent to email:', JSON.stringify(templateData.incident.vessel.fields));
+        console.log('- vessel name:', templateData.incident.vessel.fields.name);
+        console.log('- vessel type:', templateData.incident.vessel.fields.type);
+        console.log('- vessel flag:', templateData.incident.vessel.fields.flag);
         
         // Generate HTML using the standardized structure
         const htmlContent = await generateEmailHtml(
