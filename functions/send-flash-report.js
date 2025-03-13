@@ -829,8 +829,9 @@ export const handler = async (event, context) => {
         // Generate public flash report URL
         const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
         
-        // Create email subject
-        const subject = `🚨 MARITIME ALERT: ${preparedIncident.vesselName} Incident`;
+        // Create email subject with direct injection of vessel name
+        // Use direct string substitution for highest reliability
+        const subject = `🚨 MARITIME ALERT: TEST-VESSEL-NAME=${preparedIncident.vesselName} / TYPE=${preparedIncident.vesselType}`;
         
         // Create HTML content with public link
         // Before sending, log the vessel data one final time to verify
@@ -993,11 +994,53 @@ export const handler = async (event, context) => {
         console.log('- vessel type:', templateData.incident.vessel.fields.type);
         console.log('- vessel flag:', templateData.incident.vessel.fields.flag);
         
+        // Add special vessel debug check directly before email generation
+        // Log all vessel data for debugging
+        console.log('FINAL VESSEL DATA CHECK BEFORE RENDERING:');
+        console.log('- Template vessel data:', JSON.stringify(templateData.incident.vessel.fields));
+        console.log('- Vessel name:', templateData.incident.vessel.fields.name);
+        console.log('- preparedIncident vessel name:', preparedIncident.vesselName);
+        
         // Generate HTML using the standardized structure
-        const htmlContent = await generateEmailHtml(
-          templateData, 
-          templateOverrides
-        );
+        // But with a direct vessel name injection for this test
+        let htmlContent;
+        
+        // Use the prepare email helper, but with debug info directly in the email
+        try {
+          htmlContent = await generateEmailHtml(
+            templateData, 
+            templateOverrides
+          );
+          
+          // Inject the vessel name directly into the html content for testing
+          // At the top of the body, add a debug section with the vessel data
+          const debugInfo = `
+          <div style="background-color: #f8f9fa; padding: 10px; margin: 20px; border: 1px solid #dee2e6;">
+            <h2 style="margin-top: 0; color: red;">DIRECT VESSEL DATA INJECTION FOR DEBUGGING</h2>
+            <p style="font-size: 16px;"><strong>Vessel Name:</strong> ${preparedIncident.vesselName}</p>
+            <p style="font-size: 16px;"><strong>Vessel Type:</strong> ${preparedIncident.vesselType}</p>
+            <p style="font-size: 16px;"><strong>Vessel Flag:</strong> ${preparedIncident.vesselFlag}</p>
+            <p style="font-size: 16px;"><strong>Vessel IMO:</strong> ${preparedIncident.vesselIMO}</p>
+            <p style="font-size: 16px;"><strong>Template Vessel Data:</strong> ${JSON.stringify(templateData.incident.vessel.fields)}</p>
+            <hr style="border: 1px solid #f3f3f3;">
+            <p style="font-size: 16px;">If you see this section but not the vessel data in the email template above, there's an issue with how the template is processing the data.</p>
+          </div>
+          `;
+          
+          // Insert debugInfo right after the body tag
+          // Make sure to insert after the opening body tag
+          htmlContent = htmlContent.replace('<body', '<body');
+          htmlContent = htmlContent.replace('<body style=', debugInfo + '<body style=');
+          
+          console.log('Added debug vessel info to email HTML');
+        } catch (error) {
+          console.error('Error generating HTML with debug info:', error);
+          // Fallback to standard template
+          htmlContent = await generateEmailHtml(
+            templateData, 
+            templateOverrides
+          );
+        }
         
         // Create email object - renamed to avoid variable collision
         const sendGridEmailData = {
