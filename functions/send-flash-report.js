@@ -138,10 +138,29 @@ export const handler = async (event, context) => {
         try {
           console.log('Attempting to fetch incident data from cache...');
           // Use our new caching layer for consistent data
-          const cachedData = await getCachedIncident(incidentId);
+          let cachedData = await getCachedIncident(incidentId);
           
           if (cachedData) {
             console.log('Cached data fetch successful!');
+            console.log('DEBUG - Cached data content:', JSON.stringify(cachedData).substring(0, 500));
+            
+            // Validate cache data is usable
+            if (!cachedData.nested || 
+                !cachedData.nested.incident || 
+                !cachedData.nested.incident.fields || 
+                Object.keys(cachedData.nested.incident.fields).length === 0) {
+              console.error('Invalid or empty cached data structure, forcing refresh...');
+              
+              // Force a refresh to get fresh data
+              const refreshedData = await getCachedIncident(incidentId, { forceRefresh: true });
+              if (!refreshedData || !refreshedData.nested || !refreshedData.nested.incident) {
+                console.error('Still unable to get valid data after force refresh');
+                throw new Error('Unable to get valid incident data');
+              }
+              console.log('Successfully refreshed cached data');
+              // Use the refreshed data
+              cachedData = refreshedData;
+            }
             
             // Extract data using the standardized structure
             // For backward compatibility, use the nested structure

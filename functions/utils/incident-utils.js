@@ -202,13 +202,30 @@ export async function getIncident(incidentId) {
     }
     console.log('======================================');
     
-    // Return combined data
-    return {
+    // Prepare the return data
+    const returnData = {
       incident: incidentData,
       vessel: vesselData,
       incidentVessel: incidentVesselDetails,
       incidentType: incidentTypeData
     };
+    
+    // Debug log the full structure we're returning
+    console.log('INCIDENT UTILS - RETURN DATA STRUCTURE:');
+    console.log('- Has incident:', !!returnData.incident);
+    console.log('- Has vessel:', !!returnData.vessel);
+    console.log('- Has incidentVessel:', !!returnData.incidentVessel);
+    console.log('- Has incidentType:', !!returnData.incidentType);
+    
+    if (returnData.incident) {
+      console.log('- incident is object?', typeof returnData.incident === 'object');
+      console.log('- incident has fields?', !!returnData.incident.fields);
+      if (returnData.incident.fields) {
+        console.log('- incident fields keys:', Object.keys(returnData.incident.fields).join(', '));
+      }
+    }
+    
+    return returnData;
   } catch (error) {
     console.error(`Error fetching incident data: ${error.message}`);
     throw error;

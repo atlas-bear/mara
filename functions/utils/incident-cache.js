@@ -18,6 +18,14 @@ export async function getCachedIncident(incidentId, options = {}) {
   if (!incidentId) {
     throw new Error('Incident ID is required');
   }
+  
+  console.log(`getCachedIncident called with incidentId: ${incidentId}, type: ${typeof incidentId}`);
+  
+  // Validate incidentId format
+  if (typeof incidentId !== 'string') {
+    console.error(`Invalid incidentId type: ${typeof incidentId}, converting to string`);
+    incidentId = String(incidentId);
+  }
 
   const {
     forceRefresh = false,
@@ -52,6 +60,7 @@ export async function getCachedIncident(incidentId, options = {}) {
 
   // If we're here, we need to fetch fresh data from Airtable
   try {
+    console.log(`Fetching fresh incident data for ${incidentId} from Airtable...`);
     const incidentData = await getIncident(incidentId);
     
     if (!incidentData) {
@@ -59,8 +68,38 @@ export async function getCachedIncident(incidentId, options = {}) {
       return null;
     }
     
+    // Debug what we got from Airtable
+    console.log('RECEIVED DATA FROM AIRTABLE:');
+    console.log('- Has incident:', !!incidentData.incident);
+    console.log('- Has vessel:', !!incidentData.vessel);
+    console.log('- Has incidentVessel:', !!incidentData.incidentVessel);
+    console.log('- Has incidentType:', !!incidentData.incidentType);
+    
+    if (incidentData.incident) {
+      console.log('- Incident fields available:', Object.keys(incidentData.incident.fields || {}).join(', '));
+    }
+    
+    // Check if we have valid incident data before enriching
+    if (!incidentData.incident || !incidentData.incident.fields || Object.keys(incidentData.incident.fields).length === 0) {
+      console.error(`Invalid incident data structure received from Airtable for ${incidentId}`);
+      console.log('Raw incident data:', JSON.stringify(incidentData).substring(0, 500));
+      return null;
+    }
+    
     // Enrich and standardize the data
     const enrichedData = enrichIncidentData(incidentData);
+    
+    // Validate enriched data before storing
+    if (!enrichedData || !enrichedData.id) {
+      console.error('Enrichment failed to produce valid data for caching');
+      console.log('Enriched data:', JSON.stringify(enrichedData));
+      
+      // Don't cache invalid data
+      return null;
+    }
+    
+    console.log(`Successfully enriched data for incident ${incidentId} with fields:`, 
+                Object.keys(enrichedData).join(', '));
     
     // Store in cache with timestamp
     await cacheOps.store(cacheKey, { data: enrichedData });
@@ -68,6 +107,7 @@ export async function getCachedIncident(incidentId, options = {}) {
     return returnRaw ? { data: enrichedData, timestamp: new Date().toISOString() } : enrichedData;
   } catch (error) {
     console.error(`Error fetching incident ${incidentId} from source:`, error);
+    console.error(error.stack);
     throw error;
   }
 }
