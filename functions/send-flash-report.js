@@ -1,6 +1,7 @@
 import sgMail from '@sendgrid/mail';
 import axios from 'axios';
 import { getIncident } from './utils/incident-utils.js';
+import { getCachedIncident } from './utils/incident-cache.js';
 import { getVesselByIMO, getVesselByName, getVesselById } from './utils/vessel-utils.js';
 import { validateData } from './utils/validation.js';
 import { corsHeaders } from './utils/environment.js';
@@ -133,89 +134,162 @@ export const handler = async (event, context) => {
     try {
       // Skip Airtable fetch if we already have data from the client
       if (!incidentData) {
-        // Try to get real incident data from Airtable
+        // Try to get cached incident data
         try {
-          console.log('Attempting to fetch incident data from Airtable...');
-          // This will now return a complex object with incident, vessel, and incidentType data
-          const airtableData = await getIncident(incidentId);
+          console.log('Attempting to fetch incident data from cache...');
+          // Use our new caching layer for consistent data
+          const cachedData = await getCachedIncident(incidentId);
           
-          if (airtableData) {
-            console.log('Airtable data fetch successful!');
+          if (cachedData) {
+            console.log('Cached data fetch successful!');
             
-            // Extract the data components - note the new incidentVessel data
-            incidentData = airtableData.incident || {};
-            const fetchedVesselData = airtableData.vessel || {};
-            const fetchedIncidentVesselData = airtableData.incidentVessel || {}; 
-            const incidentTypeData = airtableData.incidentType || {};
-          
-          // Log what we found
-          console.log('Incident data:', Object.keys(incidentData).join(', '));
-          console.log('Vessel data:', fetchedVesselData ? Object.keys(fetchedVesselData).join(', ') : 'none');
-          console.log('Incident Vessel data:', fetchedIncidentVesselData ? Object.keys(fetchedIncidentVesselData).join(', ') : 'none');
-          console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
-          
-          // Combine data for easier access in the template
-          // Update vesselData with data from relationship
-          vesselData = fetchedVesselData || {};
-          const incidentVesselData = fetchedIncidentVesselData || {};
-          
-          // Add vessel status and crew impact from incident_vessel if available
-          if (incidentVesselData) {
-            if (incidentVesselData.vessel_status_during_incident) {
-              incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
-              console.log('Adding vessel_status_during_incident:', incidentVesselData.vessel_status_during_incident);
-            }
-            if (incidentVesselData.crew_impact) {
-              incidentData.crew_impact = incidentVesselData.crew_impact;
-              console.log('Adding crew_impact:', incidentVesselData.crew_impact);
-            }
-            if (incidentVesselData.damage_sustained) {
-              incidentData.damage_sustained = incidentVesselData.damage_sustained;
-              console.log('Adding damage_sustained:', incidentVesselData.damage_sustained);
-            }
-            console.log('Added incident_vessel data to incident record');
-          } else {
-            console.warn('No incident_vessel data available to add to incident record');
-          }
-          
-          // Log vessel data before we use it
-          console.log('VESSEL DATA DEBUG:');
-          console.log('- vesselData direct:', JSON.stringify(vesselData));
-          console.log('- vessel name from vessel table:', vesselData.name);
-          console.log('- vessel type from vessel table:', vesselData.type);
-          console.log('- vessel flag from vessel table:', vesselData.flag);
-          console.log('- vessel IMO from vessel table:', vesselData.imo);
-          
-          // Check for direct vessel data in incident record
-          if (incidentData.vessel) {
-            console.log('- Direct vessel link in incident:', incidentData.vessel);
-          }
-          
-          // Add incident type info to incident data
-          if (incidentTypeData && incidentTypeData.name) {
-            incidentData.incident_type_name = incidentTypeData.name;
-          }
-        } else {
-          console.log('No data found in Airtable');
-            }
-          } catch (airtableError) {
-            console.warn('Could not fetch from Airtable:', airtableError.message);
-            console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
-            
-            // If Airtable fetch fails and this is the sample incident ID, use sample data
-            if (incidentId === '2025-0010') {
-              console.log('Using sample incident data instead');
-              incidentData = sampleIncidentData;
+            // Extract data using the standardized structure
+            // For backward compatibility, use the nested structure
+            if (cachedData.nested) {
+              console.log('Using standardized nested data structure');
               
-              // Create sample vessel data since we're using the sample data
-              vesselData = {
-                name: incidentData.vessel_name,
-                type: incidentData.vessel_type,
-                flag: incidentData.vessel_flag,
-                imo: incidentData.vessel_imo
+              // Extract the data components from the standardized nested structure
+              incidentData = cachedData.nested.incident.fields || {};
+              const fetchedVesselData = cachedData.nested.vessel.fields || {};
+              const fetchedIncidentVesselData = cachedData.nested.incidentVessel.fields || {}; 
+              const incidentTypeData = cachedData.nested.incidentType.fields || {};
+              
+              // Log what we found
+              console.log('Incident data:', Object.keys(incidentData).join(', '));
+              console.log('Vessel data:', fetchedVesselData ? Object.keys(fetchedVesselData).join(', ') : 'none');
+              console.log('Incident Vessel data:', fetchedIncidentVesselData ? Object.keys(fetchedIncidentVesselData).join(', ') : 'none');
+              console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
+              
+              // Combine data for easier access in the template
+              // Update vesselData with data from relationship
+              vesselData = fetchedVesselData || {};
+              const incidentVesselData = fetchedIncidentVesselData || {};
+              
+              // Add vessel status and crew impact from incident_vessel if available
+              if (incidentVesselData) {
+                if (incidentVesselData.vessel_status_during_incident) {
+                  incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
+                  console.log('Adding vessel_status_during_incident:', incidentVesselData.vessel_status_during_incident);
+                }
+                if (incidentVesselData.crew_impact) {
+                  incidentData.crew_impact = incidentVesselData.crew_impact;
+                  console.log('Adding crew_impact:', incidentVesselData.crew_impact);
+                }
+                if (incidentVesselData.damage_sustained) {
+                  incidentData.damage_sustained = incidentVesselData.damage_sustained;
+                  console.log('Adding damage_sustained:', incidentVesselData.damage_sustained);
+                }
+                console.log('Added incident_vessel data to incident record');
+              } else {
+                console.warn('No incident_vessel data available to add to incident record');
+              }
+              
+              // Log vessel data before we use it
+              console.log('VESSEL DATA DEBUG:');
+              console.log('- vesselData direct:', JSON.stringify(vesselData));
+              console.log('- vessel name from vessel table:', vesselData.name);
+              console.log('- vessel type from vessel table:', vesselData.type);
+              console.log('- vessel flag from vessel table:', vesselData.flag);
+              console.log('- vessel IMO from vessel table:', vesselData.imo);
+              
+              // Check for direct vessel data in incident record
+              if (incidentData.vessel) {
+                console.log('- Direct vessel link in incident:', incidentData.vessel);
+              }
+              
+              // Add incident type info to incident data
+              if (incidentTypeData && incidentTypeData.name) {
+                incidentData.incident_type_name = incidentTypeData.name;
+              }
+              
+            } else {
+              // If for some reason we don't have the nested structure, use flat data directly
+              console.log('Using flat data structure from cache');
+              
+              // Create the structure expected by the rest of the function
+              incidentData = {
+                id: cachedData.id,
+                title: cachedData.title,
+                description: cachedData.description,
+                date_time_utc: cachedData.date,
+                location_name: cachedData.location,
+                latitude: cachedData.coordinates?.latitude,
+                longitude: cachedData.coordinates?.longitude,
+                vessel_status_during_incident: cachedData.status,
+                crew_impact: cachedData.crewStatus,
+                analysis: cachedData.analysis,
+                recommendations: cachedData.recommendations,
+                map_image_url: cachedData.mapImageUrl,
+                incident_type_name: cachedData.type
               };
+              
+              // Set up vessel data
+              vesselData = {
+                name: cachedData.vesselName,
+                type: cachedData.vesselType,
+                flag: cachedData.vesselFlag,
+                imo: cachedData.vesselIMO
+              };
+              
+              console.log('Constructed incident data from flat structure');
+            }
+          } else {
+            console.log('No data found in cache, falling back to direct Airtable fetch');
+            
+            // Fall back to direct Airtable fetch if cache fails
+            try {
+              console.log('Attempting to fetch incident data directly from Airtable...');
+              const airtableData = await getIncident(incidentId);
+              
+              if (airtableData) {
+                console.log('Airtable direct fetch successful!');
+                
+                // Use the same data extraction as before
+                incidentData = airtableData.incident || {};
+                vesselData = airtableData.vessel || {};
+                const incidentVesselData = airtableData.incidentVessel || {};
+                const incidentTypeData = airtableData.incidentType || {};
+                
+                // Add vessel status and crew impact from incident_vessel if available
+                if (incidentVesselData) {
+                  if (incidentVesselData.vessel_status_during_incident) {
+                    incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
+                  }
+                  if (incidentVesselData.crew_impact) {
+                    incidentData.crew_impact = incidentVesselData.crew_impact;
+                  }
+                  if (incidentVesselData.damage_sustained) {
+                    incidentData.damage_sustained = incidentVesselData.damage_sustained;
+                  }
+                }
+                
+                // Add incident type info to incident data
+                if (incidentTypeData && incidentTypeData.name) {
+                  incidentData.incident_type_name = incidentTypeData.name;
+                }
+              }
+            } catch (airtableError) {
+              console.warn('Both cache and direct Airtable fetch failed:', airtableError.message);
             }
           }
+        } catch (cacheError) {
+          console.warn('Error fetching from cache:', cacheError.message);
+          console.log('Sample incident ID check:', incidentId, 'Matches?', incidentId === '2025-0010');
+          
+          // If cache fetch fails and this is the sample incident ID, use sample data
+          if (incidentId === '2025-0010') {
+            console.log('Using sample incident data instead');
+            incidentData = sampleIncidentData;
+            
+            // Create sample vessel data since we're using the sample data
+            vesselData = {
+              name: incidentData.vessel_name,
+              type: incidentData.vessel_type,
+              flag: incidentData.vessel_flag,
+              imo: incidentData.vessel_imo
+            };
+          }
+        }
       } else {
         console.log('Using client-provided incident data, skipping Airtable fetch');
         
