@@ -12,9 +12,49 @@ export async function getIncident(incidentId) {
   }
 
   console.log(`Fetching incident ${incidentId} from Airtable...`);
+  console.log(`API Key available: ${!!process.env.AT_API_KEY}`);
+  console.log(`Base ID available: ${!!process.env.AT_BASE_ID_CSER}`);
 
   try {
-    // 1. Fetch the incident record
+    // Additional debug for this specific incident
+    if (incidentId === '20250302-2100-SIN') {
+      console.log(`⚠️ SPECIAL DEBUG FOR ID: ${incidentId}`);
+      console.log(`Attempting to list ALL incidents to verify API access...`);
+      
+      // Try to list a few incidents to verify API access
+      try {
+        const listResponse = await axios.get(
+          `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.AT_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            params: {
+              maxRecords: 3,
+            },
+          }
+        );
+        
+        if (listResponse.data.records && listResponse.data.records.length > 0) {
+          console.log(`✅ API working! Found ${listResponse.data.records.length} incidents:`);
+          listResponse.data.records.forEach((record, i) => {
+            console.log(`  [${i+1}] ID: ${record.fields.id || 'N/A'}`);
+          });
+        } else {
+          console.log(`❌ API returned no records - might be empty table or permissions issue`);
+        }
+      } catch (listError) {
+        console.error(`❌ Error listing incidents:`, listError.message);
+      }
+    }
+    
+    // Check if we're using the extended ID format (20250302-2100-SIN)
+    // Add debug logs to understand the format we're dealing with
+    console.log(`Incident ID format analysis: Length ${incidentId.length}, Contains hyphens: ${incidentId.includes('-')}`);
+    
+    // 1. Fetch the incident record - using exact match first
+    console.log(`Attempting exact match with filter: {id}="${incidentId}"`);
     const incidentResponse = await axios.get(
       `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
       {
@@ -30,7 +70,50 @@ export async function getIncident(incidentId) {
     );
 
     if (!incidentResponse.data.records || incidentResponse.data.records.length === 0) {
-      console.log(`No incident found with ID ${incidentId}`);
+      console.log(`No incident found with exact ID match "${incidentId}"`);
+      
+      // For this specific problem ID, try a broader search
+      if (incidentId === '20250302-2100-SIN') {
+        console.log(`Trying broader search for: ${incidentId}`);
+        
+        // Try a contains search which might be more forgiving
+        try {
+          const broadResponse = await axios.get(
+            `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.AT_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              params: {
+                filterByFormula: `SEARCH("${incidentId.split('-')[0]}", {id})`,
+                maxRecords: 3,
+              },
+            }
+          );
+          
+          if (broadResponse.data.records && broadResponse.data.records.length > 0) {
+            console.log(`✅ Found ${broadResponse.data.records.length} potential matches with broader search:`);
+            broadResponse.data.records.forEach((record, i) => {
+              console.log(`  [${i+1}] ID: ${record.fields.id || 'N/A'}`);
+            });
+            
+            // Use the first match
+            console.log(`Using first match as best option`);
+            return {
+              incident: broadResponse.data.records[0],
+              vessel: null, // Will fetch these separately
+              incidentVessel: null,
+              incidentType: null
+            };
+          } else {
+            console.log(`❌ No matches found with broader search either`);
+          }
+        } catch (broadError) {
+          console.error(`Error with broader search:`, broadError.message);
+        }
+      }
+      
       return null;
     }
 
