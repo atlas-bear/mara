@@ -1007,6 +1007,7 @@ export const handler = async (event, context) => {
 
           // Create email subject in the new format
           const locationName =
+            cachedData.location?.name ||
             preparedIncident.location?.name ||
             preparedIncident.region ||
             "Unknown Location";
