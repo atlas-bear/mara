@@ -1005,12 +1005,23 @@ export const handler = async (event, context) => {
             brandParam
           );
 
-          // Create email subject in the new format
-          const locationName =
-            preparedIncident.location?.name ||
-            preparedIncident.region ||
-            "Unknown Location";
-          const subject = `Maritime Flash Report - ${locationName}`;
+          // Create email subject with location name or region
+          let locationForSubject = "Maritime Incident";
+          
+          // First try to use incidentData.location_name
+          if (incidentData.location_name) {
+            locationForSubject = incidentData.location_name;
+          } 
+          // Then try preparedIncident.location 
+          else if (typeof preparedIncident.location === 'string' && preparedIncident.location !== 'Unknown Location') {
+            locationForSubject = preparedIncident.location;
+          }
+          // Finally fall back to region if available
+          else if (incidentData.region) {
+            locationForSubject = incidentData.region;
+          }
+          
+          const subject = `Maritime Flash Report - ${locationForSubject}`;
 
           // Create HTML content with public link
           // Before sending, log the vessel data one final time to verify
