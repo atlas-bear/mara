@@ -4,6 +4,31 @@ const AIRTABLE_BASE_ID = process.env.AT_BASE_ID_CSER;
 const AIRTABLE_API_KEY = process.env.AT_API_KEY;
 const AIRTABLE_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}`;
 
+const axios = require("axios");
+
+async function findIncidentByCustomId(customId) {
+  try {
+    const response = await axios.get(`${AIRTABLE_URL}/incident`, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+      params: {
+        filterByFormula: `{id}='${customId}'`,
+        maxRecords: 1,
+      },
+    });
+
+    const records = response.data.records;
+    if (records.length === 0) {
+      throw new Error(`Incident with ID ${customId} not found`);
+    }
+
+    return records[0]; // Return the first matching record
+  } catch (error) {
+    throw new Error(
+      `Failed to search incident: ${customId} - ${error.response?.statusText || error.message}`
+    );
+  }
+}
+
 async function fetchAirtableRecord(table, recordId) {
   try {
     const response = await axios.get(`${AIRTABLE_URL}/${table}/${recordId}`, {
@@ -36,8 +61,8 @@ exports.handler = async (event) => {
       };
     }
 
-    // Fetch the main incident record
-    const incidentData = await fetchAirtableRecord("incident", incidentId);
+    // Search for the incident by its custom ID
+    const incidentData = await findIncidentByCustomId(incidentId);
     const incidentFields = incidentData.fields;
 
     // Resolve linked records
