@@ -150,30 +150,24 @@ export const handler = async (event, context) => {
             console.log('Cached data fetch successful!');
             console.log('DEBUG - Cached data content:', JSON.stringify(cachedData).substring(0, 500));
             
-            // Enhanced debugging for vessel data structure
+            // Enhanced debugging for vessel data in the new comprehensive structure
             console.log('VESSEL DATA STRUCTURE CHECK:');
-            console.log('- Has nested property:', !!cachedData.nested);
-            if (cachedData.nested) {
-              console.log('- Has nested.vessel property:', !!cachedData.nested.vessel);
-              if (cachedData.nested.vessel) {
-                console.log('- nested.vessel structure:', JSON.stringify(cachedData.nested.vessel).substring(0, 200));
-                console.log('- Has nested.vessel.fields?', !!cachedData.nested.vessel.fields);
-                if (cachedData.nested.vessel.fields) {
-                  console.log('- vessel fields:', Object.keys(cachedData.nested.vessel.fields).join(', '));
-                }
-              }
+            console.log('- Has vessels_involved array:', !!cachedData.vessels_involved && Array.isArray(cachedData.vessels_involved));
+            
+            if (cachedData.vessels_involved && cachedData.vessels_involved.length > 0) {
+              console.log('- Number of vessels:', cachedData.vessels_involved.length);
+              console.log('- First vessel data:', JSON.stringify(cachedData.vessels_involved[0]));
+            } else {
+              console.log('- No vessels found in vessels_involved array');
             }
             
             // Validate cache data is usable
-            if (!cachedData.nested || 
-                !cachedData.nested.incident || 
-                !cachedData.nested.incident.fields || 
-                Object.keys(cachedData.nested.incident.fields).length === 0) {
+            if (!cachedData.id || !cachedData.title) {
               console.error('Invalid or empty cached data structure, forcing refresh...');
               
               // Force a refresh to get fresh data
               const refreshedData = await getCachedIncident(incidentId, { forceRefresh: true });
-              if (!refreshedData || !refreshedData.nested || !refreshedData.nested.incident) {
+              if (!refreshedData || !refreshedData.id) {
                 console.error('Still unable to get valid data after force refresh');
                 throw new Error('Unable to get valid incident data');
               }
@@ -182,99 +176,61 @@ export const handler = async (event, context) => {
               cachedData = refreshedData;
             }
             
-            // Extract data using the standardized structure
-            // For backward compatibility, use the nested structure
-            if (cachedData.nested) {
-              console.log('Using standardized nested data structure');
-              
-              // Extract the data components from the standardized nested structure
-              incidentData = cachedData.nested.incident.fields || {};
-              // Add optional chaining to handle null nested objects
-              const fetchedVesselData = cachedData.nested.vessel?.fields || {};
-              const fetchedIncidentVesselData = cachedData.nested.incidentVessel?.fields || {}; 
-              const incidentTypeData = cachedData.nested.incidentType?.fields || {};
-              
-              // Log what we found
-              console.log('Incident data:', Object.keys(incidentData).join(', '));
-              console.log('Vessel data:', fetchedVesselData ? Object.keys(fetchedVesselData).join(', ') : 'none');
-              console.log('Incident Vessel data:', fetchedIncidentVesselData ? Object.keys(fetchedIncidentVesselData).join(', ') : 'none');
-              console.log('Incident type data:', incidentTypeData ? Object.keys(incidentTypeData).join(', ') : 'none');
-              
-              // Combine data for easier access in the template
-              // Update vesselData with data from relationship
-              // Make a deep copy to prevent reference issues
-              vesselData = { ...fetchedVesselData };
-              console.log('DEEP COPY OF VESSEL DATA:', JSON.stringify(vesselData));
-              const incidentVesselData = { ...fetchedIncidentVesselData };
-              
-              // Add vessel status and crew impact from incident_vessel if available
-              if (incidentVesselData) {
-                if (incidentVesselData.vessel_status_during_incident) {
-                  incidentData.vessel_status_during_incident = incidentVesselData.vessel_status_during_incident;
-                  console.log('Adding vessel_status_during_incident:', incidentVesselData.vessel_status_during_incident);
-                }
-                if (incidentVesselData.crew_impact) {
-                  incidentData.crew_impact = incidentVesselData.crew_impact;
-                  console.log('Adding crew_impact:', incidentVesselData.crew_impact);
-                }
-                if (incidentVesselData.damage_sustained) {
-                  incidentData.damage_sustained = incidentVesselData.damage_sustained;
-                  console.log('Adding damage_sustained:', incidentVesselData.damage_sustained);
-                }
-                console.log('Added incident_vessel data to incident record');
-              } else {
-                console.warn('No incident_vessel data available to add to incident record');
-              }
-              
-              // Log vessel data before we use it
-              console.log('VESSEL DATA DEBUG:');
-              console.log('- vesselData direct:', JSON.stringify(vesselData));
-              console.log('- vessel name from vessel table:', vesselData.name);
-              console.log('- vessel type from vessel table:', vesselData.type);
-              console.log('- vessel flag from vessel table:', vesselData.flag);
-              console.log('- vessel IMO from vessel table:', vesselData.imo);
-              
-              // Check for direct vessel data in incident record
-              if (incidentData.vessel) {
-                console.log('- Direct vessel link in incident:', incidentData.vessel);
-              }
-              
-              // Add incident type info to incident data
-              if (incidentTypeData && incidentTypeData.name) {
-                incidentData.incident_type_name = incidentTypeData.name;
-              }
-              
-            } else {
-              // If for some reason we don't have the nested structure, use flat data directly
-              console.log('Using flat data structure from cache');
-              
-              // Create the structure expected by the rest of the function
-              incidentData = {
-                id: cachedData.id,
-                title: cachedData.title,
-                description: cachedData.description,
-                date_time_utc: cachedData.date,
-                location_name: cachedData.location,
-                latitude: cachedData.coordinates?.latitude,
-                longitude: cachedData.coordinates?.longitude,
-                vessel_status_during_incident: cachedData.status,
-                crew_impact: cachedData.crewStatus,
-                analysis: cachedData.analysis,
-                recommendations: cachedData.recommendations,
-                map_image_url: cachedData.mapImageUrl,
-                incident_type_name: cachedData.type
-              };
-              
-              // Set up vessel data
-              vesselData = {
-                name: cachedData.vesselName,
-                type: cachedData.vesselType,
-                flag: cachedData.vesselFlag,
-                imo: cachedData.vesselIMO
-              };
-              
-              console.log('Constructed incident data from flat structure');
+            // Extract incident data from the comprehensive structure
+            console.log('Using comprehensive data structure from cache');
+            
+            // Set up basic incident data fields
+            incidentData = {
+              id: cachedData.id,
+              title: cachedData.title,
+              description: cachedData.description,
+              date_time_utc: cachedData.date_time_utc,
+              location_name: cachedData.location?.name,
+              latitude: cachedData.location?.latitude,
+              longitude: cachedData.location?.longitude,
+              analysis: cachedData.analysis,
+              recommendations: cachedData.recommendations,
+              map_image_url: cachedData.map_image_url,
+              status: cachedData.status,
+              vessel_status_during_incident: cachedData.status, // for compatibility with existing fields
+              crew_impact: cachedData.vessels_involved?.[0]?.crew_impact || ''
+            };
+            
+            // Extract incident type from the array
+            if (cachedData.incident_type && cachedData.incident_type.length > 0) {
+              incidentData.incident_type_name = cachedData.incident_type[0];
+              console.log('Found incident type:', incidentData.incident_type_name);
             }
+            
+            // Extract vessel data from vessels_involved array
+            if (cachedData.vessels_involved && cachedData.vessels_involved.length > 0) {
+              const firstVessel = cachedData.vessels_involved[0];
+              
+              vesselData = {
+                name: firstVessel.name,
+                type: firstVessel.type,
+                flag: firstVessel.flag,
+                imo: firstVessel.imo
+              };
+              
+              console.log('Extracted vessel data from vessels_involved array:', JSON.stringify(vesselData));
+            } else {
+              console.log('No vessel data found in cache, using defaults');
+              vesselData = {
+                name: 'Unknown Vessel',
+                type: 'Unknown',
+                flag: 'Unknown',
+                imo: 'N/A'
+              };
+            }
+            
+            // Log the data we've extracted for debugging
+            console.log('FINAL DATA FROM CACHE:');
+            console.log('- Incident ID:', incidentData.id);
+            console.log('- Vessel name:', vesselData.name);
+            console.log('- Vessel type:', vesselData.type);
+            console.log('- Vessel flag:', vesselData.flag);
+            console.log('- Vessel IMO:', vesselData.imo);
           } else {
             console.log('No data found in cache, falling back to direct Airtable fetch');
             

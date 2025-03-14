@@ -1,9 +1,12 @@
 import { cacheOps } from './cache.js';
-import { getIncident } from './incident-utils.js';
+import axios from 'axios';
 
 // Constants
-const CACHE_TTL_HOURS = 24; // Default cache time-to-live in hours
+const CACHE_TTL_HOURS = 24; // Default cache time-to-live in hours 
 const CACHE_PREFIX = 'incident:';
+const AIRTABLE_BASE_ID = process.env.AT_BASE_ID_CSER;
+const AIRTABLE_API_KEY = process.env.AT_API_KEY;
+const AIRTABLE_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}`;
 
 /**
  * Gets an incident from cache or fetches it from Airtable if not in cache
@@ -20,7 +23,6 @@ export async function getCachedIncident(incidentId, options = {}) {
   }
   
   console.log(`getCachedIncident called with incidentId: ${incidentId}, type: ${typeof incidentId}`);
-  console.log(`INCIDENT ID DIAGNOSTICS - Raw format: "${incidentId}"`);
   
   // Validate incidentId format
   if (typeof incidentId !== 'string') {
@@ -28,8 +30,7 @@ export async function getCachedIncident(incidentId, options = {}) {
     incidentId = String(incidentId);
   }
   
-  // Force-clear any potentially stale cache for 20250302-2100-SIN
-  // This ensures we always fetch fresh data for this specific incident
+  // Force-clear any potentially stale cache for test incident
   if (incidentId === '20250302-2100-SIN') {
     console.log('Clearing cache for 20250302-2100-SIN to ensure fresh data from Airtable');
     try {
@@ -73,7 +74,9 @@ export async function getCachedIncident(incidentId, options = {}) {
   // If we're here, we need to fetch fresh data from Airtable
   try {
     console.log(`Fetching fresh incident data for ${incidentId} from Airtable...`);
-    const incidentData = await getIncident(incidentId);
+    
+    // Using the approach from fetch-incident.js which successfully gets all related data
+    const incidentData = await fetchIncidentDataComprehensive(incidentId);
     
     if (!incidentData) {
       console.log(`No incident found with ID ${incidentId}`);
@@ -81,42 +84,23 @@ export async function getCachedIncident(incidentId, options = {}) {
     }
     
     // Debug what we got from Airtable
-    console.log('RECEIVED DATA FROM AIRTABLE:');
-    console.log('- Has incident:', !!incidentData.incident);
-    console.log('- Has vessel:', !!incidentData.vessel);
-    console.log('- Has incidentVessel:', !!incidentData.incidentVessel);
-    console.log('- Has incidentType:', !!incidentData.incidentType);
+    console.log('RECEIVED COMPREHENSIVE DATA FROM AIRTABLE:');
+    console.log('- Has id:', !!incidentData.id);
+    console.log('- Has title:', !!incidentData.title);
+    console.log('- Has location:', !!incidentData.location);
+    console.log('- Has vessels_involved:', !!incidentData.vessels_involved && Array.isArray(incidentData.vessels_involved));
     
-    if (incidentData.incident) {
-      console.log('- Incident fields available:', Object.keys(incidentData.incident.fields || {}).join(', '));
+    if (incidentData.vessels_involved) {
+      console.log('- Number of vessels involved:', incidentData.vessels_involved.length);
+      if (incidentData.vessels_involved.length > 0) {
+        console.log('- First vessel data:', JSON.stringify(incidentData.vessels_involved[0]));
+      }
     }
-    
-    // Check if we have valid incident data before enriching
-    if (!incidentData.incident || !incidentData.incident.fields || Object.keys(incidentData.incident.fields).length === 0) {
-      console.error(`Invalid incident data structure received from Airtable for ${incidentId}`);
-      console.log('Raw incident data:', JSON.stringify(incidentData).substring(0, 500));
-      return null;
-    }
-    
-    // Enrich and standardize the data
-    const enrichedData = enrichIncidentData(incidentData);
-    
-    // Validate enriched data before storing
-    if (!enrichedData || !enrichedData.id) {
-      console.error('Enrichment failed to produce valid data for caching');
-      console.log('Enriched data:', JSON.stringify(enrichedData));
-      
-      // Don't cache invalid data
-      return null;
-    }
-    
-    console.log(`Successfully enriched data for incident ${incidentId} with fields:`, 
-                Object.keys(enrichedData).join(', '));
     
     // Store in cache with timestamp
-    await cacheOps.store(cacheKey, { data: enrichedData });
+    await cacheOps.store(cacheKey, { data: incidentData });
     
-    return returnRaw ? { data: enrichedData, timestamp: new Date().toISOString() } : enrichedData;
+    return returnRaw ? { data: incidentData, timestamp: new Date().toISOString() } : incidentData;
   } catch (error) {
     console.error(`Error fetching incident ${incidentId} from source:`, error);
     console.error(error.stack);
@@ -125,145 +109,180 @@ export async function getCachedIncident(incidentId, options = {}) {
 }
 
 /**
- * Enriches incident data to provide a standard format with both nested and flat data
- * This function converts Airtable's raw nested data into a more usable format for templates and components
- * @param {Object} rawData - The raw incident data from Airtable
- * @returns {Object} Enriched and standardized incident data
+ * Fetches comprehensive incident data using the approach from fetch-incident.js
+ * This includes all related records (vessels, authorities, incident types, etc.)
+ * @param {string} incidentId - The ID of the incident to fetch
+ * @returns {Object|null} Complete incident data or null if not found
  */
-export function enrichIncidentData(rawData) {
-  // Handle case where rawData is null
-  if (!rawData) return null;
-  
-  console.log('Enriching incident data...');
-  
-  // Extract the individual components
-  const { incident, vessel, incidentVessel, incidentType } = rawData;
-  
-  // Handle both formats - direct objects or {id, fields} structure
-  const incidentFields = incident ? 
-    (incident.fields ? incident.fields : incident) : 
-    {};
+async function fetchIncidentDataComprehensive(incidentId) {
+  try {
+    // 1. Search for the incident by its custom ID
+    const incidentData = await findIncidentByCustomId(incidentId);
+    if (!incidentData) {
+      return null;
+    }
     
-  const vesselFields = vessel ? 
-    (vessel.fields ? vessel.fields : vessel) : 
-    {};
+    const incidentFields = incidentData.fields;
     
-  const incidentVesselFields = incidentVessel ? 
-    (incidentVessel.fields ? incidentVessel.fields : incidentVessel) : 
-    {};
+    // 2. Fetch all related records
+    // Resolve linked records for authorities, incident types, response types, etc.
+    const authorities = await fetchLinkedRecords(
+      "authorities_notified",
+      incidentFields.authorities_notified
+    );
     
-  const incidentTypeFields = incidentType ? 
-    (incidentType.fields ? incidentType.fields : incidentType) : 
-    {};
-  
-  // Debug vessel data structure in cache
-  console.log('CACHE VESSEL DATA CHECK:');
-  console.log('- Raw vessel object exists:', !!vessel);
-  console.log('- Raw vessel fields exists:', !!vesselFields);
-  if (vessel) {
-    console.log('- Raw vessel structure:', JSON.stringify(vessel).substring(0, 200));
-  }
-  
-  console.log('- Raw incidentVessel exists:', !!incidentVessel);
-  if (incidentVessel) {
-    console.log('- Raw incidentVessel structure:', JSON.stringify(incidentVessel).substring(0, 200));
-  }
-  
-  // Log available fields for debugging
-  console.log('Available fields in incident:', Object.keys(incidentFields).join(', '));
-  if (vesselFields) console.log('Available fields in vessel:', Object.keys(vesselFields).join(', '));
-  if (incidentVesselFields) console.log('Available fields in incidentVessel:', Object.keys(incidentVesselFields).join(', '));
-  
-  // 1. Create the nested structure (for server-side templates like email)
-  const nestedData = {
-    incident: { fields: incidentFields },
-    vessel: { fields: vesselFields },
-    incidentVessel: { fields: incidentVesselFields },
-    incidentType: { fields: incidentTypeFields }
-  };
-  
-  // Extract coordinates
-  const latitude = parseFloat(incidentFields.latitude) || 0;
-  const longitude = parseFloat(incidentFields.longitude) || 0;
-  
-  // 2. Create the flat structure that contains ALL data in a single level
-  // ENHANCED: Include all vessel and incident_vessel fields to ensure email has all needed data
-  const flatData = {
-    id: incidentFields.id,
-    type: incidentTypeFields.name || getIncidentTypeFromTitle(incidentFields.title),
-    title: incidentFields.title,
-    description: incidentFields.description,
-    date: incidentFields.date_time_utc || incidentFields.date,
-    location: incidentFields.location_name || incidentFields.location || 'Unknown Location',
-    coordinates: {
-      latitude: latitude,
-      longitude: longitude
-    },
+    const incidentTypes = await fetchLinkedRecords(
+      "incident_type",
+      incidentFields.incident_type_name
+    );
     
-    // PRIMARY VESSEL DATA (standardized field names for UI components)
-    vesselName: vesselFields.name,
-    vesselType: vesselFields.type,
-    vesselFlag: vesselFields.flag,
-    vesselIMO: vesselFields.imo,
+    const responseTypes = await fetchLinkedRecords(
+      "response_type",
+      incidentFields.response_type
+    );
     
-    // Add all raw vessel fields for completeness 
-    // This ensures ANY vessel field can be accessed from the flat structure
-    ...Object.keys(vesselFields).reduce((acc, key) => {
-      // Prefix with vessel_ to avoid name collisions
-      acc[`vessel_${key}`] = vesselFields[key];
-      return acc;
-    }, {}),
+    const weaponsUsed = await fetchLinkedRecords(
+      "weapons_used",
+      incidentFields.weapons_used
+    );
     
-    // Include ALL incident-vessel fields, not just the main ones
-    // This ensures ANY incident-vessel field can be accessed
-    ...Object.keys(incidentVesselFields).reduce((acc, key) => {
-      // Add the standard fields directly for backward compatibility
-      if (key === 'vessel_status_during_incident') {
-        acc.status = incidentVesselFields[key];
-      } else if (key === 'crew_impact') {
-        acc.crewStatus = incidentVesselFields[key];
-      } else if (key === 'vessel_destination') {
-        acc.destination = incidentVesselFields[key];
-      }
+    const itemsStolen = await fetchLinkedRecords(
+      "items_stolen",
+      incidentFields.items_stolen
+    );
+    
+    // 3. Fetch linked vessels through incident_vessel junction table
+    const incidentVessels = await fetchLinkedRecords(
+      "incident_vessel",
+      incidentFields.incident_vessel
+    );
+    
+    console.log('Fetched incident_vessel records:', incidentVessels.length);
+    console.log('First incident_vessel record:', JSON.stringify(incidentVessels[0] || {}).substring(0, 200));
+    
+    // Extract vessel IDs from incident_vessels
+    const vesselIds = incidentVessels.map((v) => v.vessel_id).flat();
+    console.log('Extracted vessel IDs:', vesselIds);
+    
+    // 4. Fetch vessel records using the IDs
+    const vessels = await fetchLinkedRecords("vessel", vesselIds);
+    console.log('Fetched vessel records:', vessels.length);
+    console.log('First vessel record:', JSON.stringify(vessels[0] || {}).substring(0, 200));
+    
+    // 5. Construct the response object exactly matching the structure specified
+    const responseData = {
+      id: incidentId,
+      title: incidentFields.title,
+      date_time_utc: incidentFields.date_time_utc,
+      location: {
+        latitude: parseFloat(incidentFields.latitude) || 0,
+        longitude: parseFloat(incidentFields.longitude) || 0,
+        name: incidentFields.location
+      },
+      incident_type: incidentTypes.map((t) => t.name),
+      description: incidentFields.description,
+      analysis: incidentFields.analysis,
+      recommendations: incidentFields.recommendations,
+      status: incidentFields.status,
+      weapons_used: weaponsUsed.map((w) => w.name),
+      items_stolen: itemsStolen.map((i) => i.name),
+      region: incidentFields.region,
+      response_type: responseTypes.map((r) => r.name),
+      authorities_notified: authorities.map((a) => a.name),
+      map_image_url: incidentFields.map_image_url,
       
-      // Add prefixed version of ALL fields
-      acc[`incident_vessel_${key}`] = incidentVesselFields[key];
-      return acc;
-    }, {}),
+      // Include the vessels array exactly as shown in the example
+      vessels_involved: vessels.map((v) => ({
+        id: v.id,
+        name: v.name,
+        type: v.type,
+        flag: v.flag,
+        imo: v.imo
+      }))
+    };
     
-    // Fallback for destination if not in incident_vessel
-    destination: incidentVesselFields.vessel_destination || incidentFields.vessel_destination,
-    
-    // Add raw fields status/crew for backward compatibility
-    status: incidentVesselFields.vessel_status_during_incident,
-    crewStatus: incidentVesselFields.crew_impact,
-    
-    // Lookup fields from resolved relationships
-    responseActions: incidentFields.response_type_names || [],
-    authoritiesNotified: incidentFields.authorities_notified_names || [],
-    itemsStolen: incidentFields.items_stolen_names || [],
-    weaponsUsed: incidentFields.weapons_used_names || [],
-    
-    // Analysis
-    analysis: incidentFields.analysis,
-    recommendations: incidentFields.recommendations,
-    
-    // Map image
-    mapImageUrl: incidentFields.map_image_url,
-    
-    // Raw ids for references
-    vesselId: vesselFields.id,
-    incidentVesselId: incidentVesselFields.id,
-    incidentTypeId: incidentTypeFields.id
-  };
+    return responseData;
+  } catch (error) {
+    console.error("Error in fetchIncidentDataComprehensive:", error);
+    throw error;
+  }
+}
+
+/**
+ * Find an incident by its custom ID (e.g., '20250302-2100-SIN')
+ * @param {string} customId - The custom ID of the incident
+ * @returns {Object|null} - The incident record or null if not found
+ */
+async function findIncidentByCustomId(customId) {
+  try {
+    console.log(`Looking for incident with custom ID: ${customId}`);
+    const response = await axios.get(`${AIRTABLE_URL}/incident`, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+      params: {
+        filterByFormula: `{id}='${customId}'`,
+        maxRecords: 1,
+      },
+    });
+
+    const records = response.data.records;
+    if (records.length === 0) {
+      console.log(`No incidents found with ID ${customId}`);
+      return null;
+    }
+
+    console.log(`Found incident with ID ${customId}:`, records[0].id);
+    return records[0];
+  } catch (error) {
+    console.error(`Failed to search incident: ${customId}`, error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetch a specific record by its ID from an Airtable table
+ * @param {string} table - The name of the Airtable table
+ * @param {string} recordId - The ID of the record to fetch
+ * @returns {Object} - The record data
+ */
+async function fetchAirtableRecord(table, recordId) {
+  try {
+    console.log(`Fetching record from ${table}: ${recordId}`);
+    const response = await axios.get(`${AIRTABLE_URL}/${table}/${recordId}`, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch ${table} record: ${recordId}`, error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetch multiple linked records from an Airtable table
+ * @param {string} table - The name of the Airtable table
+ * @param {Array<string>} recordIds - The IDs of the records to fetch
+ * @returns {Array<Object>} - Array of record fields
+ */
+async function fetchLinkedRecords(table, recordIds) {
+  if (!recordIds || recordIds.length === 0) {
+    console.log(`No record IDs provided for table ${table}`);
+    return [];
+  }
+
+  console.log(`Fetching ${recordIds.length} linked records from ${table}`);
+  const records = await Promise.all(
+    recordIds.map((id) => fetchAirtableRecord(table, id))
+  );
   
-  console.log('ENHANCED FLAT STRUCTURE CREATED with fields:', Object.keys(flatData).join(', '));
-  
-  // Combine both structures into a single enriched object
-  return {
-    ...flatData,
-    nested: nestedData
-  };
+  console.log(`Successfully fetched ${records.length} records from ${table}`);
+  return records.map((r) => r.fields);
 }
 
 /**
@@ -291,7 +310,6 @@ export async function invalidateIncidentCache(incidentId) {
 
 /**
  * Updates the cache for a specific incident with new data
- * Useful for webhook handlers that receive updates from Airtable
  * @param {string} incidentId - The ID of the incident to update
  * @param {Object} newData - The new data to store (can be partial)
  * @returns {Promise<boolean>} True if successfully updated, false otherwise
@@ -309,61 +327,23 @@ export async function updateIncidentCache(incidentId, newData) {
   console.log(`Updating cache for incident ${incidentId}`);
   
   try {
-    // Get current cached data if it exists
-    const currentCache = await cacheOps.get(cacheKey);
+    // In this implementation, we simply force a refresh from Airtable
+    // This ensures we get the complete data structure rather than trying to
+    // merge partial data which could lead to inconsistencies
+    console.log(`For update operation, forcing a complete refresh from Airtable`);
+    const freshData = await fetchIncidentDataComprehensive(incidentId);
     
-    // If there's existing data, merge with new data
-    // Otherwise just use the new data
-    const updatedData = currentCache 
-      ? { ...currentCache.data, ...newData }
-      : newData;
+    if (!freshData) {
+      console.error(`Could not fetch fresh data for incident ${incidentId}`);
+      return false;
+    }
     
-    // Enrich the combined data
-    const enrichedData = enrichIncidentData(updatedData);
-    
-    // Store the updated data
-    await cacheOps.store(cacheKey, { data: enrichedData });
-    console.log(`Successfully updated cache for incident ${incidentId}`);
+    // Store the fresh data in cache
+    await cacheOps.store(cacheKey, { data: freshData });
+    console.log(`Successfully updated cache for incident ${incidentId} with fresh data`);
     return true;
   } catch (error) {
     console.error(`Error updating cache for incident ${incidentId}:`, error);
     return false;
   }
-}
-
-/**
- * Helper function to extract incident type from title when not available from relationship
- * @param {string} title - The incident title
- * @returns {string} The extracted incident type or default value
- */
-function getIncidentTypeFromTitle(title) {
-  if (!title) return 'Incident';
-  
-  const lowerTitle = title.toLowerCase();
-  
-  // Common incident types based on title patterns
-  const typePatterns = [
-    { pattern: /robbery/i, type: 'Robbery' },
-    { pattern: /armed/i, type: 'Armed Attack' },
-    { pattern: /attack/i, type: 'Attack' },
-    { pattern: /boarding/i, type: 'Boarding' },
-    { pattern: /attempt/i, type: 'Attempted Boarding' },
-    { pattern: /suspicious/i, type: 'Suspicious Approach' },
-    { pattern: /piracy/i, type: 'Piracy' },
-    { pattern: /hijack/i, type: 'Hijacking' }
-  ];
-  
-  for (const { pattern, type } of typePatterns) {
-    if (pattern.test(lowerTitle)) {
-      return type;
-    }
-  }
-  
-  // Default fallback - take first two words
-  const words = title.split(' ');
-  if (words.length >= 2) {
-    return words.slice(0, 2).join(' ');
-  }
-  
-  return 'Incident';
 }

@@ -105,15 +105,21 @@ export function renderEmailTemplate(data, options = {}) {
     publicUrl = null
   } = data;
   
-  // CRITICAL CHANGE: Support both flat and nested structures
-  // Check if we're using the flat structure (has vesselName directly) or the nested structure
-  const isFlat = incident.vesselName !== undefined;
-  console.log(`EMAIL TEMPLATE - Using ${isFlat ? 'FLAT' : 'NESTED'} data structure`);
+  // Support both the new comprehensive format and the older formats
+  // First, check if we're using the new comprehensive format with vessels_involved
+  const hasVesselsInvolved = incident.vessels_involved && Array.isArray(incident.vessels_involved) && incident.vessels_involved.length > 0;
   
-  // Get the incident fields - works for both flat and nested
-  const fields = isFlat 
-    ? incident // Flat structure - use directly
-    : (incident.incident?.fields || incident); // Nested structure - extract fields
+  // Then check for flat format (older approach)
+  const isFlat = incident.vesselName !== undefined;
+  
+  console.log(`EMAIL TEMPLATE - Using ${hasVesselsInvolved ? 'COMPREHENSIVE' : (isFlat ? 'FLAT' : 'NESTED')} data structure`);
+  
+  // Get the incident fields - choose the appropriate structure
+  const fields = hasVesselsInvolved
+    ? incident // Comprehensive structure - use directly 
+    : (isFlat 
+        ? incident // Flat structure - use directly
+        : (incident.incident?.fields || incident)); // Nested structure - extract fields
   
   // CRITICAL: Create a default vessel object with required properties
   // This ensures we always have a vessel object with name/type/flag/imo
@@ -124,10 +130,20 @@ export function renderEmailTemplate(data, options = {}) {
     imo: 'N/A'
   };
   
-  // Use either flat or nested vessel data
+  // Get vessel fields based on structure
   let vesselFields;
   
-  if (isFlat) {
+  if (hasVesselsInvolved) {
+    // Using comprehensive structure - extract first vessel from vessels_involved
+    const firstVessel = incident.vessels_involved[0];
+    vesselFields = {
+      name: firstVessel.name,
+      type: firstVessel.type,
+      flag: firstVessel.flag,
+      imo: firstVessel.imo
+    };
+    console.log('Using VESSELS_INVOLVED data structure:', JSON.stringify(vesselFields));
+  } else if (isFlat) {
     // Using flat structure - create vessel fields from top-level properties
     vesselFields = {
       name: incident.vesselName,
@@ -182,14 +198,23 @@ export function renderEmailTemplate(data, options = {}) {
   console.log('EMAIL TEMPLATE - FINAL VESSEL DATA:');
   console.log(JSON.stringify(vesselFields));
   
-  // Handle incident vessel fields - support both flat and nested
+  // Handle incident vessel fields - support all structures
   let incidentVesselFields = {};
   
-  if (isFlat) {
+  if (hasVesselsInvolved) {
+    // Using comprehensive structure with vessels_involved
+    // The vessel status might be directly on the incident or in the vessels_involved array
+    const firstVessel = incident.vessels_involved[0];
+    incidentVesselFields = {
+      vessel_status_during_incident: incident.status || firstVessel.status_during_incident,
+      crew_impact: incident.crew_impact || firstVessel.crew_impact
+    };
+    console.log('Using COMPREHENSIVE incident vessel structure:', JSON.stringify(incidentVesselFields));
+  } else if (isFlat) {
     // Using flat structure - extract incident vessel fields from top level
     incidentVesselFields = {
-      vessel_status_during_incident: incident.status || incident.incident_vessel_vessel_status_during_incident,
-      crew_impact: incident.crewStatus || incident.incident_vessel_crew_impact
+      vessel_status_during_incident: incident.status || incident.vessel_status_during_incident || incident.incident_vessel_vessel_status_during_incident,
+      crew_impact: incident.crewStatus || incident.crew_impact || incident.incident_vessel_crew_impact
     };
     console.log('Using FLAT incident vessel structure:', JSON.stringify(incidentVesselFields));
   } else {
@@ -201,10 +226,18 @@ export function renderEmailTemplate(data, options = {}) {
   // Similarly for incident type
   let incidentTypeFields = {};
   
-  if (isFlat) {
+  if (hasVesselsInvolved) {
+    // In comprehensive format, incident_type is an array
+    if (incident.incident_type && incident.incident_type.length > 0) {
+      incidentTypeFields = { name: incident.incident_type[0] };
+      console.log('Using COMPREHENSIVE incident type:', incidentTypeFields.name);
+    } else {
+      incidentTypeFields = { name: 'Incident' };
+    }
+  } else if (isFlat) {
     // Type is directly available in flat structure
-    incidentTypeFields = { name: incident.type };
-    console.log('Using FLAT incident type:', incident.type);
+    incidentTypeFields = { name: incident.type || incident.incident_type_name };
+    console.log('Using FLAT incident type:', incidentTypeFields.name);
   } else {
     // Using nested structure for type
     incidentTypeFields = incident.incidentType?.fields || {};
