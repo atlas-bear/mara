@@ -3,6 +3,23 @@ import { log } from "./utils/logger.js";
 
 export const handler = async (event, context) => {
   try {
+    // Allow a direct key to be specified (highest priority)
+    const directKey = event.queryStringParameters?.key;
+    
+    if (directKey) {
+      // Delete the exact specified key
+      log.info(`Attempting to delete specific cache key: ${directKey}`);
+      await cacheOps.delete(directKey);
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          status: "success",
+          message: `Cache cleared for key: ${directKey}`,
+        }),
+      };
+    }
+    
     // Get source from query parameters, if not provided will clear all caches
     const source = event.queryStringParameters?.source;
 
