@@ -65,7 +65,7 @@ exports.handler = async (event) => {
 
     // Resolve linked records
     const authorities = await fetchLinkedRecords(
-      "authorities",
+      "authorities_notified",
       incidentFields.authorities_notified
     );
     const incidentTypes = await fetchLinkedRecords(
