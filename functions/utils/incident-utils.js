@@ -132,6 +132,10 @@ export async function getIncident(incidentId) {
     let incidentVesselDetails = null;
     try {
       console.log(`Looking for vessel relationship for incident ${incidentId}...`);
+      console.log(`Using Airtable record ID: ${incidentRecord.id}`);
+      
+      // IMPORTANT: Use incident_id field with the record ID (not the incident ID string)
+      // This is more robust as record IDs don't change even if field names do
       const incidentVesselResponse = await axios.get(
         `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_vessel`,
         {
@@ -140,21 +144,25 @@ export async function getIncident(incidentId) {
             "Content-Type": "application/json",
           },
           params: {
-            filterByFormula: `{incident}="${incidentRecord.id}"`,
+            filterByFormula: `{incident_id}="${incidentRecord.id}"`,
             maxRecords: 1,
           },
         }
       );
 
       if (incidentVesselResponse.data.records && incidentVesselResponse.data.records.length > 0) {
+        console.log(`✅ FOUND INCIDENT-VESSEL RELATIONSHIP! ${incidentVesselResponse.data.records.length} records`);
+        
         const linkRecord = incidentVesselResponse.data.records[0].fields;
+        console.log('First incident_vessel record:', JSON.stringify(linkRecord).substring(0, 500));
+        
         // In our CSV data, we see that the vessel field isn't directly available
         // Instead, we'd need to look at the incident_vessel_id field from vessel table
         // Our goal is to get both incident_vessel data and vessel data
         
         // Keep track of incident_vessel data
         const incidentVesselData = linkRecord;
-        console.log('Found incident_vessel data:', Object.keys(incidentVesselData).join(', '));
+        console.log('Found incident_vessel data fields:', Object.keys(incidentVesselData).join(', '));
         
         // Try to find vessel_id
         if (linkRecord.vessel && linkRecord.vessel.length > 0) {
@@ -177,10 +185,26 @@ export async function getIncident(incidentId) {
 
     // 3. Get vessel details if we have a vessel ID or direct link
     let vesselData = null;
+    
+    // Check for different ways to find vessel - try all possible references
+    
     // Check for direct vessel reference in the incident
     if (incidentData.vessel && incidentData.vessel.length > 0) {
       console.log('Using direct vessel reference from incident:', incidentData.vessel[0]);
       vesselId = incidentData.vessel[0];
+    }
+    
+    // Check for vessel_id field if we're still missing vessel ID
+    if (!vesselId && incidentData.vessel_id) {
+      console.log('Using vessel_id field from incident:', incidentData.vessel_id);
+      vesselId = incidentData.vessel_id;
+    }
+    
+    // Check for incident_vessel field which might contain reference to related tables
+    if (!vesselId && incidentData.incident_vessel && incidentData.incident_vessel.length > 0) {
+      console.log('Found incident_vessel reference in incident:', incidentData.incident_vessel[0]);
+      
+      // We could try to use this to find the vessel, but we'll continue with known vessel ID first
     }
     
     if (vesselId) {
@@ -197,10 +221,12 @@ export async function getIncident(incidentId) {
         );
 
         if (vesselResponse.data) {
+          console.log('✅ FOUND VESSEL DATA! Full response:', JSON.stringify(vesselResponse.data).substring(0, 500));
           vesselData = vesselResponse.data.fields;
           
           // Log the full vessel data
           console.log('Vessel data details:', JSON.stringify(vesselData));
+          console.log('Vessel data fields:', Object.keys(vesselData).join(', '));
           
           // In Airtable, the fields might have different names than what our code expects
           // Make sure vessel data is normalized to have expected field names
@@ -209,27 +235,39 @@ export async function getIncident(incidentId) {
           // For example, vessel type might be in 'type' or 'vessel_type'
           if (!vesselData.name && vesselData.vessel_name) {
             vesselData.name = vesselData.vessel_name;
+            console.log('Normalized vessel_name → name');
           }
           
           if (!vesselData.type && vesselData.vessel_type) {
             vesselData.type = vesselData.vessel_type;
+            console.log('Normalized vessel_type → type');
           }
           
           if (!vesselData.flag && vesselData.vessel_flag) {
             vesselData.flag = vesselData.vessel_flag;
+            console.log('Normalized vessel_flag → flag');
           }
           
           if (!vesselData.imo && vesselData.vessel_imo) {
             vesselData.imo = vesselData.vessel_imo;
+            console.log('Normalized vessel_imo → imo');
           }
           
+          // Add fallbacks if fields are still missing
+          if (!vesselData.name) vesselData.name = 'Unknown Vessel';
+          if (!vesselData.type) vesselData.type = 'Unknown Type';
+          if (!vesselData.flag) vesselData.flag = 'Unknown Flag';
+          if (!vesselData.imo) vesselData.imo = 'N/A';
+          
           // Log the final vessel data after normalization
-          console.log(`Found vessel data: ${vesselData.name || 'Unknown'} (IMO: ${vesselData.imo || 'N/A'})`);
+          console.log(`Found vessel data: ${vesselData.name} (IMO: ${vesselData.imo})`);
           console.log('Normalized vessel fields:');
           console.log('- name:', vesselData.name);
           console.log('- type:', vesselData.type);
           console.log('- flag:', vesselData.flag);
           console.log('- imo:', vesselData.imo);
+        } else {
+          console.log('⚠️ Got vessel response but no data field - this is unexpected');
         }
       } catch (error) {
         console.warn(`Error fetching vessel details: ${error.message}`);
