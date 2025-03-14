@@ -186,7 +186,8 @@ export function enrichIncidentData(rawData) {
   const latitude = parseFloat(incidentFields.latitude) || 0;
   const longitude = parseFloat(incidentFields.longitude) || 0;
   
-  // 2. Create the flat structure (for client-side components)
+  // 2. Create the flat structure that contains ALL data in a single level
+  // ENHANCED: Include all vessel and incident_vessel fields to ensure email has all needed data
   const flatData = {
     id: incidentFields.id,
     type: incidentTypeFields.name || getIncidentTypeFromTitle(incidentFields.title),
@@ -199,16 +200,43 @@ export function enrichIncidentData(rawData) {
       longitude: longitude
     },
     
-    // Vessel data
+    // PRIMARY VESSEL DATA (standardized field names for UI components)
     vesselName: vesselFields.name,
     vesselType: vesselFields.type,
     vesselFlag: vesselFields.flag,
     vesselIMO: vesselFields.imo,
     
-    // Incident-Vessel relationship data
+    // Add all raw vessel fields for completeness 
+    // This ensures ANY vessel field can be accessed from the flat structure
+    ...Object.keys(vesselFields).reduce((acc, key) => {
+      // Prefix with vessel_ to avoid name collisions
+      acc[`vessel_${key}`] = vesselFields[key];
+      return acc;
+    }, {}),
+    
+    // Include ALL incident-vessel fields, not just the main ones
+    // This ensures ANY incident-vessel field can be accessed
+    ...Object.keys(incidentVesselFields).reduce((acc, key) => {
+      // Add the standard fields directly for backward compatibility
+      if (key === 'vessel_status_during_incident') {
+        acc.status = incidentVesselFields[key];
+      } else if (key === 'crew_impact') {
+        acc.crewStatus = incidentVesselFields[key];
+      } else if (key === 'vessel_destination') {
+        acc.destination = incidentVesselFields[key];
+      }
+      
+      // Add prefixed version of ALL fields
+      acc[`incident_vessel_${key}`] = incidentVesselFields[key];
+      return acc;
+    }, {}),
+    
+    // Fallback for destination if not in incident_vessel
+    destination: incidentVesselFields.vessel_destination || incidentFields.vessel_destination,
+    
+    // Add raw fields status/crew for backward compatibility
     status: incidentVesselFields.vessel_status_during_incident,
     crewStatus: incidentVesselFields.crew_impact,
-    destination: incidentVesselFields.vessel_destination || incidentFields.vessel_destination,
     
     // Lookup fields from resolved relationships
     responseActions: incidentFields.response_type_names || [],
@@ -228,6 +256,8 @@ export function enrichIncidentData(rawData) {
     incidentVesselId: incidentVesselFields.id,
     incidentTypeId: incidentTypeFields.id
   };
+  
+  console.log('ENHANCED FLAT STRUCTURE CREATED with fields:', Object.keys(flatData).join(', '));
   
   // Combine both structures into a single enriched object
   return {

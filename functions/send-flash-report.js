@@ -975,30 +975,72 @@ export const handler = async (event, context) => {
           console.log('VESSEL DATA BEFORE EMAIL TEMPLATE:');
           console.log(JSON.stringify(emailVesselData));
           
-          templateData = {
-            incident: {
-              incident: { fields: incidentData },
-              vessel: { fields: emailVesselData }, // Use directly prepared data
-              incidentVessel: { fields: incidentVesselFields },
-              incidentType: { fields: { name: incidentType } }
-            },
-            branding: branding,
-            publicUrl: publicUrl
-          };
+          // CRITICAL CHANGE: Use the flat structure from cache if available
+          if (cachedData && cachedData.vesselName) {
+            console.log('🔄 SWITCHING TO FLAT DATA STRUCTURE FOR EMAIL TEMPLATE');
+            
+            // Create a new template data structure using the flat cache data directly
+            templateData = {
+              incident: cachedData, // Use the flat structure with all resolved fields
+              branding: branding,
+              publicUrl: publicUrl
+            };
+            
+            console.log('USING ENHANCED FLAT STRUCTURE:');
+            console.log('- vessel name:', cachedData.vesselName);
+            console.log('- vessel type:', cachedData.vesselType); 
+            console.log('- vessel flag:', cachedData.vesselFlag);
+          } else {
+            // Fallback to the normal nested structure if flat cache not available
+            templateData = {
+              incident: {
+                incident: { fields: incidentData },
+                vessel: { fields: emailVesselData }, // Use directly prepared data
+                incidentVessel: { fields: incidentVesselFields },
+                incidentType: { fields: { name: incidentType } }
+              },
+              branding: branding,
+              publicUrl: publicUrl
+            };
+          }
         }
         
         // Add detailed debug logging before sending to email renderer
         console.log('FINAL EMAIL TEMPLATE DATA STRUCTURE:');
-        console.log('- vessel data sent to email:', JSON.stringify(templateData.incident.vessel.fields));
-        console.log('- vessel name:', templateData.incident.vessel.fields.name);
-        console.log('- vessel type:', templateData.incident.vessel.fields.type);
-        console.log('- vessel flag:', templateData.incident.vessel.fields.flag);
+        
+        // Check whether we're using flat or nested structure
+        const isFlat = !templateData.incident.vessel;
+        console.log(`- Using ${isFlat ? 'FLAT' : 'NESTED'} structure`);
+        
+        if (isFlat) {
+          console.log('- vessel data (flat):', JSON.stringify({
+            vesselName: templateData.incident.vesselName,
+            vesselType: templateData.incident.vesselType,
+            vesselFlag: templateData.incident.vesselFlag,
+            vesselIMO: templateData.incident.vesselIMO
+          }));
+        } else {
+          console.log('- vessel data (nested):', JSON.stringify(templateData.incident.vessel?.fields || {}));
+          console.log('- vessel name:', templateData.incident.vessel?.fields?.name);
+          console.log('- vessel type:', templateData.incident.vessel?.fields?.type);
+          console.log('- vessel flag:', templateData.incident.vessel?.fields?.flag);
+        }
         
         // Add special vessel debug check directly before email generation
-        // Log all vessel data for debugging
+        // Log all vessel data for debugging based on structure type
         console.log('FINAL VESSEL DATA CHECK BEFORE RENDERING:');
-        console.log('- Template vessel data:', JSON.stringify(templateData.incident.vessel.fields));
-        console.log('- Vessel name:', templateData.incident.vessel.fields.name);
+        
+        if (isFlat) {
+          console.log('- Flat template vessel data:', JSON.stringify({
+            vesselName: templateData.incident.vesselName,
+            vesselType: templateData.incident.vesselType,
+            vesselFlag: templateData.incident.vesselFlag
+          }));
+          console.log('- Vessel name (flat):', templateData.incident.vesselName);
+        } else {
+          console.log('- Nested template vessel data:', JSON.stringify(templateData.incident.vessel?.fields || {}));
+          console.log('- Vessel name (nested):', templateData.incident.vessel?.fields?.name);
+        }
         console.log('- preparedIncident vessel name:', preparedIncident.vesselName);
         
         // Generate HTML using the standardized structure

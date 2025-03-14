@@ -105,10 +105,15 @@ export function renderEmailTemplate(data, options = {}) {
     publicUrl = null
   } = data;
   
-  // IMPORTANT: Follow the exact structure used in IncidentDetails component
-  // Instead of using incident.field directly, we'll use the nested fields
-  // structure that match what IncidentDetails uses
-  const fields = incident.incident?.fields || incident;
+  // CRITICAL CHANGE: Support both flat and nested structures
+  // Check if we're using the flat structure (has vesselName directly) or the nested structure
+  const isFlat = incident.vesselName !== undefined;
+  console.log(`EMAIL TEMPLATE - Using ${isFlat ? 'FLAT' : 'NESTED'} data structure`);
+  
+  // Get the incident fields - works for both flat and nested
+  const fields = isFlat 
+    ? incident // Flat structure - use directly
+    : (incident.incident?.fields || incident); // Nested structure - extract fields
   
   // CRITICAL: Create a default vessel object with required properties
   // This ensures we always have a vessel object with name/type/flag/imo
@@ -119,20 +124,38 @@ export function renderEmailTemplate(data, options = {}) {
     imo: 'N/A'
   };
   
-  // Use the vessel fields from the incident or fall back to default
-  const vesselFields = incident.vessel?.fields || defaultVessel;
+  // Use either flat or nested vessel data
+  let vesselFields;
   
-  // In case vesselFields is an empty object, merge with defaults
+  if (isFlat) {
+    // Using flat structure - create vessel fields from top-level properties
+    vesselFields = {
+      name: incident.vesselName,
+      type: incident.vesselType,
+      flag: incident.vesselFlag,
+      imo: incident.vesselIMO
+    };
+    console.log('Using FLAT vessel data structure:', JSON.stringify(vesselFields));
+  } else {
+    // Using nested structure - extract vessel fields as before
+    vesselFields = incident.vessel?.fields || defaultVessel;
+    console.log('Using NESTED vessel data structure:', JSON.stringify(vesselFields));
+  }
+  
+  // In case vesselFields is an empty object or has missing values, merge with defaults
   if (Object.keys(vesselFields).length === 0) {
     console.log('VESSEL FIELDS EMPTY - ASSIGNING DEFAULTS');
     Object.assign(vesselFields, defaultVessel);
   }
   
-  // DEBUG - Check structure before ensuring fields exist
-  console.log('VESSEL FIELDS BEFORE DEFAULTS:');
-  console.log('- Is object?', typeof vesselFields === 'object');
-  console.log('- Is null?', vesselFields === null);
-  console.log('- Has name?', 'name' in vesselFields);
+  // Ensure all required fields exist
+  if (!vesselFields.name) vesselFields.name = defaultVessel.name;
+  if (!vesselFields.type) vesselFields.type = defaultVessel.type;
+  if (!vesselFields.flag) vesselFields.flag = defaultVessel.flag;
+  if (!vesselFields.imo) vesselFields.imo = defaultVessel.imo;
+  
+  // DEBUG - Check final vessel fields
+  console.log('FINAL VESSEL FIELDS:');
   console.log('- name =', vesselFields.name);
   console.log('- type =', vesselFields.type);
   console.log('- flag =', vesselFields.flag);
@@ -159,8 +182,34 @@ export function renderEmailTemplate(data, options = {}) {
   console.log('EMAIL TEMPLATE - FINAL VESSEL DATA:');
   console.log(JSON.stringify(vesselFields));
   
-  const incidentVesselFields = incident.incidentVessel?.fields || {};
-  const incidentTypeFields = incident.incidentType?.fields || {};
+  // Handle incident vessel fields - support both flat and nested
+  let incidentVesselFields = {};
+  
+  if (isFlat) {
+    // Using flat structure - extract incident vessel fields from top level
+    incidentVesselFields = {
+      vessel_status_during_incident: incident.status || incident.incident_vessel_vessel_status_during_incident,
+      crew_impact: incident.crewStatus || incident.incident_vessel_crew_impact
+    };
+    console.log('Using FLAT incident vessel structure:', JSON.stringify(incidentVesselFields));
+  } else {
+    // Using nested structure - extract as before
+    incidentVesselFields = incident.incidentVessel?.fields || {};
+    console.log('Using NESTED incident vessel structure:', JSON.stringify(incidentVesselFields));
+  }
+  
+  // Similarly for incident type
+  let incidentTypeFields = {};
+  
+  if (isFlat) {
+    // Type is directly available in flat structure
+    incidentTypeFields = { name: incident.type };
+    console.log('Using FLAT incident type:', incident.type);
+  } else {
+    // Using nested structure for type
+    incidentTypeFields = incident.incidentType?.fields || {};
+    console.log('Using NESTED incident type:', incidentTypeFields.name);
+  }
   
   // Extract branding details
   const {
