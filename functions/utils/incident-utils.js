@@ -204,7 +204,45 @@ export async function getIncident(incidentId) {
     if (!vesselId && incidentData.incident_vessel && incidentData.incident_vessel.length > 0) {
       console.log('Found incident_vessel reference in incident:', incidentData.incident_vessel[0]);
       
-      // We could try to use this to find the vessel, but we'll continue with known vessel ID first
+      // CRITICAL: Let's directly fetch this incident_vessel record and extract the vessel ID
+      try {
+        const incidentVesselId = incidentData.incident_vessel[0];
+        console.log(`Directly fetching incident_vessel record ${incidentVesselId}...`);
+        
+        const incidentVesselDirectResponse = await axios.get(
+          `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_vessel/${incidentVesselId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.AT_API_KEY}`,
+              "Content-Type": "application/json",
+            }
+          }
+        );
+        
+        if (incidentVesselDirectResponse.data && incidentVesselDirectResponse.data.fields) {
+          console.log('✅ Successfully fetched incident_vessel record directly!');
+          console.log('Fields:', JSON.stringify(incidentVesselDirectResponse.data.fields));
+          
+          const directIncidentVessel = incidentVesselDirectResponse.data.fields;
+          
+          // Store the incident_vessel data for later use
+          incidentVesselDetails = {
+            id: incidentVesselId,
+            ...directIncidentVessel
+          };
+          
+          // Check if it has a vessel reference
+          if (directIncidentVessel.vessel && directIncidentVessel.vessel.length > 0) {
+            vesselId = directIncidentVessel.vessel[0];
+            console.log(`✅ Found vessel ID ${vesselId} from incident_vessel record!`);
+          } else if (directIncidentVessel.vessel_id) {
+            vesselId = directIncidentVessel.vessel_id;
+            console.log(`✅ Found vessel_id ${vesselId} from incident_vessel record!`);
+          }
+        }
+      } catch (error) {
+        console.warn(`Error fetching incident_vessel record directly: ${error.message}`);
+      }
     }
     
     if (vesselId) {
