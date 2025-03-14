@@ -1011,7 +1011,7 @@ export const handler = async (event, context) => {
             preparedIncident.location?.name ||
             preparedIncident.region ||
             "Unknown Location";
-          const subject = `🚨 Maritime Flash Report - ${locationName}`;
+          const subject = `Maritime Flash Report - ${locationName}`;
 
           // Create HTML content with public link
           // Before sending, log the vessel data one final time to verify
