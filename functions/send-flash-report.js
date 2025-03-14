@@ -785,9 +785,9 @@ export const handler = async (event, context) => {
         // Generate public flash report URL
         const publicUrl = getPublicFlashReportUrl(incidentId, tokenData.token, brandParam);
         
-        // Create email subject with direct injection of vessel name
-        // Use direct string substitution for highest reliability
-        const subject = `🚨 MARITIME ALERT: TEST-VESSEL-NAME=${preparedIncident.vesselName} / TYPE=${preparedIncident.vesselType}`;
+        // Create email subject in the new format
+        const locationName = preparedIncident.location_name || incidentData.location?.name || preparedIncident.region || 'Unknown Location';
+        const subject = `🚨 Maritime Flash Report - ${locationName}`;
         
         // Create HTML content with public link
         // Before sending, log the vessel data one final time to verify

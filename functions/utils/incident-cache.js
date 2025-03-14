@@ -183,7 +183,7 @@ async function fetchIncidentDataComprehensive(incidentId) {
       description: incidentFields.description,
       analysis: incidentFields.analysis,
       recommendations: incidentFields.recommendations,
-      status: incidentFields.status,
+      status: incidentVessels[0]?.vessel_status_during_incident,
       weapons_used: weaponsUsed.map((w) => w.name),
       items_stolen: itemsStolen.map((i) => i.name),
       region: incidentFields.region,

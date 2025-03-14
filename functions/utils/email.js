@@ -313,19 +313,12 @@ export function renderEmailTemplate(data, options = {}) {
               <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incidentTypeFields.name || fields.type || 'Incident'}</span>
             </div>
             <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
-              HARDCODED VESSEL NAME TEST
+              ${vesselFields.name}
             </h1>
             <p style="font-size: 14px; color: #4B5563; margin: 0;">
-              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>HARDCODED VESSEL TYPE</strong></span> | 
-              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>12345678</strong></span> | 
-              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>HARDCODED FLAG</strong></span>
-            </p>
-            <p style="font-size: 14px; color: red; font-weight: bold; margin-top: 10px;">
-              VESSEL DATA TEST: The following values are from the template data:<br>
-              vesselFields.name = ${vesselFields.name || 'null/undefined'}<br>
-              vesselFields.type = ${vesselFields.type || 'null/undefined'}<br>
-              vesselFields.flag = ${vesselFields.flag || 'null/undefined'}<br>
-              vesselFields.imo = ${vesselFields.imo || 'null/undefined'}
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselFields.type}</strong></span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselFields.imo}</strong></span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFields.flag}</strong></span>
             </p>
           </div>
           <div style="text-align: right;">
