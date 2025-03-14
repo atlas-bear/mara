@@ -4,26 +4,26 @@
  * and React email rendering
  */
 
-import sgMail from '@sendgrid/mail';
-import { getEnv } from './environment.js';
+import sgMail from "@sendgrid/mail";
+import { getEnv } from "./environment.js";
 
 /**
  * Initialize and return SendGrid client
  * @returns {Object|null} SendGrid client or null if API key is not available
  */
 export function getSendGridClient() {
-  const apiKey = getEnv('SENDGRID_API_KEY');
-  
+  const apiKey = getEnv("SENDGRID_API_KEY");
+
   if (!apiKey) {
-    console.warn('SendGrid API key not found in environment variables');
+    console.warn("SendGrid API key not found in environment variables");
     return null;
   }
-  
+
   try {
     sgMail.setApiKey(apiKey);
     return sgMail;
   } catch (error) {
-    console.error('Error initializing SendGrid client:', error);
+    console.error("Error initializing SendGrid client:", error);
     return null;
   }
 }
@@ -37,54 +37,60 @@ export function getSendGridClient() {
  * @param {Object} options Additional options for the email
  * @returns {Promise<Object>} SendGrid response
  */
-export async function sendEmail(to, subject, message, html = null, options = {}) {
+export async function sendEmail(
+  to,
+  subject,
+  message,
+  html = null,
+  options = {}
+) {
   const sgMail = getSendGridClient();
-  
+
   if (!sgMail) {
-    console.warn('SendGrid client not available, email not sent');
+    console.warn("SendGrid client not available, email not sent");
     return {
       success: false,
-      message: 'Email service not available',
-      demo: true
+      message: "Email service not available",
+      demo: true,
     };
   }
-  
-  const fromEmail = getEnv('SENDGRID_FROM_EMAIL', 'alerts@example.com');
-  const fromName = options.fromName || 'MARA Alert System';
-  
+
+  const fromEmail = getEnv("SENDGRID_FROM_EMAIL", "mara@atlasbear.co");
+  const fromName = options.fromName || "MARA Alert System";
+
   const emailData = {
     to,
     from: {
       email: fromEmail,
-      name: fromName
+      name: fromName,
     },
     subject,
     text: message,
-    ...options
+    ...options,
   };
-  
+
   // Add HTML content if provided
   if (html) {
     emailData.html = html;
   }
-  
+
   try {
     const [response] = await sgMail.send(emailData);
-    
+
     return {
       success: true,
-      message: 'Email sent successfully',
+      message: "Email sent successfully",
       statusCode: response.statusCode,
-      headers: response.headers
+      headers: response.headers,
     };
   } catch (error) {
-    console.error('Error sending email:', error);
-    
+    console.error("Error sending email:", error);
+
     return {
       success: false,
       message: error.message,
       statusCode: error.code || 500,
-      error
+      error,
     };
   }
 }
@@ -92,47 +98,48 @@ export async function sendEmail(to, subject, message, html = null, options = {})
 /**
  * Lightweight HTML template renderer for email
  * This simpler approach avoids the large dependencies of react-email
- * 
- * @param {Object} data Data to use in the template 
+ *
+ * @param {Object} data Data to use in the template
  * @param {Object} options Additional options
  * @returns {string} Rendered HTML
  */
 export function renderEmailTemplate(data, options = {}) {
   // Extract commonly used values
-  const {
-    incident,
-    branding = {},
-    publicUrl = null
-  } = data;
-  
+  const { incident, branding = {}, publicUrl = null } = data;
+
   // Support both the new comprehensive format and the older formats
   // First, check if we're using the new comprehensive format with vessels_involved
-  const hasVesselsInvolved = incident.vessels_involved && Array.isArray(incident.vessels_involved) && incident.vessels_involved.length > 0;
-  
+  const hasVesselsInvolved =
+    incident.vessels_involved &&
+    Array.isArray(incident.vessels_involved) &&
+    incident.vessels_involved.length > 0;
+
   // Then check for flat format (older approach)
   const isFlat = incident.vesselName !== undefined;
-  
-  console.log(`EMAIL TEMPLATE - Using ${hasVesselsInvolved ? 'COMPREHENSIVE' : (isFlat ? 'FLAT' : 'NESTED')} data structure`);
-  
+
+  console.log(
+    `EMAIL TEMPLATE - Using ${hasVesselsInvolved ? "COMPREHENSIVE" : isFlat ? "FLAT" : "NESTED"} data structure`
+  );
+
   // Get the incident fields - choose the appropriate structure
   const fields = hasVesselsInvolved
-    ? incident // Comprehensive structure - use directly 
-    : (isFlat 
-        ? incident // Flat structure - use directly
-        : (incident.incident?.fields || incident)); // Nested structure - extract fields
-  
+    ? incident // Comprehensive structure - use directly
+    : isFlat
+      ? incident // Flat structure - use directly
+      : incident.incident?.fields || incident; // Nested structure - extract fields
+
   // CRITICAL: Create a default vessel object with required properties
   // This ensures we always have a vessel object with name/type/flag/imo
   const defaultVessel = {
-    name: 'Unknown Vessel',
-    type: 'Unknown',
-    flag: 'Unknown',
-    imo: 'N/A'
+    name: "Unknown Vessel",
+    type: "Unknown",
+    flag: "Unknown",
+    imo: "N/A",
   };
-  
+
   // Get vessel fields based on structure
   let vesselFields;
-  
+
   if (hasVesselsInvolved) {
     // Using comprehensive structure - extract first vessel from vessels_involved
     const firstVessel = incident.vessels_involved[0];
@@ -140,152 +147,192 @@ export function renderEmailTemplate(data, options = {}) {
       name: firstVessel.name,
       type: firstVessel.type,
       flag: firstVessel.flag,
-      imo: firstVessel.imo
+      imo: firstVessel.imo,
     };
-    console.log('Using VESSELS_INVOLVED data structure:', JSON.stringify(vesselFields));
+    console.log(
+      "Using VESSELS_INVOLVED data structure:",
+      JSON.stringify(vesselFields)
+    );
   } else if (isFlat) {
     // Using flat structure - create vessel fields from top-level properties
     vesselFields = {
       name: incident.vesselName,
       type: incident.vesselType,
       flag: incident.vesselFlag,
-      imo: incident.vesselIMO
+      imo: incident.vesselIMO,
     };
-    console.log('Using FLAT vessel data structure:', JSON.stringify(vesselFields));
+    console.log(
+      "Using FLAT vessel data structure:",
+      JSON.stringify(vesselFields)
+    );
   } else {
     // Using nested structure - extract vessel fields as before
     vesselFields = incident.vessel?.fields || defaultVessel;
-    console.log('Using NESTED vessel data structure:', JSON.stringify(vesselFields));
+    console.log(
+      "Using NESTED vessel data structure:",
+      JSON.stringify(vesselFields)
+    );
   }
-  
+
   // In case vesselFields is an empty object or has missing values, merge with defaults
   if (Object.keys(vesselFields).length === 0) {
-    console.log('VESSEL FIELDS EMPTY - ASSIGNING DEFAULTS');
+    console.log("VESSEL FIELDS EMPTY - ASSIGNING DEFAULTS");
     Object.assign(vesselFields, defaultVessel);
   }
-  
+
   // Ensure all required fields exist
   if (!vesselFields.name) vesselFields.name = defaultVessel.name;
   if (!vesselFields.type) vesselFields.type = defaultVessel.type;
   if (!vesselFields.flag) vesselFields.flag = defaultVessel.flag;
   if (!vesselFields.imo) vesselFields.imo = defaultVessel.imo;
-  
+
   // DEBUG - Check final vessel fields
-  console.log('FINAL VESSEL FIELDS:');
-  console.log('- name =', vesselFields.name);
-  console.log('- type =', vesselFields.type);
-  console.log('- flag =', vesselFields.flag);
-  console.log('- imo =', vesselFields.imo);
-  
+  console.log("FINAL VESSEL FIELDS:");
+  console.log("- name =", vesselFields.name);
+  console.log("- type =", vesselFields.type);
+  console.log("- flag =", vesselFields.flag);
+  console.log("- imo =", vesselFields.imo);
+
   // Force the values to be strings to avoid rendering issues
   const hardcodedVessel = {
     name: "TEST VESSEL",
     type: "TEST TYPE",
     flag: "TEST FLAG",
-    imo: "TEST IMO"
+    imo: "TEST IMO",
   };
-  
+
   // Ensure all required fields exist
   if (!vesselFields.name) {
-    console.log('FIXING MISSING NAME');
-    vesselFields.name = hardcodedVessel.name; 
+    console.log("FIXING MISSING NAME");
+    vesselFields.name = hardcodedVessel.name;
   }
   if (!vesselFields.type) vesselFields.type = hardcodedVessel.type;
   if (!vesselFields.flag) vesselFields.flag = hardcodedVessel.flag;
   if (!vesselFields.imo) vesselFields.imo = hardcodedVessel.imo;
-  
+
   // Log the final vessel data used in the template
-  console.log('EMAIL TEMPLATE - FINAL VESSEL DATA:');
+  console.log("EMAIL TEMPLATE - FINAL VESSEL DATA:");
   console.log(JSON.stringify(vesselFields));
-  
+
   // Handle incident vessel fields - support all structures
   let incidentVesselFields = {};
-  
+
   if (hasVesselsInvolved) {
     // Using comprehensive structure with vessels_involved
     // The vessel status might be directly on the incident or in the vessels_involved array
     const firstVessel = incident.vessels_involved[0];
     incidentVesselFields = {
-      vessel_status_during_incident: incident.status || firstVessel.status_during_incident,
-      crew_impact: incident.crew_impact || firstVessel.crew_impact
+      vessel_status_during_incident:
+        incident.status || firstVessel.status_during_incident,
+      crew_impact: incident.crew_impact || firstVessel.crew_impact,
     };
-    console.log('Using COMPREHENSIVE incident vessel structure:', JSON.stringify(incidentVesselFields));
+    console.log(
+      "Using COMPREHENSIVE incident vessel structure:",
+      JSON.stringify(incidentVesselFields)
+    );
   } else if (isFlat) {
     // Using flat structure - extract incident vessel fields from top level
     incidentVesselFields = {
-      vessel_status_during_incident: incident.status || incident.vessel_status_during_incident || incident.incident_vessel_vessel_status_during_incident,
-      crew_impact: incident.crewStatus || incident.crew_impact || incident.incident_vessel_crew_impact
+      vessel_status_during_incident:
+        incident.status ||
+        incident.vessel_status_during_incident ||
+        incident.incident_vessel_vessel_status_during_incident,
+      crew_impact:
+        incident.crewStatus ||
+        incident.crew_impact ||
+        incident.incident_vessel_crew_impact,
     };
-    console.log('Using FLAT incident vessel structure:', JSON.stringify(incidentVesselFields));
+    console.log(
+      "Using FLAT incident vessel structure:",
+      JSON.stringify(incidentVesselFields)
+    );
   } else {
     // Using nested structure - extract as before
     incidentVesselFields = incident.incidentVessel?.fields || {};
-    console.log('Using NESTED incident vessel structure:', JSON.stringify(incidentVesselFields));
+    console.log(
+      "Using NESTED incident vessel structure:",
+      JSON.stringify(incidentVesselFields)
+    );
   }
-  
+
   // Similarly for incident type
   let incidentTypeFields = {};
-  
+
   if (hasVesselsInvolved) {
     // In comprehensive format, incident_type is an array
     if (incident.incident_type && incident.incident_type.length > 0) {
       incidentTypeFields = { name: incident.incident_type[0] };
-      console.log('Using COMPREHENSIVE incident type:', incidentTypeFields.name);
+      console.log(
+        "Using COMPREHENSIVE incident type:",
+        incidentTypeFields.name
+      );
     } else {
-      incidentTypeFields = { name: 'Incident' };
+      incidentTypeFields = { name: "Incident" };
     }
   } else if (isFlat) {
     // Type is directly available in flat structure
     incidentTypeFields = { name: incident.type || incident.incident_type_name };
-    console.log('Using FLAT incident type:', incidentTypeFields.name);
+    console.log("Using FLAT incident type:", incidentTypeFields.name);
   } else {
     // Using nested structure for type
     incidentTypeFields = incident.incidentType?.fields || {};
-    console.log('Using NESTED incident type:', incidentTypeFields.name);
+    console.log("Using NESTED incident type:", incidentTypeFields.name);
   }
-  
+
   // Extract branding details
   const {
-    logo = '/default-logo.png',
-    companyName = 'Maritime Risk Analysis',
-    colors = {}
+    logo = "/default-logo.png",
+    companyName = "Maritime Risk Analysis",
+    colors = {},
   } = branding;
-  
-  const primaryColor = colors.primary || '#234567';
-  const secondaryColor = colors.secondary || '#890123';
-  
+
+  const primaryColor = colors.primary || "#234567";
+  const secondaryColor = colors.secondary || "#890123";
+
   // Format coordinates helper
   const formatCoord = (coordinate, isLatitude) => {
     if (coordinate === null || coordinate === undefined || isNaN(coordinate)) {
-      return 'N/A';
+      return "N/A";
     }
-    
+
     const absolute = Math.abs(coordinate);
     const degrees = Math.floor(absolute);
     const minutesDecimal = (absolute - degrees) * 60;
     const minutes = Math.floor(minutesDecimal);
     const seconds = ((minutesDecimal - minutes) * 60).toFixed(2);
-    
-    let direction = '';
+
+    let direction = "";
     if (isLatitude) {
-      direction = coordinate >= 0 ? 'N' : 'S';
+      direction = coordinate >= 0 ? "N" : "S";
     } else {
-      direction = coordinate >= 0 ? 'E' : 'W';
+      direction = coordinate >= 0 ? "E" : "W";
     }
-    
+
     return `${degrees}° ${minutes}' ${seconds}" ${direction}`;
   };
-  
+
   // Log the complete data structure to debug
-  console.log('EMAIL TEMPLATE - DATA STRUCTURE:');
-  console.log('- incident fields keys:', fields ? Object.keys(fields).join(', ') : 'none');
-  console.log('- vessel fields keys:', vesselFields ? Object.keys(vesselFields).join(', ') : 'none');
-  console.log('- incidentVessel fields keys:', incidentVesselFields ? Object.keys(incidentVesselFields).join(', ') : 'none');
-  console.log('- incidentType fields keys:', incidentTypeFields ? Object.keys(incidentTypeFields).join(', ') : 'none');
-  
+  console.log("EMAIL TEMPLATE - DATA STRUCTURE:");
+  console.log(
+    "- incident fields keys:",
+    fields ? Object.keys(fields).join(", ") : "none"
+  );
+  console.log(
+    "- vessel fields keys:",
+    vesselFields ? Object.keys(vesselFields).join(", ") : "none"
+  );
+  console.log(
+    "- incidentVessel fields keys:",
+    incidentVesselFields ? Object.keys(incidentVesselFields).join(", ") : "none"
+  );
+  console.log(
+    "- incidentType fields keys:",
+    incidentTypeFields ? Object.keys(incidentTypeFields).join(", ") : "none"
+  );
+
   // Current year for copyright
   const currentYear = new Date().getFullYear();
-  
+
   // Render HTML based on the style of the React component
   return `
   <!DOCTYPE html>
@@ -310,15 +357,15 @@ export function renderEmailTemplate(data, options = {}) {
           <div>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
               <span style="display: inline-block; padding: 4px 10px; background-color: #FEE2E2; border-radius: 9999px; color: #991B1B; font-size: 14px; font-weight: bold;">Alert ID: ${fields.id}</span>
-              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incidentTypeFields.name || fields.type || 'Incident'}</span>
+              <span style="display: inline-block; padding: 4px 10px; background-color: #FEF3C7; border-radius: 9999px; color: #92400E; font-size: 14px; font-weight: bold;">${incidentTypeFields.name || fields.type || "Incident"}</span>
             </div>
             <h1 style="font-size: 24px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: ${primaryColor};">
               ${vesselFields.name}
             </h1>
             <p style="font-size: 14px; color: #4B5563; margin: 0;">
-              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: <strong>${vesselFields.type}</strong></span> | 
-              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: <strong>${vesselFields.imo}</strong></span> | 
-              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: <strong>${vesselFields.flag}</strong></span>
+              <span style="display: inline-block; margin-right: 10px; color: #111827;">Type: ${vesselFields.type}</span> | 
+              <span style="display: inline-block; margin: 0 10px; color: #111827;">IMO: ${vesselFields.imo}</span> | 
+              <span style="display: inline-block; margin-left: 10px; color: #111827;">Flag: ${vesselFields.flag}</span>
             </p>
           </div>
           <div style="text-align: right;">
@@ -330,7 +377,9 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
       </div>
 
-    ${publicUrl ? `
+    ${
+      publicUrl
+        ? `
     <!-- View Online Banner -->
     <div style="background-color: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #DBEAFE;">
       <p style="margin: 0; font-size: 14px; color: #1E3A8A;">
@@ -341,7 +390,9 @@ export function renderEmailTemplate(data, options = {}) {
         for the latest information.
       </p>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
     <!-- Quick Facts Grid -->
     <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 24px; border-bottom: 1px solid #E5E7EB;">
@@ -356,7 +407,7 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Location</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${fields.location_name || fields.location || 'Unknown Location'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${fields.location_name || fields.location || "Unknown Location"}</p>
           <p style="font-size: 14px; color: #6B7280; margin: 0;">
             ${formatCoord(fields.latitude, true)}, 
             ${formatCoord(fields.longitude, false)}
@@ -376,8 +427,8 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Vessel Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incidentVesselFields.vessel_status_during_incident || 'Unknown'}</p>
-          <p style="font-size: 14px; color: #6B7280; margin: 0;">${vesselFields.type || 'Vessel'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px 0;">${incidentVesselFields.vessel_status_during_incident || "Unknown"}</p>
+          <p style="font-size: 14px; color: #6B7280; margin: 0;">${vesselFields.type || "Vessel"}</p>
         </div>
       </div>
       
@@ -394,7 +445,7 @@ export function renderEmailTemplate(data, options = {}) {
         </div>
         <div style="flex: 1;">
           <p style="font-size: 14px; color: #6B7280; margin: 0 0 4px 0;">Crew Status</p>
-          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incidentVesselFields.crew_impact || 'No injuries reported'}</p>
+          <p style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">${incidentVesselFields.crew_impact || "No injuries reported"}</p>
         </div>
       </div>
     </div>
@@ -404,10 +455,11 @@ export function renderEmailTemplate(data, options = {}) {
       <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Location Map</h2>
       
       <!-- Map Image with fallback options -->
-      ${fields.map_image_url ? 
-        `<img src="${fields.map_image_url}" alt="Incident Location Map" style="width: 100%; border-radius: 4px; border: 1px solid #E5E7EB;" 
-              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">` : 
-        '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
+      ${
+        fields.map_image_url
+          ? `<img src="${fields.map_image_url}" alt="Incident Location Map" style="width: 100%; border-radius: 4px; border: 1px solid #E5E7EB;" 
+              onerror="this.onerror=null; this.src='https://res.cloudinary.com/dwnh4b5sx/image/upload/maps/public/error-map.jpg';">`
+          : '<div style="width: 100%; height: 300px; background-color: #f3f4f6; border-radius: 4px; display: flex; justify-content: center; align-items: center; text-align: center; color: #6B7280;">Map image not available</div>'
       }
       
       <div style="margin-top: 8px; font-size: 12px; color: #6B7280; display: flex; align-items: center;">
@@ -421,7 +473,7 @@ export function renderEmailTemplate(data, options = {}) {
       <h2 style="font-size: 18px; font-weight: 600; color: ${primaryColor}; margin-top: 0; margin-bottom: 16px;">Incident Details</h2>
       <div style="background-color: #F9FAFB; padding: 16px; border-radius: 6px;">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Description</h3>
-        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${fields.description || 'No description available'}</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${fields.description || "No description available"}</p>
       </div>
     </div>
 
@@ -431,19 +483,25 @@ export function renderEmailTemplate(data, options = {}) {
       <div style="background-color: #FFF7ED; padding: 16px; border-radius: 6px; border-left: 4px solid ${secondaryColor};">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Key Findings</h3>
         <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">
-          ${Array.isArray(fields.analysis) ? fields.analysis.join('<br>') : fields.analysis || 'No analysis available'}
+          ${Array.isArray(fields.analysis) ? fields.analysis.join("<br>") : fields.analysis || "No analysis available"}
         </p>
       </div>
       
-      ${fields.recommendations ? `
+      ${
+        fields.recommendations
+          ? `
       <div style="background-color: #F0F9FF; padding: 16px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin-top: 24px;">
         <h3 style="font-size: 16px; font-weight: 600; margin-top: 0; margin-bottom: 8px; color: #111827;">Recommendations</h3>
         <p style="font-size: 14px; line-height: 1.5; color: #374151; margin: 0;">${fields.recommendations}</p>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
     </div>
 
-    ${publicUrl ? `
+    ${
+      publicUrl
+        ? `
     <!-- View Online Button -->
     <div style="padding: 0 24px 24px; text-align: center;">
       <a href="${publicUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${primaryColor}; color: white; font-weight: 600; text-decoration: none; border-radius: 6px;">
@@ -453,7 +511,9 @@ export function renderEmailTemplate(data, options = {}) {
         This link is valid for 365 days and is uniquely generated for you.
       </p>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
     <!-- Footer -->
     <div style="margin-top: 30px; padding: 20px 24px 24px; text-align: center; color: #6B7280; font-size: 12px; border-top: 1px solid #E5E7EB;">
