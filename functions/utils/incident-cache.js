@@ -177,7 +177,7 @@ async function fetchIncidentDataComprehensive(incidentId) {
       location: {
         latitude: parseFloat(incidentFields.latitude) || 0,
         longitude: parseFloat(incidentFields.longitude) || 0,
-        name: incidentFields.location
+        name: incidentFields.location_name
       },
       incident_type: incidentTypes.map((t) => t.name),
       description: incidentFields.description,

@@ -826,36 +826,38 @@ export const handler = async (event, context) => {
           
           console.log('CLIENT PROVIDED VESSEL DATA:', JSON.stringify(clientVesselData));
           
+          // Create template data using the comprehensive structure
           templateData = {
             incident: {
-              incident: { 
-                fields: { 
-                  id: payload.incident.id, 
-                  title: payload.incident.title,
-                  description: payload.incident.description,
-                  map_image_url: payload.incident.map_image_url,
-                  analysis: payload.incident.analysis,
-                  recommendations: payload.incident.recommendations,
-                  date_time_utc: payload.incident.date,
-                  location_name: payload.incident.location,
-                  latitude: payload.incident.coordinates?.latitude,
-                  longitude: payload.incident.coordinates?.longitude
-                } 
+              id: payload.incident.id, 
+              title: payload.incident.title,
+              description: payload.incident.description,
+              map_image_url: payload.incident.map_image_url,
+              analysis: payload.incident.analysis,
+              recommendations: payload.incident.recommendations,
+              date_time_utc: payload.incident.date,
+              location: {
+                name: payload.incident.location,
+                latitude: payload.incident.coordinates?.latitude,
+                longitude: payload.incident.coordinates?.longitude
               },
-              vessel: { 
-                fields: clientVesselData
-              },
-              incidentVessel: { 
-                fields: {
-                  vessel_status_during_incident: payload.incident.status,
-                  crew_impact: payload.incident.crewStatus
-                } 
-              },
-              incidentType: { 
-                fields: { 
-                  name: payload.incident.type 
-                } 
-              }
+              status: payload.incident.status,
+              crew_impact: payload.incident.crewStatus,
+              incident_type: [payload.incident.type],
+              
+              // Add vessel data in vessels_involved format
+              vessels_involved: [{
+                name: clientVesselData.name,
+                type: clientVesselData.type,
+                flag: clientVesselData.flag,
+                imo: clientVesselData.imo
+              }],
+              
+              // Add direct vessel fields for backward compatibility
+              vesselName: clientVesselData.name,
+              vesselType: clientVesselData.type,
+              vesselFlag: clientVesselData.flag,
+              vesselIMO: clientVesselData.imo
             },
             branding: branding,
             publicUrl: publicUrl
@@ -863,9 +865,9 @@ export const handler = async (event, context) => {
           
           // Log the newly structured data
           console.log('CLIENT DATA - Key fields:');
-          console.log('- Vessel name:', templateData.incident.vessel.fields.name);
-          console.log('- Vessel status:', templateData.incident.incidentVessel.fields.vessel_status_during_incident);
-          console.log('- Crew status:', templateData.incident.incidentVessel.fields.crew_impact);
+          console.log('- Vessel name:', templateData.incident.vesselName);
+          console.log('- Vessel status:', templateData.incident.status);
+          console.log('- Crew status:', templateData.incident.crew_impact);
         } else {
           // Using server-fetched data
           console.log('USING SERVER-FETCHED INCIDENT DATA');
@@ -931,34 +933,30 @@ export const handler = async (event, context) => {
           console.log('VESSEL DATA BEFORE EMAIL TEMPLATE:');
           console.log(JSON.stringify(emailVesselData));
           
-          // CRITICAL CHANGE: Use the flat structure from cache if available
-          if (cachedData && cachedData.vesselName) {
-            console.log('🔄 SWITCHING TO FLAT DATA STRUCTURE FOR EMAIL TEMPLATE');
-            
-            // Create a new template data structure using the flat cache data directly
-            templateData = {
-              incident: cachedData, // Use the flat structure with all resolved fields
-              branding: branding,
-              publicUrl: publicUrl
-            };
-            
-            console.log('USING ENHANCED FLAT STRUCTURE:');
-            console.log('- vessel name:', cachedData.vesselName);
-            console.log('- vessel type:', cachedData.vesselType); 
-            console.log('- vessel flag:', cachedData.vesselFlag);
-          } else {
-            // Fallback to the normal nested structure if flat cache not available
-            templateData = {
-              incident: {
-                incident: { fields: incidentData },
-                vessel: { fields: emailVesselData }, // Use directly prepared data
-                incidentVessel: { fields: incidentVesselFields },
-                incidentType: { fields: { name: incidentType } }
-              },
-              branding: branding,
-              publicUrl: publicUrl
-            };
-          }
+          // Create a simple flat structure - the email template now handles all formats
+          templateData = {
+            incident: {
+              ...incidentData,   // Base incident data
+              vessels_involved: [{  // Add vessel data in the vessels_involved format
+                name: emailVesselData.name,
+                type: emailVesselData.type,
+                flag: emailVesselData.flag,
+                imo: emailVesselData.imo
+              }],
+              // Add direct vessel fields for backward compatibility
+              vesselName: emailVesselData.name,
+              vesselType: emailVesselData.type,
+              vesselFlag: emailVesselData.flag,
+              vesselIMO: emailVesselData.imo
+            },
+            branding: branding,
+            publicUrl: publicUrl
+          };
+          
+          console.log('USING COMPREHENSIVE DATA STRUCTURE FOR EMAIL TEMPLATE:');
+          console.log('- vessel name:', templateData.incident.vesselName);
+          console.log('- vessel type:', templateData.incident.vesselType); 
+          console.log('- vessel flag:', templateData.incident.vesselFlag);
         }
         
         // Add detailed debug logging before sending to email renderer
