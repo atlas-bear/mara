@@ -4,8 +4,6 @@ const AIRTABLE_BASE_ID = process.env.AT_BASE_ID_CSER;
 const AIRTABLE_API_KEY = process.env.AT_API_KEY;
 const AIRTABLE_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}`;
 
-const axios = require("axios");
-
 async function findIncidentByCustomId(customId) {
   try {
     const response = await axios.get(`${AIRTABLE_URL}/incident`, {
