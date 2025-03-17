@@ -182,17 +182,33 @@ export async function handler(event) {
  * @returns {boolean} True if the signature is valid
  */
 function verifyWebhookSignature(payload, signature, secret) {
-  // Create HMAC using the secret
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(payload);
-  const computedSignature = hmac.digest('hex');
+  // For Airtable automation scripts which don't have crypto capabilities
+  // We're using a simpler approach where the signature is just the secret itself
   
-  // Use a constant-time comparison to prevent timing attacks
+  // Check if we're using the simple signature approach (direct secret comparison)
+  if (signature === secret) {
+    console.log('Using simplified signature validation - direct secret match');
+    return true;
+  }
+  
+  // Fall back to standard HMAC validation if the above doesn't match
   try {
-    return crypto.timingSafeEqual(
+    // Create HMAC using the secret
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(payload);
+    const computedSignature = hmac.digest('hex');
+    
+    // Use a constant-time comparison to prevent timing attacks
+    const isValid = crypto.timingSafeEqual(
       Buffer.from(signature, 'hex'),
       Buffer.from(computedSignature, 'hex')
     );
+    
+    if (isValid) {
+      console.log('Standard HMAC-SHA256 signature validation successful');
+    }
+    
+    return isValid;
   } catch (error) {
     // If signatures are different lengths, timingSafeEqual throws an error
     console.error('Signature comparison error:', error.message);
