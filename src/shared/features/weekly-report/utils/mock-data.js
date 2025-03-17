@@ -106,7 +106,7 @@ export const regionalStats = {
     lastYearIncidents: 69,
     changeDirection: "down",
     lastWeekIncidents: 0,
-    weeklyChangeDirection: "Up",
+    weeklyChangeDirection: "up",
   },
 
   "West Africa": {
@@ -131,8 +131,8 @@ export const regionalStats = {
     ytdIncidents: 1,
     changeFromLastYear: 100, // No previous incidents, so technically infinity, but we use 100%
     lastYearIncidents: 0,
-    changeDirection: "Up",
-    lastWeekIncidents: 0,
-    weeklyChangeDirection: "Up",
+    changeDirection: "up",
+    lastWeekIncidents: 1,
+    weeklyChangeDirection: "down",
   },
 };
