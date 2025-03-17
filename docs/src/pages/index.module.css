@@ -5,19 +5,204 @@
 
 .heroBanner {
   padding: 4rem 0;
-  text-align: center;
+  text-align: left;
   position: relative;
   overflow: hidden;
+  background-color: var(--ifm-color-gray-0);
+  background-image: url('/img/paper-texture-light.png');
+  background-blend-mode: multiply;
+  background-size: 200px;
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+[data-theme='dark'] .heroBanner {
+  background-color: var(--ifm-color-gray-900);
+  background-image: url('/img/paper-texture-dark.png');
+  background-blend-mode: overlay;
+}
+
+.heroContent {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.heroText {
+  flex: 1;
+}
+
+.heroImage {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.heroImage img {
+  max-width: 100%;
+  height: auto;
+}
+
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.heroSubtitle {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  opacity: 0.8;
+  max-width: 80%;
 }
 
 .buttons {
   display: flex;
   align-items: center;
+  gap: 1rem;
+}
+
+.features {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+}
+
+.useCaseSection {
+  padding: 4rem 0;
+  background-color: var(--ifm-color-gray-100);
+}
+
+[data-theme='dark'] .useCaseSection {
+  background-color: var(--ifm-color-gray-800);
+}
+
+.useCaseHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.useCaseHeader h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-family: var(--font-heading);
+}
+
+.useCaseHeader p {
+  font-size: 1.25rem;
+  opacity: 0.8;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.useCaseItem {
+  background-color: var(--ifm-color-gray-0);
+  border-radius: 0.5rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.useCaseItem:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .useCaseItem {
+  background-color: var(--ifm-color-gray-900);
+}
+
+.useCaseItem h3 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.ctaSection {
+  padding: 6rem 0;
+  background-color: var(--ifm-color-primary);
+  color: white;
+}
+
+.ctaContent {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.ctaContent h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-heading);
+}
+
+.ctaContent p {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.ctaButtons {
+  display: flex;
   justify-content: center;
+  gap: 1rem;
+}
+
+/* Responsive Styles */
+@media screen and (max-width: 996px) {
+  .heroContent {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .heroSubtitle {
+    max-width: 100%;
+  }
+  
+  .buttons {
+    justify-content: center;
+  }
+  
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1.25rem;
+  }
+  
+  .useCaseHeader h2 {
+    font-size: 2rem;
+  }
+  
+  .ctaContent h2 {
+    font-size: 2rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .useCaseGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ctaButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .ctaButtons .button {
+    width: 100%;
+    max-width: 300px;
+  }
 }

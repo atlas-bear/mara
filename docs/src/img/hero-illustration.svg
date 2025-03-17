@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="500" height="300" viewBox="0 0 500 300" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="gradient1">
+            <stop stop-color="#6b5b4c" stop-opacity="0.1" offset="0%"></stop>
+            <stop stop-color="#d58936" stop-opacity="0.2" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="100%" y1="0%" x2="0%" y2="100%" id="gradient2">
+            <stop stop-color="#d58936" stop-opacity="0.1" offset="0%"></stop>
+            <stop stop-color="#6b5b4c" stop-opacity="0.2" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- Background Elements -->
+        <rect fill="url(#gradient1)" x="0" y="0" width="500" height="300" rx="8"></rect>
+        
+        <!-- World Map Outline -->
+        <path d="M50,150 C70,120 120,130 150,140 C180,150 200,130 230,135 C260,140 280,160 310,150 C340,140 370,120 400,140 C430,160 450,150 470,130" stroke="#6b5b4c" stroke-width="2" stroke-linecap="round" stroke-dasharray="1,3"></path>
+        
+        <!-- Locations/Pins -->
+        <circle cx="100" cy="140" r="4" fill="#a3412d"></circle>
+        <circle cx="170" cy="130" r="4" fill="#a3412d"></circle>
+        <circle cx="250" cy="150" r="4" fill="#a3412d"></circle>
+        <circle cx="320" cy="145" r="4" fill="#a3412d"></circle>
+        <circle cx="420" cy="135" r="4" fill="#a3412d"></circle>
+        
+        <!-- Ships -->
+        <g transform="translate(130, 150)">
+            <rect x="0" y="0" width="15" height="5" fill="#6b5b4c"></rect>
+            <rect x="3" y="-5" width="2" height="5" fill="#6b5b4c"></rect>
+            <rect x="7" y="-7" width="2" height="7" fill="#6b5b4c"></rect>
+        </g>
+        
+        <g transform="translate(280, 160)">
+            <rect x="0" y="0" width="20" height="7" fill="#6b5b4c"></rect>
+            <rect x="5" y="-7" width="2" height="7" fill="#6b5b4c"></rect>
+            <rect x="10" y="-10" width="2" height="10" fill="#6b5b4c"></rect>
+            <rect x="15" y="-5" width="2" height="5" fill="#6b5b4c"></rect>
+        </g>
+        
+        <!-- Data Elements -->
+        <g transform="translate(50, 70)">
+            <rect x="0" y="0" width="120" height="10" rx="2" fill="#6b5b4c" opacity="0.7"></rect>
+            <rect x="0" y="15" width="80" height="10" rx="2" fill="#6b5b4c" opacity="0.5"></rect>
+            <rect x="0" y="30" width="100" height="10" rx="2" fill="#6b5b4c" opacity="0.3"></rect>
+        </g>
+        
+        <g transform="translate(350, 80)">
+            <rect x="0" y="0" width="100" height="10" rx="2" fill="#d58936" opacity="0.7"></rect>
+            <rect x="0" y="15" width="70" height="10" rx="2" fill="#d58936" opacity="0.5"></rect>
+            <rect x="0" y="30" width="90" height="10" rx="2" fill="#d58936" opacity="0.3"></rect>
+        </g>
+        
+        <!-- Compass Rose -->
+        <g transform="translate(400, 200)">
+            <circle cx="0" cy="0" r="20" fill="white" opacity="0.2"></circle>
+            <path d="M0,-15 L5,0 L0,15 L-5,0 Z" fill="#6b5b4c"></path>
+            <path d="M-15,0 L0,-5 L15,0 L0,5 Z" fill="#6b5b4c"></path>
+        </g>
+        
+        <!-- Grid Overlay -->
+        <path d="M50,50 L450,50" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M50,100 L450,100" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M50,200 L450,200" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M50,250 L450,250" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        
+        <path d="M100,50 L100,250" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M200,50 L200,250" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M300,50 L300,250" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+        <path d="M400,50 L400,250" stroke="#6b5b4c" stroke-width="0.5" stroke-linecap="round" stroke-opacity="0.2"></path>
+    </g>
+</svg>

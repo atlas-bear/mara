@@ -29,6 +29,7 @@
     "@novu/notification-center": "^0.22.0",
     "@react-email/components": "^0.0.33",
     "@sendgrid/mail": "^8.1.4",
+    "@supabase/supabase-js": "^2.49.1",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
     "chrome-aws-lambda": "^10.1.0",

@@ -67,7 +67,9 @@ const config = {
           onUntruncatedBlogPosts: "warn",
         },
         theme: {
-          customCss: "./src/css/custom.css",
+          customCss: [
+            "./src/css/custom.css",
+          ],
         },
       }),
     ],
@@ -77,9 +79,14 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       // Replace with your project's social card
-      image: "img/docusaurus-social-card.jpg",
+      image: "img/mara-social-card.png",
+      colorMode: {
+        defaultMode: 'light',
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
+      },
       navbar: {
-        title: "MARA Docs",
+        title: "MARA Documentation",
         logo: {
           alt: "MARA Logo",
           src: "img/mara_logo.svg",
@@ -89,27 +96,60 @@ const config = {
             type: "docSidebar",
             sidebarId: "tutorialSidebar",
             position: "left",
-            label: "Tutorial",
+            label: "Documentation",
           },
-          { to: "/blog", label: "Blog", position: "left" },
+          { to: "/api", label: "API", position: "left" },
+          { to: "/blog", label: "Updates", position: "left" },
+          {
+            type: 'dropdown',
+            label: 'Support',
+            position: 'right',
+            items: [
+              {
+                label: 'FAQ',
+                to: '/faq',
+              },
+              {
+                label: 'Community Forum',
+                to: '/community',
+              },
+              {
+                label: 'Contact Us',
+                to: '/contact',
+              },
+            ],
+          },
           {
             href: "https://github.com/atlas-bear/mara",
-            //label: "GitHub",
             className: "header-github-link",
             "aria-label": "GitHub repository",
             position: "right",
           },
         ],
       },
+      docs: {
+        sidebar: {
+          hideable: true,
+          autoCollapseCategories: true,
+        },
+      },
       footer: {
         style: "dark",
         links: [
           {
-            title: "Docs",
+            title: "Documentation",
             items: [
               {
-                label: "Tutorial",
-                to: "/docs/intro",
+                label: "Getting Started",
+                to: "/getting-started",
+              },
+              {
+                label: "API Reference",
+                to: "/api",
+              },
+              {
+                label: "Tutorials",
+                to: "/tutorials",
               },
             ],
           },
@@ -117,16 +157,16 @@ const config = {
             title: "Community",
             items: [
               {
-                label: "Stack Overflow",
-                href: "https://stackoverflow.com/questions/tagged/docusaurus",
+                label: "GitHub Discussions",
+                href: "https://github.com/atlas-bear/mara/discussions",
               },
               {
                 label: "Discord",
-                href: "https://discordapp.com/invite/docusaurus",
+                href: "https://discord.gg/atlas-bear",
               },
               {
-                label: "X",
-                href: "https://x.com/docusaurus",
+                label: "Twitter",
+                href: "https://twitter.com/atlas_bear",
               },
             ],
           },
@@ -134,23 +174,54 @@ const config = {
             title: "More",
             items: [
               {
-                label: "Blog",
+                label: "Updates",
                 to: "/blog",
               },
               {
                 label: "GitHub",
-                href: "https://github.com/facebook/docusaurus",
+                href: "https://github.com/atlas-bear/mara",
               },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Atlas Bear. All rights reserved.`,
       },
       prism: {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
+        additionalLanguages: ['bash', 'diff', 'json', 'python', 'typescript'],
+        defaultLanguage: 'javascript',
+        magicComments: [
+          {
+            className: 'theme-code-block-highlighted-line',
+            line: 'highlight-next-line',
+            block: { start: 'highlight-start', end: 'highlight-end' },
+          },
+          {
+            className: 'code-block-error-line',
+            line: 'error-next-line',
+            block: { start: 'error-start', end: 'error-end' },
+          },
+        ],
+      },
+      tableOfContents: {
+        minHeadingLevel: 2,
+        maxHeadingLevel: 4,
       },
     }),
+  
+  // Add plugins for enhanced functionality
+  plugins: [
+    [
+      require.resolve('@docusaurus/plugin-content-docs'),
+      {
+        id: 'api',
+        path: 'api',
+        routeBasePath: 'api',
+        sidebarPath: require.resolve('./sidebarsApi.js'),
+      },
+    ],
+  ],
 };
 
 export default config;

@@ -1,0 +1,99 @@
+.codeBlockContainer {
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--ifm-code-background);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.codeBlockTitle {
+  background-color: var(--ifm-color-gray-700);
+  color: var(--ifm-color-gray-100);
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--ifm-color-gray-600);
+}
+
+.codeBlockContent {
+  position: relative;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.hasLineNumbers {
+  counter-reset: line;
+}
+
+.hasLineNumbers > code {
+  display: block;
+}
+
+.hasLineNumbers > code > span {
+  display: block;
+  position: relative;
+  padding-left: 3.5rem;
+}
+
+.hasLineNumbers > code > span:before {
+  content: counter(line);
+  counter-increment: line;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2.5rem;
+  text-align: right;
+  color: var(--ifm-color-gray-500);
+  padding-right: 1rem;
+  user-select: none;
+}
+
+.copyButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: var(--ifm-color-gray-700);
+  color: var(--ifm-color-gray-100);
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+
+.copyButton:hover {
+  opacity: 1;
+}
+
+/* Language-specific styles */
+.language-bash {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.language-json {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .codeBlockContainer {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'] .codeBlockTitle {
+  background-color: var(--ifm-color-gray-800);
+  border-bottom-color: var(--ifm-color-gray-700);
+}

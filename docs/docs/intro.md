@@ -1,48 +1,74 @@
 ---
-sidebar_position: 1
-slug: /
+id: intro
+title: Introduction to MARA
+sidebar_label: Introduction
+slug: /intro
 ---
 
-# Tutorial Intro
+# Introduction to MARA
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Welcome to the Multi-source Analysis and Reporting Architecture (MARA) documentation. MARA is a comprehensive platform designed for monitoring security-related incidents with integrated intelligence reports, daily hot spots, and comprehensive country and port indices.
+
+## What is MARA?
+
+MARA combines multiple data sources, analytical tools, and reporting capabilities to provide a complete picture of maritime security situations worldwide. It serves as a centralized hub for security intelligence, risk assessment, and incident tracking.
+
+### Key Features
+
+- **Real-time Incident Tracking**: Monitor security incidents as they happen across the globe
+- **Intelligence Reports**: Access detailed analysis from security experts
+- **Daily Hot Spots**: Quickly identify areas of concern or heightened risk
+- **Country & Port Indices**: Comprehensive risk assessments for countries and ports
+- **Interactive Maps**: Visualize security data spatially
+- **Custom Alerts**: Receive notifications for incidents in areas of interest
+
+## Who Uses MARA?
+
+MARA serves a wide range of maritime security stakeholders:
+
+- **Shipping Companies**: To assess route risks and implement security measures
+- **Port Authorities**: To maintain awareness of regional security situations
+- **Security Consultants**: To provide comprehensive analysis to clients
+- **Insurance Providers**: To evaluate risk factors for maritime operations
+- **Naval Forces**: To coordinate security response and planning
+- **Government Agencies**: To monitor maritime security in areas of interest
 
 ## Getting Started
 
-Get started by **creating a new site**.
+New to MARA? Start here to learn the basics:
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+- [Getting Started Guide](getting-started) - Learn how to set up and navigate MARA
+- [Core Concepts](core-concepts) - Understand MARA's key components and terminology
+- [Tutorials](tutorials) - Step-by-step guides for common tasks
 
-### What you'll need
+## Features Overview
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+MARA consists of several integrated modules:
 
-## Generate a new site
+### Incident Tracking
 
-Generate a new Docusaurus site using the **classic template**.
+Monitor security incidents including piracy, armed robbery, civil unrest, and other maritime security events. Each incident is verified, categorized, and enriched with detailed information.
 
-The classic template will automatically be added to your project after you run the command:
+### Intelligence Reports
 
-```bash
-npm init docusaurus@latest my-website classic
-```
+Access regular reports and analysis from security experts covering regional assessments, threat analysis, and security forecasts.
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+### Hot Spots
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+Quickly identify areas with concentrated security incidents or elevated risk levels that require special attention.
 
-## Start your site
+### Risk Assessment
 
-Run the development server:
+Evaluate security risks with comprehensive country and port indices based on historical data, current threats, and predictive analysis.
 
-```bash
-cd my-website
-npm run start
-```
+### API Access
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+Integrate MARA data into your systems using our comprehensive [API](../api/overview).
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+## Need Help?
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+If you have questions or need assistance:
+
+- Check our [FAQ](faq) for common questions
+- Join the [Community Forum](community) to connect with other users
+- Contact our [Support Team](contact) for personalized help
