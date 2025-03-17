@@ -49,7 +49,7 @@ export const regionalMonthlyData = {
     { month: "Dec", incidents: 8, robberies: 8 },
     { month: "Jan", incidents: 6, robberies: 6 },
     { month: "Feb", incidents: 4, robberies: 4 },
-    { month: "Mar", incidents: 0 },
+    { month: "Mar", incidents: 1, robberies: 1 },
   ],
 
   "Indian Ocean": [
@@ -58,7 +58,7 @@ export const regionalMonthlyData = {
     { month: "Dec", incidents: 3, attacks: 2, other: 1 },
     { month: "Jan", incidents: 0 },
     { month: "Feb", incidents: 2, other: 2 },
-    { month: "Mar", incidents: 0 },
+    { month: "Mar", incidents: 1, other: 1 },
   ],
 
   Americas: [
@@ -67,7 +67,7 @@ export const regionalMonthlyData = {
     { month: "Dec", incidents: 0 },
     { month: "Jan", incidents: 0 },
     { month: "Feb", incidents: 0 },
-    { month: "Mar", incidents: 0 },
+    { month: "Mar", incidents: 1, suspicious: 1 },
   ],
 
   Europe: [
@@ -93,46 +93,46 @@ export const regionalMonthlyData = {
 export const regionalStats = {
   "Southeast Asia": {
     ytdIncidents: 10,
-    changeFromLastYear: 42.86, // positive percentage
+    changeFromLastYear: 42.86, // (10-7)/7 * 100 = 42.86%
     lastYearIncidents: 7,
     changeDirection: "up", // up, down, or none
-    lastWeekIncidents: 1,  // incidents from last week
-    weeklyChangeDirection: "up" // compared to current week
+    lastWeekIncidents: 0, // incidents from last week
+    weeklyChangeDirection: "up", // compared to current week
   },
-  
+
   "Indian Ocean": {
-    ytdIncidents: 2,
-    changeFromLastYear: 97.10, // positive percentage 
+    ytdIncidents: 3,
+    changeFromLastYear: 95.65, // (3-69)/69 * 100 = -95.65%
     lastYearIncidents: 69,
     changeDirection: "down",
     lastWeekIncidents: 0,
-    weeklyChangeDirection: "none"
+    weeklyChangeDirection: "Up",
   },
-  
+
   "West Africa": {
     ytdIncidents: 4,
-    changeFromLastYear: 63.64, // positive percentage
+    changeFromLastYear: 63.64, // (4-11)/11 * 100 = -63.64%
     lastYearIncidents: 11,
     changeDirection: "down",
-    lastWeekIncidents: 1,
-    weeklyChangeDirection: "up"
+    lastWeekIncidents: 0,
+    weeklyChangeDirection: "down",
   },
-  
-  "Europe": {
+
+  Europe: {
     ytdIncidents: 0,
-    changeFromLastYear: 100, // positive percentage
+    changeFromLastYear: 100, // (0-1)/1 * 100 = -100%
     lastYearIncidents: 1,
     changeDirection: "down",
     lastWeekIncidents: 0,
-    weeklyChangeDirection: "none"
+    weeklyChangeDirection: "none",
   },
-  
-  "Americas": {
-    ytdIncidents: 0,
-    changeFromLastYear: 0, // percentage
+
+  Americas: {
+    ytdIncidents: 1,
+    changeFromLastYear: 100, // No previous incidents, so technically infinity, but we use 100%
     lastYearIncidents: 0,
-    changeDirection: "none",
+    changeDirection: "Up",
     lastWeekIncidents: 0,
-    weeklyChangeDirection: "none"
-  }
+    weeklyChangeDirection: "Up",
+  },
 };
