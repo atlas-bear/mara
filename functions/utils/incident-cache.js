@@ -347,3 +347,85 @@ export async function updateIncidentCache(incidentId, newData) {
     return false;
   }
 }
+
+/**
+ * Ensures an incident is cached, fetching it if needed
+ * This function is designed to be called by webhooks, automation triggers, or other functions
+ * to ensure the incident data is available in cache before sending notifications
+ * 
+ * @param {string} incidentId - The ID of the incident to ensure is cached
+ * @param {Object} options - Optional configuration
+ * @param {boolean} options.forceRefresh - If true, always refresh from Airtable even if cached
+ * @param {number} options.ttlHours - Override the default TTL for this specific operation
+ * @returns {Promise<Object>} Result object with success flag and incident data
+ */
+export async function ensureIncidentCached(incidentId, options = {}) {
+  if (!incidentId) {
+    throw new Error('Incident ID is required');
+  }
+
+  console.log(`Ensuring incident ${incidentId} is cached (options: ${JSON.stringify(options)})`);
+  
+  try {
+    // Check current cache status
+    const cacheKey = `${CACHE_PREFIX}${incidentId}`;
+    const existingCache = !options.forceRefresh ? await cacheOps.get(cacheKey) : null;
+    
+    // Determine if refresh is needed
+    let needsRefresh = true;
+    let incidentData = null;
+    
+    if (existingCache) {
+      // Check if cache has expired based on TTL
+      const cacheTime = new Date(existingCache.timestamp).getTime();
+      const now = new Date().getTime();
+      const ttlMs = (options.ttlHours || CACHE_TTL_HOURS) * 60 * 60 * 1000;
+      
+      if (now - cacheTime <= ttlMs && !options.forceRefresh) {
+        console.log(`Cache valid for incident ${incidentId} (age: ${Math.round((now - cacheTime) / 1000 / 60)} minutes)`);
+        needsRefresh = false;
+        incidentData = existingCache.data;
+      } else {
+        console.log(`Cache expired or force refresh requested for incident ${incidentId}`);
+      }
+    } else {
+      console.log(`No existing cache for incident ${incidentId}`);
+    }
+    
+    // Refresh the cache if needed
+    if (needsRefresh) {
+      console.log(`Fetching fresh incident data for ${incidentId}`);
+      incidentData = await fetchIncidentDataComprehensive(incidentId);
+      
+      if (!incidentData) {
+        console.error(`Could not fetch data for incident ${incidentId} from Airtable`);
+        return { 
+          success: false, 
+          error: 'Incident not found in Airtable',
+          incidentId 
+        };
+      }
+      
+      // Store in cache with timestamp
+      await cacheOps.store(cacheKey, { data: incidentData });
+      console.log(`Successfully cached incident ${incidentId}`);
+    }
+    
+    // Return success with incident data
+    return {
+      success: true,
+      incidentId,
+      incidentData,
+      fromCache: !needsRefresh,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error(`Error ensuring incident ${incidentId} is cached:`, error);
+    return {
+      success: false,
+      error: error.message,
+      incidentId,
+      stack: error.stack
+    };
+  }
+}

@@ -1470,21 +1470,25 @@ export const handler = async (event, context) => {
  * @returns {boolean} Whether to use client branding for URLs
  */
 function shouldUseClientBranding(email) {
+  if (!email) return false;
+  
   // Extract domain from email
-  const domain = email.split("@")[1] || "";
-  console.log(`Checking domain for client branding: ${domain}`);
-
-  // Domain-based branding mapping - use environment variables for production
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  if (!domain) return false;
+  
+  // Get client domains from environment - no defaults in code
   const clientDomains = process.env.CLIENT_DOMAINS
     ? process.env.CLIENT_DOMAINS.split(",")
-    : ["clientdomain.com", "company.com", "atlasbear.co"];
-
-  // Check if this is a client domain
-  const isClientDomain = clientDomains.some((clientDomain) =>
-    domain.includes(clientDomain.trim())
-  );
-
-  console.log(`Is client domain (for URL branding): ${isClientDomain}`);
+        .map(d => d.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+  
+  // Check if domain matches any in the environment variable list - using exact match for security
+  const isClientDomain = clientDomains.some(clientDomain => domain === clientDomain);
+  
+  // Log without exposing specific domains in logs
+  console.log(`Email domain branding check: ${isClientDomain ? 'Using client branding' : 'Using default branding'}`);
+  
   return isClientDomain;
 }
 
