@@ -229,7 +229,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
           <li className="flex items-start">
             <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
             <span className="ml-2 text-gray-700">
-              <strong>Southeast Asia:</strong> Multiple boarding incidents reported in Singapore Strait with perpetrators targeting ship equipment during nighttime hours.
+              <strong>Southeast Asia:</strong> Armed perpetrators boarded a vessel in the Singapore Strait, briefly taking crew members hostage before fleeing empty-handed when the alarm was raised. No injuries were reported.
             </span>
           </li>
           <li className="flex items-start">
@@ -244,18 +244,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
               <strong>Europe:</strong> Risk to shipping remains elevated due to Russo-Ukrainian conflict. Disruptions and risks at Israeli ports continue amid Palestinian-Israeli conflict.
             </span>
           </li>
-          {keyDevelopments.length > 0 && keyDevelopments.map((inc, index) => (
-            <li key={`incident-${index}`} className="flex items-start">
-              <span className={`flex-shrink-0 h-5 w-5 ${
-                inc.incidentType?.fields?.name === 'Attack' ? 'text-red-600' :
-                inc.incidentType?.fields?.name === 'Robbery' ? 'text-orange-600' :
-                'text-blue-600'
-              }`}>●</span>
-              <span className="ml-2 text-gray-700">
-                <strong>{inc.incident.fields.region}:</strong> {inc.incident.fields.description}
-              </span>
-            </li>
-          ))}
+          {/* Dynamic incidents are now removed in favor of static content */}
         </ul>
       </div>
 
