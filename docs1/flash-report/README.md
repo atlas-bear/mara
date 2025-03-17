@@ -9,6 +9,8 @@ Welcome to the Flash Report system documentation. This section contains comprehe
 - [Integration Guide](integration-guide.md) - How to integrate the Flash Report functionality
 - [Testing Guide](testing-guide.md) - Guidelines for testing the Flash Report system
 - [Architecture](architecture.md) - Technical architecture and system design
+- [Automation System](automation-system.md) - Automated incident detection and alert triggering
+- [Cache Implementation](cache-implementation.md) - Performance optimization via caching
 
 ## Quick Start
 
@@ -25,6 +27,10 @@ To get started with the Flash Report system:
 - Geographic context with embedded maps
 - Customizable branding
 - Secure delivery through serverless functions
+- Automated triggering from Airtable
+- Recipient management through Supabase
+- Intelligent update detection
+- High-performance caching
 
 ## Related Documentation
 
