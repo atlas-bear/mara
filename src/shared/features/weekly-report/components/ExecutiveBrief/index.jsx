@@ -75,7 +75,13 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
   
   // Calculate regional stats and trends
   const regionalStats = Object.entries(regionData).map(([region, regionIncidents]) => {
-    const threatLevel = calculateThreatLevel(regionIncidents);
+    // Override threat levels for Southeast Asia and Indian Ocean to "Substantial"
+    let threatLevel;
+    if (region === "Southeast Asia" || region === "Indian Ocean") {
+      threatLevel = { level: 'Substantial', icon: '▲', class: 'bg-orange-100 text-orange-800' };
+    } else {
+      threatLevel = calculateThreatLevel(regionIncidents);
+    }
     
     const [historicalTrends, setHistoricalTrends] = useState({});
 
@@ -217,13 +223,13 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
           <li className="flex items-start">
             <span className="flex-shrink-0 h-5 w-5 text-red-600">●</span>
             <span className="ml-2 text-gray-700">
-              <strong>Indian Ocean:</strong> Houthis issue final warning of imminent attacks on vessels in the Red Sea. Intelligence suggests attacks may resume with greater aggression regardless of maritime/air strikes against Yemen.
+              <strong>Indian Ocean:</strong> UKMTO reports vessels experiencing GPS interference in the Strait of Hormuz, with disruptions lasting several hours, affecting navigation systems and requiring reliance on backup methods.
             </span>
           </li>
           <li className="flex items-start">
             <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
             <span className="ml-2 text-gray-700">
-              <strong>Southeast Asia:</strong> Region maintains high threat level with 10 incidents YTD. Incidents continue to concentrate in the Singapore Strait area with similar characteristics.
+              <strong>Southeast Asia:</strong> Multiple boarding incidents reported in Singapore Strait with perpetrators targeting ship equipment during nighttime hours.
             </span>
           </li>
           <li className="flex items-start">
