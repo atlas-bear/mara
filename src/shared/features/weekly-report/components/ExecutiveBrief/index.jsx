@@ -77,7 +77,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
   const regionalStats = Object.entries(regionData).map(([region, regionIncidents]) => {
     // Override threat levels for Southeast Asia and Indian Ocean to "Substantial"
     let threatLevel;
-    if (region === "Southeast Asia" || region === "Indian Ocean") {
+    if (region === "Southeast Asia" || region === "Indian Ocean" || region === "West Africa") {
       threatLevel = { level: 'Substantial', icon: '▲', class: 'bg-orange-100 text-orange-800' };
     } else {
       threatLevel = calculateThreatLevel(regionIncidents);
