@@ -13,7 +13,7 @@ const areaIncidentData = [
   { month: 'Oct', incidents: 5 }
 ];
 
-const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext = true }) => {
+const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext = true, startDate, endDate }) => {
   if (!incident) return null;
 
   // Get fields from the nested structure
@@ -21,6 +21,16 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
   const vesselFields = incident.vessel?.fields || {};
   const incidentVesselFields = incident.incidentVessel?.fields || {};
   const incidentTypeFields = incident.incidentType?.fields || {};
+  
+  // Additional check to determine if incident falls within the current period
+  // If start/end dates are provided, override the isHistorical flag
+  if (startDate && endDate && fields.date_time_utc) {
+    const incidentDate = new Date(fields.date_time_utc);
+    if (incidentDate >= startDate && incidentDate <= endDate) {
+      // If the incident is within the date range, it's not historical
+      isHistorical = false;
+    }
+  }
 
   // Configure map data
   const mapIncidents = [{

@@ -3,12 +3,13 @@ export function getCurrentReportingWeek() {
   // Find next Monday (or today if it's Monday)
   const end = new Date(now);
   end.setDate(now.getDate() + ((1 + 7 - end.getDay()) % 7));
-  // Set to start of day
-  end.setHours(0, 0, 0, 0);
+  // Set to end of day (23:59:59.999) to include all incidents on the last day
+  end.setHours(23, 59, 59, 999);
 
-  // Start date is 7 days before end
+  // Start date is 7 days before end, at the beginning of day
   const start = new Date(end);
   start.setDate(end.getDate() - 7);
+  start.setHours(0, 0, 0, 0);
 
   return { start, end };
 }
@@ -20,11 +21,13 @@ export function getReportingWeek(year, week) {
     // Adjust to next Monday
     end.setDate(end.getDate() + 1);
   }
-  end.setHours(0, 0, 0, 0);
+  // Set to end of day (23:59:59.999) to include all incidents on the last day
+  end.setHours(23, 59, 59, 999);
 
-  // Start date is 7 days before end
+  // Start date is 7 days before end, at the beginning of day
   const start = new Date(end);
   start.setDate(end.getDate() - 7);
+  start.setHours(0, 0, 0, 0);
 
   return { start, end };
 }

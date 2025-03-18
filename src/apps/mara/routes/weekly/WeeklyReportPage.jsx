@@ -183,6 +183,8 @@ function WeeklyReportPage() {
                 key={incident.incident.id}
                 incident={incident}
                 showHistoricalContext={false}
+                startDate={start}
+                endDate={end}
               />
             ))}
 
@@ -192,6 +194,8 @@ function WeeklyReportPage() {
                 incident={latestRegionIncident}
                 isHistorical={true}
                 showHistoricalContext={false}
+                startDate={start}
+                endDate={end}
               />
             )}
           </div>

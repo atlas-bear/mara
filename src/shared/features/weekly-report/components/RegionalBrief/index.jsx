@@ -57,6 +57,21 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
   // This is what would match the IncidentDetails component's expectations
   const displayIncidents = regionIncidents.length > 0 ? regionIncidents : (latestIncident ? [latestIncident] : []);
 
+  // Ensure incidents that happen on the final day of the reporting period are not marked as historical
+  const isHistoricalIncident = (incident) => {
+    // If we're showing latest incident because there are no current incidents, it's historical
+    if (regionIncidents.length === 0 && incident === latestIncident) {
+      return true;
+    }
+    
+    // If the incident is in the current region's incidents list, it's not historical
+    if (regionIncidents.includes(incident)) {
+      return false;
+    }
+    
+    return true;
+  };
+
   const uniqueLocations = Array.from(
     new Set(
       [
@@ -150,7 +165,7 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
       </div>
 
       {/* Status Notice */}
-      {regionIncidents.length === 0 && latestIncident && (
+      {regionIncidents.length === 0 && (
         <div className="p-4 bg-blue-50 border-b border-blue-100">
           <p className="text-sm text-blue-700">
             No incidents reported during this period.
@@ -338,9 +353,17 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                 // Fallback to using the title
                 incidentType = fields.title || 'Unknown Type';
               }
+              
+              // Determine if this is a historical incident
+              const historical = isHistoricalIncident(incident);
             
               return (
                 <div key={idx} className="bg-gray-50 p-4 rounded-lg">
+                  {historical && (
+                    <div className="mb-2 text-xs text-blue-700 bg-blue-50 p-1 rounded">
+                      Historical incident - Most recent in this region
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-semibold text-gray-900">
                       {vesselName}
