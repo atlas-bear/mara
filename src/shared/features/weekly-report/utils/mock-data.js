@@ -85,7 +85,7 @@ export const regionalMonthlyData = {
     { month: "Dec", incidents: 3, attacks: 1, boardings: 2 },
     { month: "Jan", incidents: 2, robberies: 1, boardings: 1 },
     { month: "Feb", incidents: 2, robberies: 1, boardings: 1 },
-    { month: "Mar", incidents: 0 },
+    { month: "Mar", incidents: 1, piracy: 1 },
   ],
 };
 
@@ -110,12 +110,12 @@ export const regionalStats = {
   },
 
   "West Africa": {
-    ytdIncidents: 4,
+    ytdIncidents: 5,
     changeFromLastYear: 63.64, // (4-11)/11 * 100 = -63.64%
     lastYearIncidents: 11,
     changeDirection: "down",
     lastWeekIncidents: 0,
-    weeklyChangeDirection: "down",
+    weeklyChangeDirection: "up",
   },
 
   Europe: {
