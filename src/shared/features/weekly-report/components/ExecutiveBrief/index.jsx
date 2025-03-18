@@ -235,7 +235,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
           <li className="flex items-start">
             <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
             <span className="ml-2 text-gray-700">
-              <strong>West Africa:</strong> Pirate Action Group (PAG) warning from MDAT-GoG remains in effect. Recent robbery aboard Oil/Chemical/Gas Tanker in Takoradi Anchorage highlights persistent risk.
+              <strong>West Africa:</strong> Pirate Action Group (PAG) warning from MDAT-GoG remains in effect. Recent boarding of Asphalt/Bitumen Tanker off São Tomé highlights persistent risk.
             </span>
           </li>
           <li className="flex items-start">
