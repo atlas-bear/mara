@@ -411,8 +411,10 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
               </li>
               <li>
                 {regionIncidents.filter(i => {
+                  // Check in both title and incident type
+                  const title = i.incident?.fields?.title || '';
                   const incidentType = i.incidentType?.fields?.name || '';
-                  return incidentType.includes('Armed');
+                  return title.includes('Armed') || incidentType.includes('Armed');
                 }).length > 0
                   ? 'Armed incidents indicate elevated threat level'
                   : 'No armed incidents reported'}
