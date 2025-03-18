@@ -233,15 +233,19 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           <p className="text-sm text-gray-600">Armed Incidents</p>
           <p className="text-2xl font-bold text-gray-900">
             {regionIncidents.filter(i => {
+              // Check in both title and incident type
+              const title = i.incident?.fields?.title || '';
               const incidentType = i.incidentType?.fields?.name || '';
-              return incidentType.includes('Armed');
+              return title.includes('Armed') || incidentType.includes('Armed');
             }).length}
           </p>
           <p className="text-xs text-gray-600">
             {regionIncidents.length > 0 ? 
               Math.round((regionIncidents.filter(i => {
+                // Check in both title and incident type
+                const title = i.incident?.fields?.title || '';
                 const incidentType = i.incidentType?.fields?.name || '';
-                return incidentType.includes('Armed');
+                return title.includes('Armed') || incidentType.includes('Armed');
               }).length / regionIncidents.length) * 100) + "% of weekly total" 
               : "No weekly incidents"
             }
