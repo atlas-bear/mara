@@ -326,11 +326,51 @@ async function createOrUpdateRecord(incident, existingRecord) {
 }
 
 function mapToAirtableFields(incident) {
+  // Extract updates from description if present
+  let description = incident.description;
+  let update = incident.update;
+
+  // Pattern to match "Update XXX:" format (e.g., "Update 001:", "Update 002:")
+  const updatePattern = /Update\s+(\d{3}):\s*(.*?)(?=Update\s+\d{3}:|$)/gs;
+  const matches = [...description.matchAll(updatePattern)];
+
+  if (matches.length > 0) {
+    log.info("Found update patterns in description", {
+      sourceId: incident.sourceId,
+      matchCount: matches.length,
+    });
+
+    // Extract all updates
+    let extractedUpdates = [];
+
+    matches.forEach((match) => {
+      const updateNumber = match[1];
+      const updateText = match[2].trim();
+      extractedUpdates.push(`Update ${updateNumber}: ${updateText}`);
+
+      log.info("Extracted update", {
+        updateNumber,
+        updateText:
+          updateText.substring(0, 50) + (updateText.length > 50 ? "..." : ""),
+      });
+    });
+
+    // Combine with existing update if present
+    if (update) {
+      update = update + "\n\n" + extractedUpdates.join("\n\n");
+    } else {
+      update = extractedUpdates.join("\n\n");
+    }
+
+    // Remove updates from description (optional)
+    description = description.replace(updatePattern, "").trim();
+  }
+
   const fields = {
     // Core incident fields
     title: incident.title,
-    description: incident.description,
-    update: incident.update,
+    description: description,
+    update: update,
     date: incident.dateOccurred || incident.date,
     reference: incident.sourceId,
 

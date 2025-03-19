@@ -4,67 +4,62 @@ This file serves as documentation for the MARA (Maritime Risk Analysis) project 
 
 ## Project Overview
 
-MARA is a maritime security application that tracks and reports on maritime incidents such as piracy, robbery, hijacking, and other security threats. One of its key features is the Flash Report functionality, which sends email alerts to stakeholders when new incidents occur.
+MARA is a maritime security application that tracks and reports on maritime incidents such as piracy, robbery, hijacking, and other security threats. Key features include Flash Reports (email alerts for new incidents) and Weekly Reports (comprehensive security summaries).
 
-## Recent Work
+## Build Commands
 
-### March 2025: Flash Report Email and Vessel Data Enhancements
+```bash
+# Development
+npm run dev                     # Run all packages
+npm run dev -- --filter @mara/app  # Run specific app
 
-1. **Improved vessel data extraction in flash report emails**:
+# Build
+npm run build                   # Build all packages
+npm run clean                   # Clean and reinstall dependencies
 
-   - Added multiple lookup strategies (ID, IMO, name) in `vessel-utils.js`
-   - Fixed variable scoping issues in `send-flash-report.js`
-   - Enhanced error handling and logging for vessel data
-   - Added fallback mechanisms for missing vessel data
+# Test Flash Report
+curl -X POST https://your-netlify-site.netlify.app/.netlify/functions/test-flash-report \
+-H "Content-Type: application/json" \
+-d '{"recipientEmail":"test@example.com","useDemoIncident":true}'
+```
 
-2. **Email template improvements**:
-   - Moved quick facts grid before location map
-   - Standardized on MARA branding for all emails
-   - Extended link validity from 7 days to 1 year
-   - Separated email branding (always MARA) from link branding (client-specific)
+## Code Style Guidelines
+
+- **Components:** React functional components with hooks
+- **Styling:** Tailwind CSS for UI components
+- **Error Handling:** Try/catch with consistent error objects
+- **Imports:** React first, then external libs, then internal modules
+- **File Structure:** Feature-based organization
 
 ## Project Structure
 
-Key components related to the Flash Report system:
+- `/src/apps/mara`: Main application
+- `/src/apps/client`: White-labeled client app
+- `/src/shared`: Reusable components
+- `/functions`: Netlify serverless functions
+- `/docs`: Documentation
 
-- `/functions/send-flash-report.js`: Serverless function for email generation
-- `/functions/utils/vessel-utils.js`: Vessel data lookup functions
-- `/functions/utils/incident-utils.js`: Incident data fetching
-- `/functions/utils/token-utils.js`: Token generation for secure links
+## Flash Report System
+
+Key components:
+- `/functions/send-flash-report.js`: Email generation
+- `/functions/utils/vessel-utils.js`: Vessel data lookup
+- `/functions/utils/incident-utils.js`: Incident data
+- `/functions/utils/token-utils.js`: Secure link tokens
 - `/src/apps/mara/components/FlashReport/`: UI components
-- `/src/apps/mara/routes/flash/PublicFlashReportPage.jsx`: Public view
-- `/docs1/flash-report/`: Documentation for flash report features
 
-## Common Commands and Patterns
+## Data Flow for Vessel Information
 
-### Netlify Functions
+1. Incident data fetched from Airtable using `getIncident()`
+2. Vessel data sources (in priority order):
+   - Direct vessel reference in incident record
+   - Join table (incident_vessel)
+   - Lookup by IMO/name via utility functions
+   - Embedded vessel fields as fallback
 
-To check logs from the `send-flash-report` function, go to the Netlify dashboard > Functions > send-flash-report > Recent invocations.
+## Logging & Debugging
 
-Look for log lines containing:
-
+Check Netlify function logs for:
 - "DEBUG - VESSEL DATA BEING SENT TO EMAIL"
 - "VESSEL DATA DEBUG"
 - "Using vessel data source:"
-
-### Development Flow
-
-When making changes to the flash report system:
-
-1. Update the appropriate files in `/functions/` or `/src/`
-2. Commit changes with descriptive messages
-3. Deploy to Netlify
-4. Test by sending a flash report
-5. Check logs for correct vessel data extraction
-
-### Data Flow for Vessel Information
-
-1. Incident data is fetched from Airtable using `getIncident()`
-2. Vessel data may come from:
-   - Direct vessel references in the incident record
-   - Join table (incident_vessel)
-   - Lookup by IMO number using `getVesselByIMO()`
-   - Lookup by vessel name using `getVesselByName()`
-   - Embedded vessel fields in the incident record as fallback
-
-The enhanced vessel data is then used to populate the email template.
