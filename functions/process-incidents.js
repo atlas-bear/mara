@@ -3,7 +3,7 @@ import axios from "axios";
 import { log } from "./utils/logger.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
 
-const BATCH_SIZE = 100; // Process 10 incidents at a time
+const BATCH_SIZE = 100; // Process 100 incidents at a time
 
 // Helper function to process a batch of incidents
 async function processIncidentBatch(incidents, startIndex, batchSize) {
