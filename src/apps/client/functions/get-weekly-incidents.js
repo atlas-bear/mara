@@ -1,4 +1,4 @@
-const axios = require("axios");
+import axios from "axios";
 
 const fetchIncidentDetails = async (incident, baseId, apiKey) => {
   try {
@@ -44,8 +44,7 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
     if (incident.fields.weapons_used && incident.fields.weapons_used.length > 0) {
       try {
         // Properly construct and encode the OR formula
-        const orFormula = `OR(${incident.fields.weapons_used.map(id => `RECORD_ID()="${id}"`).join(",")})`;
-        const encodedFormula = encodeURIComponent(orFormula);
+        const orFormula = `OR(${incident.fields.weapons_used.map(id => `RECORD_ID()="${id}"`).join(",")})`;        const encodedFormula = encodeURIComponent(orFormula);
         
         const weaponsResponse = await axios.get(
           `https://api.airtable.com/v0/${baseId}/weapons?filterByFormula=${encodedFormula}`,
@@ -73,8 +72,7 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
     if (incident.fields.items_stolen && incident.fields.items_stolen.length > 0) {
       try {
         // Properly construct and encode the OR formula
-        const orFormula = `OR(${incident.fields.items_stolen.map(id => `RECORD_ID()="${id}"`).join(",")})`;
-        const encodedFormula = encodeURIComponent(orFormula);
+        const orFormula = `OR(${incident.fields.items_stolen.map(id => `RECORD_ID()="${id}"`).join(",")})`;        const encodedFormula = encodeURIComponent(orFormula);
         
         const itemsResponse = await axios.get(
           `https://api.airtable.com/v0/${baseId}/items_stolen?filterByFormula=${encodedFormula}`,
@@ -102,8 +100,7 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
     if (incident.fields.response_type && incident.fields.response_type.length > 0) {
       try {
         // Properly construct and encode the OR formula
-        const orFormula = `OR(${incident.fields.response_type.map(id => `RECORD_ID()="${id}"`).join(",")})`;
-        const encodedFormula = encodeURIComponent(orFormula);
+        const orFormula = `OR(${incident.fields.response_type.map(id => `RECORD_ID()="${id}"`).join(",")})`;        const encodedFormula = encodeURIComponent(orFormula);
         
         const responseResponse = await axios.get(
           `https://api.airtable.com/v0/${baseId}/response_type?filterByFormula=${encodedFormula}`,
@@ -131,8 +128,7 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
     if (incident.fields.authorities_notified && incident.fields.authorities_notified.length > 0) {
       try {
         // Properly construct and encode the OR formula
-        const orFormula = `OR(${incident.fields.authorities_notified.map(id => `RECORD_ID()="${id}"`).join(",")})`;
-        const encodedFormula = encodeURIComponent(orFormula);
+        const orFormula = `OR(${incident.fields.authorities_notified.map(id => `RECORD_ID()="${id}"`).join(",")})`;        const encodedFormula = encodeURIComponent(orFormula);
         
         const authoritiesResponse = await axios.get(
           `https://api.airtable.com/v0/${baseId}/authorities_notified?filterByFormula=${encodedFormula}`,

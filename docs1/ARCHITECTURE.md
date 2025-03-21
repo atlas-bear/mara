@@ -130,7 +130,10 @@ The client application is a white-labeled version that provides specific functio
 Shared components are stored in `src/shared/components` and include basic UI elements that are used across applications:
 
 - `MaritimeMap`: Interactive map component for displaying maritime incidents
+- `PDFDownloadButton`: Browser-based PDF generation for reports
 - Other UI components as needed
+
+For detailed documentation on these components, see the [components documentation](./components/)
 
 ### Features
 
