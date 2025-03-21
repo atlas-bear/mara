@@ -1,4 +1,4 @@
-const crypto = require("crypto");
+import crypto from "crypto";
 
 // Function to generate a hash of the data (HTML content)
 export function generateHash(data) {
