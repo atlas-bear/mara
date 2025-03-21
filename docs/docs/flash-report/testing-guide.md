@@ -2,43 +2,15 @@
 
 This guide explains how to test the Flash Report functionality in different environments.
 
-## Quick Testing with Test Function
+## Testing Using the Flash Report UI
 
-The simplest way to test the Flash Report system is to use the dedicated test function:
+The simplest way to test the Flash Report system is to use the Flash Report user interface:
 
-```javascript
-// Example using fetch API
-async function testFlashReport(recipientEmail) {
-  try {
-    const response = await fetch('/.netlify/functions/test-flash-report', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        recipientEmail,
-        useDemoIncident: true
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to test flash report');
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error testing flash report:', error);
-    throw error;
-  }
-}
+1. Navigate to the Flash Report page for any incident (e.g., `/flash/2024-2662`)
+2. Add recipient email addresses
+3. Click "Send Flash Report"
 
-// Usage
-testFlashReport('your-email@example.com')
-  .then(result => console.log('Test completed:', result))
-  .catch(error => console.error('Test failed:', error));
-```
+This will validate that the entire Flash Report pipeline is working properly from UI to email delivery.
 
 ## Using the Demo Mode
 
@@ -97,13 +69,8 @@ Example development mode response:
 To test with real incident data:
 
 1. Get a valid incident ID from your Airtable instance
-2. Call the test-flash-report function with the specific incident ID:
-
-```javascript
-testFlashReport('your-email@example.com', '2024-1234', false)
-  .then(result => console.log('Test with real incident completed:', result))
-  .catch(error => console.error('Test failed:', error));
-```
+2. Navigate to the Flash Report page for that incident (e.g., `/flash/2024-1234`)
+3. Add recipient email addresses and send the report
 
 ## Email Appearance Testing
 

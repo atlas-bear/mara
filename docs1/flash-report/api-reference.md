@@ -92,33 +92,3 @@ This endpoint sends flash report emails to specified recipients with incident in
 }
 ```
 
-## Test Flash Report
-
-Endpoint: `/.netlify/functions/test-flash-report`
-
-Method: `POST`
-
-This endpoint facilitates testing of the flash report system without requiring the full UI.
-
-### Request Format
-
-```json
-{
-  "incidentId": "2024-2662",
-  "recipientEmail": "test@example.com",
-  "useDemoIncident": true
-}
-```
-
-#### Required Parameters
-
-- `recipientEmail`: Email address to send the test report to
-
-#### Optional Parameters
-
-- `incidentId`: Specific incident ID to use (defaults to demo incident if omitted)
-- `useDemoIncident`: Boolean flag to force using the demo incident data (overrides incidentId)
-
-### Response Format
-
-This endpoint returns the same response format as the send-flash-report endpoint, as it forwards the response from that function.

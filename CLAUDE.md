@@ -17,10 +17,8 @@ npm run dev -- --filter @mara/app  # Run specific app
 npm run build                   # Build all packages
 npm run clean                   # Clean and reinstall dependencies
 
-# Test Flash Report
-curl -X POST https://your-netlify-site.netlify.app/.netlify/functions/test-flash-report \
--H "Content-Type: application/json" \
--d '{"recipientEmail":"test@example.com","useDemoIncident":true}'
+# Send Flash Report
+# Use the Flash Report UI page to send test reports
 ```
 
 ## Code Style Guidelines
