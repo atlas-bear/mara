@@ -20,11 +20,6 @@ status = 200
 [functions]
 directory = "functions"
 node_bundler = "esbuild"
-external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
-
-[functions.generate-pdf]
-included_files = []
-external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
 
 [[redirects]]
 from = "/api/*"
