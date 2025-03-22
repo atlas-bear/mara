@@ -7,8 +7,20 @@ const cacheStore = getStore({
   debug: true,
 });
 
+/**
+ * Utilities for caching data using Netlify Blobs storage
+ * 
+ * Provides methods for storing, retrieving, and deleting cached data
+ * with automatic timestamp tracking
+ */
 export const cacheOps = {
-  // Store data in Netlify Blobs
+  /**
+   * Stores data in Netlify Blobs storage with automatic timestamp
+   * 
+   * @param {string} key - The cache key to store data under
+   * @param {*} value - The data to store (will be serialized to JSON)
+   * @returns {Promise<void>}
+   */
   store: async (key, value) => {
     try {
       // Log the first few characters of the token for verification
@@ -45,7 +57,12 @@ export const cacheOps = {
     }
   },
 
-  // Retrieve data from Netlify Blobs
+  /**
+   * Retrieves data from Netlify Blobs storage with automatic expiration check
+   * 
+   * @param {string} key - The cache key to retrieve data for
+   * @returns {Promise<*|null>} The cached data, or null if not found or expired
+   */
   get: async (key) => {
     try {
       const cacheData = await cacheStore.get(key, { type: "json" }); // Updated method to retrieve JSON
@@ -72,7 +89,12 @@ export const cacheOps = {
     }
   },
 
-  // Delete data from Netlify Blobs
+  /**
+   * Deletes data from Netlify Blobs storage
+   * 
+   * @param {string} key - The cache key to delete
+   * @returns {Promise<void>}
+   */
   delete: async (key) => {
     try {
       await cacheStore.delete(key);

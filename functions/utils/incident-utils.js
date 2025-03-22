@@ -392,6 +392,13 @@ export async function getIncident(incidentId) {
   }
 }
 
+/**
+ * Determines the incident type based on text analysis and reference data
+ * 
+ * @param {string} text - The incident text to analyze (title or description)
+ * @param {Array<Object>} incidentTypes - Reference data of possible incident types
+ * @returns {Promise<string>} The determined incident type name
+ */
 export async function determineIncidentType(text, incidentTypes) {
   const lowerText = text.toLowerCase();
 
@@ -452,6 +459,12 @@ export async function determineIncidentType(text, incidentTypes) {
   return "Suspicious Approach";
 }
 
+/**
+ * Determines the severity level of an incident based on text analysis
+ * 
+ * @param {string} text - The incident text to analyze
+ * @returns {string} The severity level: "high", "medium", or "low"
+ */
 export function determineSeverity(text) {
   const lowerText = text.toLowerCase();
 

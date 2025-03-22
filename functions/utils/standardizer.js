@@ -1,8 +1,22 @@
 import { validateIncident } from "./validation.js";
 import { log } from "./logger.js";
 
+/**
+ * Standardizes the format of an incident object from various sources
+ * 
+ * @param {Object} incident - The raw incident data to standardize
+ * @param {string} sourceName - The name of the source system (e.g., "ukmto", "recaap")
+ * @param {string} sourceUrl - The URL of the source system
+ * @returns {Object} A standardized incident object with normalized fields
+ */
 export const standardizeIncident = (incident, sourceName, sourceUrl) => {
-  // Helper function to capitalize the first letter of each word in a string
+  /**
+   * Capitalizes the first letter of each word in a string
+   * 
+   * @param {string} str - The string to process
+   * @returns {string|*} The string with each word capitalized, or the original value if not a string
+   * @private
+   */
   function capitalizeWords(str) {
     if (typeof str !== "string") return str; // Return as is if not a string
     return str.replace(
@@ -11,7 +25,13 @@ export const standardizeIncident = (incident, sourceName, sourceUrl) => {
     );
   }
 
-  // Helper function to convert a string to uppercase
+  /**
+   * Converts a string to uppercase
+   * 
+   * @param {string} str - The string to convert
+   * @returns {string|*} The uppercase string, or the original value if not a string
+   * @private
+   */
   function toUpperCase(str) {
     if (typeof str !== "string") return str; // Return as is if not a string
     return str.toUpperCase();

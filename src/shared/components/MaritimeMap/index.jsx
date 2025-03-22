@@ -3,6 +3,16 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
 
+/**
+ * Interactive map component for displaying maritime incidents
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array<Object>} [props.incidents=[]] - Array of incident objects to display on the map
+ * @param {Array<number>} [props.center=[103.8, 1.12]] - Initial map center coordinates [longitude, latitude]
+ * @param {number} [props.zoom=8] - Initial zoom level
+ * @returns {JSX.Element} Rendered map component
+ */
 const MaritimeMap = ({ 
   incidents = [], 
   center = [103.8, 1.12],
@@ -119,6 +129,13 @@ const MaritimeMap = ({
 
         // Add pulsing dot image
         const size = 200;
+        /**
+         * Creates a pulsing dot animation for incident markers
+         * 
+         * @param {string} color - The RGB color string (format: "R,G,B")
+         * @returns {Object} A mapbox custom image object with animation
+         * @private
+         */
         const pulsingDotForType = (color) => ({
           width: size,
           height: size,
@@ -175,7 +192,13 @@ const MaritimeMap = ({
           }
         });
 
-        // Function to normalize and categorize incident types
+        /**
+         * Normalizes incident types into predefined categories for consistent display
+         * 
+         * @param {string} type - The raw incident type from the data
+         * @returns {string} Normalized category: 'violent', 'robbery', 'military', 'suspicious', 'cyber', 'smuggling', or 'default'
+         * @private
+         */
         const normalizeIncidentType = (type) => {
           if (!type) return 'default';
           

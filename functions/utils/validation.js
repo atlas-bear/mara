@@ -36,6 +36,12 @@ export function cleanLocation(location) {
   return location.trim() || null;
 }
 
+/**
+ * Validates if a date string is in a valid format and not in the future
+ * 
+ * @param {string} dateString - The date string to validate
+ * @returns {Object} Object containing isValid flag and error message if invalid
+ */
 export function validateDateFormat(dateString) {
   const date = new Date(dateString);
   const now = new Date();
@@ -51,6 +57,13 @@ export function validateDateFormat(dateString) {
   return { isValid: true };
 }
 
+/**
+ * Validates if latitude and longitude values are within valid ranges
+ * 
+ * @param {number} latitude - The latitude value to validate (-90 to 90)
+ * @param {number} longitude - The longitude value to validate (-180 to 180)
+ * @returns {Object} Object containing isValid flag and array of error messages
+ */
 export function validateCoordinates(latitude, longitude) {
   const errors = [];
 
@@ -67,6 +80,14 @@ export function validateCoordinates(latitude, longitude) {
   };
 }
 
+/**
+ * Validates that object fields match their expected types
+ * 
+ * @param {Object} data - The data object to validate
+ * @param {Object} requiredFields - Object mapping field names to expected types (e.g., {id: 'string'})
+ * @param {Object} optionalFields - Object mapping optional field names to expected types
+ * @returns {Array} Array of error messages, empty if validation passes
+ */
 export function validateFields(data, requiredFields, optionalFields = {}) {
   const errors = [];
 
@@ -105,7 +126,16 @@ export function validateFields(data, requiredFields, optionalFields = {}) {
   return errors;
 }
 
-// Validate the entire incident
+/**
+ * Validates a standardized incident object and normalizes its fields
+ * 
+ * @param {Object} incident - The incident object to validate
+ * @param {string} source - The name of the source system (e.g., "ukmto")
+ * @returns {Object} Object containing:
+ *   - isValid {boolean} Whether the incident passes validation
+ *   - errors {Array} List of validation error messages
+ *   - normalized {Object} A normalized copy of the incident with fixed fields
+ */
 export function validateIncident(incident, source) {
   const errors = [];
   const normalized = { ...incident }; // Start with a copy of the original

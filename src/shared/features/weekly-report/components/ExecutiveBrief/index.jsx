@@ -6,7 +6,14 @@ import MaritimeMap from '@shared/components/MaritimeMap';
 import { formatDateRange, getWeekNumber } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 
-// Sparkline component
+/**
+ * Simple sparkline chart for displaying trending data
+ * 
+ * @component
+ * @param {Object} props
+ * @param {Array<Object>} props.data - Array of data points with value property
+ * @returns {JSX.Element} Sparkline chart
+ */
 const Sparkline = ({ data }) => (
   <ResponsiveContainer width="100%" height={20}>
     <LineChart data={data}>
@@ -21,7 +28,12 @@ const Sparkline = ({ data }) => (
   </ResponsiveContainer>
 );
 
-// Utility function to calculate threat level based on incidents
+/**
+ * Calculates threat level based on incident types and descriptions
+ * 
+ * @param {Array<Object>} incidents - Array of incident objects
+ * @returns {Object} Threat level object with level name, icon, and CSS class
+ */
 const calculateThreatLevel = (incidents) => {
   // Count serious incidents (attacks, armed robberies, military activity)
   const seriousIncidents = incidents.filter(inc => {
@@ -41,7 +53,12 @@ const calculateThreatLevel = (incidents) => {
   return { level: 'Low', icon: '●', class: 'bg-green-100 text-green-800' };
 };
 
-// Utility function to identify key developments
+/**
+ * Identifies key significant incidents to highlight in the executive brief
+ * 
+ * @param {Array<Object>} incidents - Array of incident objects
+ * @returns {Array<Object>} Array of significant incidents sorted by date
+ */
 const identifyKeyDevelopments = (incidents) => {
   return incidents
     .filter(inc => {
@@ -60,6 +77,16 @@ const identifyKeyDevelopments = (incidents) => {
     .slice(0, 4);
 };
 
+/**
+ * Executive Brief component displaying a summary of maritime security incidents
+ * 
+ * @component
+ * @param {Object} props
+ * @param {Array<Object>} props.incidents - Array of incident objects
+ * @param {Date} props.start - Start date of the reporting period
+ * @param {Date} props.end - End date of the reporting period
+ * @returns {JSX.Element} Executive brief component
+ */
 const ExecutiveBrief = ({ incidents, start, end }) => {
   // Transform incidents for map
   const mapIncidents = incidents.map(inc => ({
@@ -288,7 +315,14 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
   );
 };
 
-// Utility function to generate forecast text
+/**
+ * Generates forecast text based on region, threat level, and trend data
+ * 
+ * @param {string} region - Region name
+ * @param {Object} threatLevel - Threat level object with level property
+ * @param {Array<Object>} trend - Array of trend data points
+ * @returns {string} Forecast text for the region
+ */
 const generateForecast = (region, threatLevel, trend) => {
   const trendValue = trend[trend.length - 1].value - trend[0].value;
   const trendDescription = trendValue > 0 ? 'increasing' : trendValue < 0 ? 'decreasing' : 'stable';
