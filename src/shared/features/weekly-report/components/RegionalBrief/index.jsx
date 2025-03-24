@@ -2,7 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
 import MaritimeMap from '@shared/components/MaritimeMap';
 import { getFirstSentence } from '@shared/features/weekly-report';
-import { regionalMonthlyData, regionalStats } from '../../utils/mock-data';
+import { regionalMonthlyData, regionalStats } from '../../utils/report-data';
 
 // Define regions info
 const REGIONS = {
