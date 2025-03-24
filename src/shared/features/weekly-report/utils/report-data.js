@@ -25,6 +25,9 @@ let cacheTimestamp = null;
 /** @const {number} Cache time-to-live in milliseconds (24 hours) */
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+/** API base URL - empty string means same-origin, or use VITE_MARA_API_URL env var */
+const API_BASE_URL = import.meta.env?.VITE_MARA_API_URL || '';
+
 /**
  * Fetches actual historical trends data from the API
  * @async
@@ -32,7 +35,10 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
  */
 async function fetchActualHistoricalTrends() {
   try {
-    const response = await fetch("/.netlify/functions/get-trend-data");
+    const url = `${API_BASE_URL}/.netlify/functions/get-trend-data`;
+    console.log(`Fetching historical trends from: ${url}`);
+    
+    const response = await fetch(url);
     if (!response.ok)
       throw new Error(`API responded with status ${response.status}`);
 
@@ -51,7 +57,10 @@ async function fetchActualHistoricalTrends() {
  */
 async function fetchActualRegionalMonthlyData() {
   try {
-    const response = await fetch("/.netlify/functions/get-monthly-data");
+    const url = `${API_BASE_URL}/.netlify/functions/get-monthly-data`;
+    console.log(`Fetching monthly data from: ${url}`);
+    
+    const response = await fetch(url);
     if (!response.ok)
       throw new Error(`API responded with status ${response.status}`);
 
@@ -70,7 +79,10 @@ async function fetchActualRegionalMonthlyData() {
  */
 async function fetchActualRegionalStats() {
   try {
-    const response = await fetch("/.netlify/functions/get-regional-stats");
+    const url = `${API_BASE_URL}/.netlify/functions/get-regional-stats`;
+    console.log(`Fetching regional stats from: ${url}`);
+    
+    const response = await fetch(url);
     if (!response.ok)
       throw new Error(`API responded with status ${response.status}`);
 

@@ -1,3 +1,6 @@
+/** API base URL - empty string means same-origin, or use VITE_MARA_API_URL env var */
+const API_BASE_URL = import.meta.env?.VITE_MARA_API_URL || '';
+
 export async function fetchWeeklyIncidents(start, end) {
   try {
     console.log(
@@ -16,7 +19,7 @@ export async function fetchWeeklyIncidents(start, end) {
 
     console.log("Fetching weekly incidents with dates:", { start, end });
 
-    const url = `/.netlify/functions/get-weekly-incidents?start=${start.toISOString()}&end=${end.toISOString()}`;
+    const url = `${API_BASE_URL}/.netlify/functions/get-weekly-incidents?start=${start.toISOString()}&end=${end.toISOString()}`;
     console.log("Final API URL:", url);
 
     const response = await fetch(url);
