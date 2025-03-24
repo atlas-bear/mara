@@ -3,10 +3,19 @@ import {
   promptConfig as incidentAnalysisConfig,
 } from "./incident-analysis.js";
 
+import {
+  createWeeklyReportPrompt,
+  promptConfig as weeklyReportConfig,
+} from "./weekly-report-analysis.js";
+
 export const prompts = {
   incidentAnalysis: {
     createPrompt: createIncidentAnalysisPrompt,
     config: incidentAnalysisConfig,
+  },
+  weeklyReport: {
+    createPrompt: createWeeklyReportPrompt,
+    config: weeklyReportConfig,
   },
   // Add other prompt types here as your system grows
 };

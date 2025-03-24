@@ -6,6 +6,21 @@ import MaritimeMap from '@shared/components/MaritimeMap';
 import { formatDateRange, getWeekNumber } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 
+// Color mappings for key development levels
+const LEVEL_COLORS = {
+  red: 'text-red-600',
+  orange: 'text-orange-600',
+  yellow: 'text-yellow-600',
+  blue: 'text-blue-600'
+};
+
+// Icon mappings for forecast trends
+const TREND_ICONS = {
+  up: '↗',
+  down: '↘',
+  stable: '→'
+};
+
 /**
  * Simple sparkline chart for displaying trending data
  * 
@@ -100,6 +115,50 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
   // Group incidents by region
   const regionData = _.groupBy(incidents, inc => inc.incident.fields.region);
   
+  const [historicalTrends, setHistoricalTrends] = useState({});
+  const [generatedContent, setGeneratedContent] = useState({
+    keyDevelopments: [],
+    forecast: []
+  });
+  const [contentLoading, setContentLoading] = useState(true);
+  
+  // Fetch trends and generated content
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load trends
+        const trends = await fetchAllHistoricalTrends();
+        setHistoricalTrends(trends);
+        
+        // Only fetch content if start and end dates are valid
+        if (start && end) {
+          setContentLoading(true);
+          
+          // Fetch generated content from API
+          const API_BASE_URL = import.meta.env?.VITE_MARA_API_URL || '';
+          const response = await fetch(
+            `${API_BASE_URL}/.netlify/functions/get-weekly-report-content?start=${start.toISOString()}&end=${end.toISOString()}`
+          );
+          
+          if (!response.ok) {
+            throw new Error(`API responded with status ${response.status}`);
+          }
+          
+          const data = await response.json();
+          if (data) {
+            setGeneratedContent(data);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading weekly report content:", error);
+      } finally {
+        setContentLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [start, end]);
+  
   // Calculate regional stats and trends
   const regionalStats = Object.entries(regionData).map(([region, regionIncidents]) => {
     // Override threat levels for Southeast Asia and Indian Ocean to "Substantial"
@@ -109,22 +168,12 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
     } else {
       threatLevel = calculateThreatLevel(regionIncidents);
     }
-    
-    const [historicalTrends, setHistoricalTrends] = useState({});
 
-  useEffect(() => {
-    const loadTrends = async () => {
-      const trends = await fetchAllHistoricalTrends();
-      setHistoricalTrends(trends);
-    };
-    loadTrends();
-  }, []);
-
-  // Use historical trends if available, otherwise use current month data
-  const trend = historicalTrends[region] || Array.from({ length: 6 }, (_, i) => ({
-    month: ["May", "Jun", "Jul", "Aug", "Sep", "Oct"][i],
-    value: 0
-  }));
+    // Use historical trends if available, otherwise use current month data
+    const trend = historicalTrends[region] || Array.from({ length: 6 }, (_, i) => ({
+      month: ["May", "Jun", "Jul", "Aug", "Sep", "Oct"][i],
+      value: 0
+    }));
 
     return {
       region,
@@ -134,8 +183,14 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
     };
   });
 
-  // Identify key developments
-  const keyDevelopments = identifyKeyDevelopments(incidents);
+  // Use automated content if available, otherwise fall back to algorithm
+  const keyDevelopments = generatedContent.keyDevelopments?.length > 0 
+    ? generatedContent.keyDevelopments 
+    : identifyKeyDevelopments(incidents).map(inc => ({
+        region: inc.incident.fields.region,
+        level: 'orange',
+        content: `${inc.incident.fields.title}: ${inc.incident.fields.description?.substring(0, 100)}...`
+      }));
 
   return (
     <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg my-8">
@@ -246,70 +301,69 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
       {/* Key Developments */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Key Developments</h2>
-        <ul className="space-y-4">
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-red-600">●</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Indian Ocean:</strong> UKMTO reports vessels experiencing GPS interference in the Strait of Hormuz, with disruptions lasting several hours, affecting navigation systems and requiring reliance on backup methods.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Southeast Asia:</strong> Armed perpetrators boarded a vessel in the Singapore Strait, briefly taking crew members hostage before fleeing empty-handed when the alarm was raised. No injuries were reported.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">●</span>
-            <span className="ml-2 text-gray-700">
-              <strong>West Africa:</strong> Pirate Action Group (PAG) warning from MDAT-GoG remains in effect. Recent boarding of Asphalt/Bitumen Tanker off São Tomé highlights persistent risk.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-blue-600">●</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Europe:</strong> Risk to shipping remains elevated due to Russo-Ukrainian conflict. Disruptions and risks at Israeli ports continue amid Palestinian-Israeli conflict.
-            </span>
-          </li>
-          {/* Dynamic incidents are now removed in favor of static content */}
-        </ul>
+        {contentLoading ? (
+          <p className="text-gray-500 italic">Loading key developments...</p>
+        ) : (
+          <ul className="space-y-4">
+            {keyDevelopments.map((dev, index) => (
+              <li key={index} className="flex items-start">
+                <span className={`flex-shrink-0 h-5 w-5 ${LEVEL_COLORS[dev.level] || 'text-blue-600'}`}>●</span>
+                <span className="ml-2 text-gray-700">
+                  <strong>{dev.region}:</strong> {dev.content}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* 7-Day Forecast */}
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">7-Day Forecast</h2>
-        <ul className="space-y-4">
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-red-600">↗</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Indian Ocean:</strong> Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Southeast Asia:</strong> Continued risk of robbery and theft in Singapore Strait. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
-            <span className="ml-2 text-gray-700">
-              <strong>West Africa:</strong> Ongoing piracy threat with active PAG in Gulf of Guinea. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-yellow-600">→</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Europe:</strong> Continued risk of military-related incidents in Black Sea. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-yellow-600">→</span>
-            <span className="ml-2 text-gray-700">
-              <strong>Americas:</strong> Risk level remains moderate. Vessels at Callao Anchorage, Peru advised to maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
-            </span>
-          </li>
-        </ul>
+        {contentLoading ? (
+          <p className="text-gray-500 italic">Loading forecast data...</p>
+        ) : (
+          <ul className="space-y-4">
+            {generatedContent.forecast?.length > 0 ? (
+              generatedContent.forecast.map((forecast, index) => (
+                <li key={index} className="flex items-start">
+                  <span className={`flex-shrink-0 h-5 w-5 ${
+                    forecast.trend === 'up' ? 'text-red-600' : 
+                    forecast.trend === 'down' ? 'text-green-600' : 
+                    'text-orange-600'
+                  }`}>
+                    {TREND_ICONS[forecast.trend] || '→'}
+                  </span>
+                  <span className="ml-2 text-gray-700">
+                    <strong>{forecast.region}:</strong> {forecast.content}
+                  </span>
+                </li>
+              ))
+            ) : (
+              // Fallback content if no forecast is available
+              <>
+                <li className="flex items-start">
+                  <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
+                  <span className="ml-2 text-gray-700">
+                    <strong>Indian Ocean:</strong> Maintain heightened vigilance. Follow official maritime advisories for the Red Sea and Gulf of Aden.
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
+                  <span className="ml-2 text-gray-700">
+                    <strong>Southeast Asia:</strong> Exercise caution in the Singapore Strait. Report suspicious activity promptly to authorities.
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <span className="flex-shrink-0 h-5 w-5 text-orange-600">→</span>
+                  <span className="ml-2 text-gray-700">
+                    <strong>West Africa:</strong> Follow BMP West Africa guidelines. Maintain watch and report all suspicious activity to MDAT-GoG.
+                  </span>
+                </li>
+              </>
+            )}
+          </ul>
+        )}
       </div>
     </div>
   );

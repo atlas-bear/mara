@@ -64,5 +64,57 @@ export const processIncidentAnalysisResponse = (responseText) => {
 };
 
 /**
- * Additional response processors can be defined here
+ * Process Claude response for weekly report analysis
+ * @param {string} responseText - Raw text response from Claude
+ * @returns {Object} - Structured weekly report data
  */
+export const processWeeklyReportResponse = (responseText) => {
+  try {
+    // Extract JSON from response (in case there's any extra text)
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not extract JSON from Claude response");
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+    
+    // Validate keyDevelopments
+    if (!Array.isArray(parsedData.keyDevelopments)) {
+      throw new Error("Invalid keyDevelopments format in Claude response");
+    }
+    
+    // Validate forecast
+    if (!Array.isArray(parsedData.forecast)) {
+      throw new Error("Invalid forecast format in Claude response");
+    }
+    
+    // Map key developments to expected format
+    const keyDevelopments = parsedData.keyDevelopments.map(dev => ({
+      region: dev.region || "Unknown",
+      level: dev.level || "blue",
+      content: dev.content || "No content provided"
+    }));
+    
+    // Map forecast to expected format
+    const forecast = parsedData.forecast.map(f => ({
+      region: f.region || "Unknown",
+      trend: f.trend || "stable",
+      content: f.content || "No content provided"
+    }));
+    
+    return {
+      keyDevelopments,
+      forecast
+    };
+  } catch (error) {
+    log.error("Error parsing weekly report response", error, { responseText });
+    return {
+      keyDevelopments: [
+        { region: "Error", level: "red", content: "Error processing LLM response. Manual review required." }
+      ],
+      forecast: [
+        { region: "Error", level: "red", content: "Error processing LLM response. Manual review required." }
+      ]
+    };
+  }
+};

@@ -1,7 +1,10 @@
 import axios from "axios";
 import { log } from "./logger.js";
 import { getPrompt } from "../prompts/index.js";
-import { processIncidentAnalysisResponse } from "./llm-processors.js";
+import { 
+  processIncidentAnalysisResponse,
+  processWeeklyReportResponse
+} from "./llm-processors.js";
 
 /**
  * Call Claude API with a specific prompt type
@@ -14,8 +17,10 @@ export const callClaudeWithPrompt = async (promptType, data) => {
     // Get the prompt and configuration
     const { createPrompt, config } = getPrompt(promptType);
 
-    // Create the prompt with the provided data
-    const promptContent = createPrompt(data.incidentData, data.recordFields);
+    // Create the prompt with the provided data (different prompt types may have different parameters)
+    const promptContent = promptType === "incidentAnalysis" 
+      ? createPrompt(data.incidentData, data.recordFields)
+      : createPrompt(...Object.values(data));
 
     log.info(`Calling Claude API with ${promptType} prompt`);
 
@@ -43,6 +48,8 @@ export const callClaudeWithPrompt = async (promptType, data) => {
     // Process the response based on prompt type
     if (promptType === "incidentAnalysis") {
       return processIncidentAnalysisResponse(responseText);
+    } else if (promptType === "weeklyReport") {
+      return processWeeklyReportResponse(responseText);
     }
 
     // Default fallback (shouldn't reach here if all prompt types are handled)
