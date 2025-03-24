@@ -1,0 +1,8 @@
+{
+  "label": "Data Pipeline",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Documentation for the MARA data collection and processing pipeline, which collects maritime incident data from multiple sources, standardizes it, and creates structured incident records."
+  }
+}

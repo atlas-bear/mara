@@ -30,14 +30,32 @@ Atlas|Bear is committed to providing a cutting-edge platform for all users, from
     - **/mara**: Main application containing both weekly and flash reports
   - **/shared**: Shared utilities and components used across the application
 - **/functions**: Netlify serverless functions for backend operations
+  - **Collection Functions**: Source-specific data collectors (RECAAP, UKMTO, MDAT, ICC)
+  - **Processing Functions**: Data normalization and incident creation
+  - **Deduplication System**: Cross-source duplicate detection and merging
+  - **Flash Report System**: Email notification generation and delivery
 - **/scripts**: Automation and utility scripts
 - **/data**: Sample data and datasets used for development and testing
 - **/docs**: Documentation and guides
   - **ARCHITECTURE.md**: Detailed technical architecture documentation
+  - **data-pipeline/**: Data collection and processing documentation
+  - **deduplication/**: Cross-source deduplication system documentation
+  - **flash-report/**: Flash Report system documentation
 
 ## Technical Architecture
 
 For a detailed understanding of MARA's technical architecture, including component structure, routing, and key features, please refer to our [Architecture Documentation](docs/ARCHITECTURE.md).
+
+### Data Pipeline
+
+MARA features a comprehensive data pipeline that automates the collection, deduplication, and processing of maritime incident data:
+
+1. **Collection**: Dedicated functions collect data from authoritative maritime sources (RECAAP, UKMTO, MDAT, ICC)
+2. **Deduplication**: The cross-source deduplication system identifies and merges duplicate reports from different sources
+3. **Processing**: Raw data is transformed into structured incident records with AI-enhanced analysis
+4. **Reporting**: Processed incidents power Flash Reports and Weekly Reports for timely maritime security intelligence
+
+This automated pipeline ensures comprehensive coverage, high data quality, and timely reporting of maritime security incidents worldwide.
 
 ## Contributing
 

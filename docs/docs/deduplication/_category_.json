@@ -1,0 +1,8 @@
+{
+  "label": "Cross-Source Deduplication",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "description": "Documentation for the MARA cross-source deduplication system, which identifies and merges duplicate maritime incident reports from different sources."
+  }
+}

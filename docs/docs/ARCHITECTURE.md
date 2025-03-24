@@ -158,6 +158,16 @@ feature-name/
 4. **Shared Logic**: Common business logic in shared utilities
 5. **Rendering**: Component rendering with data passed via props
 
+## Data Processing Pipeline
+
+MARA employs a sophisticated data processing pipeline to transform raw incident data from various sources into coherent, deduplicated incident records:
+
+1. **Data Collection**: Scheduled functions collect data from various maritime sources (RECAAP, UKMTO, MDAT, ICC)
+2. **Deduplication**: The cross-source deduplication system identifies and merges duplicate reports
+3. **Processing**: Raw data is processed to standardize formats and extract key information
+4. **Incident Creation**: Processed data is used to create comprehensive incident records
+5. **Reporting**: Incidents are analyzed and compiled into Flash Reports and Weekly Reports
+
 ## Build and Deployment
 
 ### Development Workflow
@@ -191,12 +201,27 @@ Netlify Functions require specific configuration in the `netlify.toml` file:
 [functions]
 directory = "functions"
 node_bundler = "esbuild"
+
+# Scheduled functions
+[functions."collect-recaap"]
+schedule = "0,30 * * * *"
+
+[functions."process-incidents"]
+schedule = "25,55 * * * *"
+
+[functions."deduplicate-cross-source-background"]
+schedule = "28 * * * *"
+background = true
 ```
 
 This configuration:
 
 - Specifies the directory containing function code
 - Uses esbuild for bundling Node.js functions, which handles dependencies more effectively
+- Schedules several types of functions to run at specified intervals:
+  - Data collection functions to fetch from maritime sources
+  - Deduplication function to identify and merge duplicate reports
+  - Processing function to transform raw data into incident records
 
 ### Function Dependencies
 
