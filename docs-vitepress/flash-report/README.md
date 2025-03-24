@@ -34,8 +34,8 @@ To get started with the Flash Report system:
 
 ## Related Documentation
 
-- [Contributing Guidelines](../CONTRIBUTING.md)
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Contributing Guidelines](https://github.com/atlas-bear/mara/blob/main/CONTRIBUTING.md)
+- [Code of Conduct](https://github.com/atlas-bear/mara/blob/main/CODE_OF_CONDUCT.md)
 
 ---
 

@@ -17,12 +17,12 @@ npm install
 npm run docs:dev
 ```
 
-Then open http://localhost:5173/mara/ in your browser to see the documentation.
+Then open your browser to the URL shown in the terminal (typically http://localhost:5173/mara/).
 
 ## Directory Structure
 
 - `.vitepress/` - VitePress configuration
-  - `config.js` - Main configuration file
+  - `config.mjs` - Main configuration file
   - `.jsdoc.json` - JSDoc configuration for API documentation
 - `api/` - Auto-generated API documentation (created during build)
 - `guide/` - General guides and getting started information
@@ -33,7 +33,7 @@ Then open http://localhost:5173/mara/ in your browser to see the documentation.
 
 ## Writing Documentation
 
-Documentation is written in Markdown format. The sidebar navigation is configured in `.vitepress/config.js`.
+Documentation is written in Markdown format. The sidebar navigation is configured in `.vitepress/config.mjs`.
 
 ## Building and Deployment
 

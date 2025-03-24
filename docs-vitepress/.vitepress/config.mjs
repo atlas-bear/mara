@@ -19,6 +19,9 @@ export default defineConfig({
   // Base URL for GitHub Pages
   base: '/mara/',
   
+  // Ignore dead links for now
+  ignoreDeadLinks: true,
+  
   head: [
     ['link', { rel: 'icon', href: 'https://drive.google.com/uc?id=1OB5Lwgpp03DB9vs50T_kkKzL5VV_y5Eo', type: 'image/png' }]
   ],

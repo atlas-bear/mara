@@ -41,7 +41,7 @@ The `deduplicate-cross-source-background.js` function runs after collection to i
 - Merges complementary information while preserving source attribution
 - Sets up relationships between merged records
 
-For detailed information on the deduplication system, see the [Cross-Source Deduplication documentation](../deduplication/overview.md).
+For detailed information on the deduplication system, see the [Cross-Source Deduplication documentation](/deduplication/).
 
 ## Data Processing Stage
 
