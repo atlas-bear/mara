@@ -23,8 +23,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: npm
-          cache-dependency-path: docs-vitepress/package-lock.json
+          # Skip caching for now to avoid dependency resolution issues
+          # cache: npm
+          # cache-dependency-path: docs-vitepress/package-lock.json
 
       - name: Install Dependencies
         run: cd docs-vitepress && npm ci
