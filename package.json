@@ -18,7 +18,10 @@
     "dev": "turbo run dev",
     "preview": "turbo run preview",
     "clean": "rm -rf node_modules package-lock.json && npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs:dev": "cd docs-vitepress && npm run docs:dev",
+    "docs:build": "cd docs-vitepress && npm run docs:build",
+    "docs:preview": "cd docs-vitepress && npm run docs:preview"
   },
   "keywords": [],
   "author": "",

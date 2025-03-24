@@ -1,0 +1,19 @@
+{
+  "plugins": [],
+  "source": {
+    "include": ["../functions"],
+    "includePattern": ".+\\.js(doc|x)?$",
+    "excludePattern": "(^|\\/|\\\\)_"
+  },
+  "tags": {
+    "allowUnknownTags": true
+  },
+  "templates": {
+    "cleverLinks": false,
+    "monospaceLinks": false
+  },
+  "opts": {
+    "destination": "./api",
+    "recurse": true
+  }
+}

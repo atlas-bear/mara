@@ -3,6 +3,8 @@ command = "cd src/apps/mara && npm run build"
 publish = "src/apps/mara/dist"
 functions = "functions"
 
+# Documentation build is handled by GitHub Actions
+
 [build.environment]
 NODE_VERSION = "18"
 
