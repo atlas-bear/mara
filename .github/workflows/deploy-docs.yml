@@ -9,6 +9,12 @@ on:
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
+# Grant necessary permissions
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build-and-deploy:
     name: Build and Deploy VitePress Site
