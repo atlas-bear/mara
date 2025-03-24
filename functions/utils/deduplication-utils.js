@@ -66,7 +66,12 @@ export async function calculateSimilarityScore(record1, record2) {
   );
 
   // High IMO score should significantly boost vessel similarity
-  const vesselScore = vesselIMOScore === 1 ? 1 : vesselNameScore;
+  // If both records are missing vessel info, don't penalize the match
+  const bothMissingVesselInfo = (!fields1.vessel_name && !fields2.vessel_name);
+  
+  // Only use vessel score if we have vessel info from at least one source
+  const vesselScore = vesselIMOScore === 1 ? 1 : 
+                     bothMissingVesselInfo ? 0.7 : vesselNameScore;
 
   // Calculate incident type similarity
   const incidentTypeScore = await calculateIncidentTypeSimilarity(
@@ -85,11 +90,12 @@ export async function calculateSimilarityScore(record1, record2) {
   });
 
   // Calculate total weighted score
-  // Weights: time 30%, space 30%, vessel 30%, type 10%
+  // Adjust weights to prioritize time and location over vessel details
+  // Weights: time 40%, space 40%, vessel 10%, type 10%
   const totalScore =
-    timeScore * 0.3 +
-    spatialScore * 0.3 +
-    vesselScore * 0.3 +
+    timeScore * 0.4 +
+    spatialScore * 0.4 +
+    vesselScore * 0.1 +
     incidentTypeScore * 0.1;
 
   return {

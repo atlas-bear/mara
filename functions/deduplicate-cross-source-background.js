@@ -23,7 +23,7 @@ export default async (req, context) => {
   // Process parameters - potentially passed via querystring in manual triggering
   const dryRun = req.queryStringParameters?.dryRun === "true";
   const confidenceThreshold =
-    parseFloat(req.queryStringParameters?.confidenceThreshold) || 0.8;
+    parseFloat(req.queryStringParameters?.confidenceThreshold) || 0.7; // Lower threshold to catch more matches
   const maxRecords = parseInt(req.queryStringParameters?.maxRecords) || 100;
 
   log.info("Configuration", {
@@ -325,26 +325,38 @@ export default async (req, context) => {
       // Continue with function execution despite trigger failure
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
+    // Return using Netlify's newer Response format
+    return new Response(
+      JSON.stringify({
         success: true,
         summary,
         results: dryRun ? mergeResults : `Merged ${mergedRecords} records`,
       }),
-    };
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   } catch (error) {
     log.error("Error in Cross-Source Deduplication", {
       error: error.message,
       stack: error.stack,
     });
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
+    // Return error using Netlify's newer Response format
+    return new Response(
+      JSON.stringify({
         success: false,
         error: error.message,
       }),
-    };
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 };
