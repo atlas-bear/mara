@@ -43,6 +43,11 @@ schedule = "25,55 * * * *"
 [functions."scheduled-pdf-generation"]
 schedule = "@weekly"
 
+# Background function to deduplicate cross-source data
+[functions."deduplicate-cross-source-background"]
+schedule = "28 * * * *"
+background = true
+
 # Background processing function to process raw data
 [functions."process-raw-data-background"]
 background = true
