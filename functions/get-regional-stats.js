@@ -173,8 +173,28 @@ async function processRegionalStats() {
  * @returns {Object} Response object with status code and body
  */
 export const handler = async (event) => {
+  // Handle OPTIONS requests (CORS preflight)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+      },
+      body: "",
+    };
+  }
+  
   if (event.httpMethod !== "GET") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { 
+      statusCode: 405, 
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: "Method Not Allowed" 
+    };
   }
 
   try {
