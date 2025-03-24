@@ -27,4 +27,17 @@ export default defineConfig({
   optimizeDeps: {
     include: ["mapbox-gl", "react", "react-dom"],
   },
+  build: {
+    rollupOptions: {
+      // Exclude server-only code from the client bundle
+      external: [
+        // Functions that should never be bundled in client code
+        '/functions/**',
+        '**/functions/**',
+        '**/llm-*.js',
+        '**/airtable.js',
+        '**/prompts/**'
+      ]
+    }
+  },
 });

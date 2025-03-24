@@ -5,6 +5,7 @@ export { default as IncidentDetails } from "./components/IncidentDetails";
 
 // Utils exports
 export { fetchWeeklyIncidents } from "./utils/api";
+export { fetchWeeklyReportContent } from "./utils/client-api";
 export {
   getCurrentReportingWeek,
   getReportingWeek,

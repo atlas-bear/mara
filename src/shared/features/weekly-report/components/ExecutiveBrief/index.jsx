@@ -5,6 +5,7 @@ import _ from 'lodash';
 import MaritimeMap from '@shared/components/MaritimeMap';
 import { formatDateRange, getWeekNumber } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
+import { fetchWeeklyReportContent } from '@shared/features/weekly-report/utils/client-api';
 
 // Color mappings for key development levels
 const LEVEL_COLORS = {
@@ -122,6 +123,8 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
   });
   const [contentLoading, setContentLoading] = useState(true);
   
+  // Using the client-safe API function imported at the top
+  
   // Fetch trends and generated content
   useEffect(() => {
     const loadData = async () => {
@@ -134,17 +137,8 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
         if (start && end) {
           setContentLoading(true);
           
-          // Fetch generated content from API
-          const API_BASE_URL = import.meta.env?.VITE_MARA_API_URL || '';
-          const response = await fetch(
-            `${API_BASE_URL}/.netlify/functions/get-weekly-report-content?start=${start.toISOString()}&end=${end.toISOString()}`
-          );
-          
-          if (!response.ok) {
-            throw new Error(`API responded with status ${response.status}`);
-          }
-          
-          const data = await response.json();
+          // Use the client-safe API wrapper
+          const data = await fetchWeeklyReportContent(start, end);
           if (data) {
             setGeneratedContent(data);
           }
