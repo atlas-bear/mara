@@ -2,7 +2,7 @@
  * Utility functions for calculating similarity between different types of data
  */
 import { referenceData } from "./reference-data.js";
-import { logDebug } from "./logger.js";
+import { log } from "./logger.js";
 
 /**
  * Calculate similarity score between vessel names
@@ -152,7 +152,7 @@ export async function calculateIncidentTypeSimilarity(type1, type2) {
     // Return a proportional similarity score
     return matchCount / Math.max(words1.length, words2.length);
   } catch (error) {
-    logDebug("Error calculating incident type similarity", {
+    log.info("Error calculating incident type similarity", {
       error: error.message,
       type1,
       type2,

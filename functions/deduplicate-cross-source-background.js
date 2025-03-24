@@ -5,7 +5,7 @@
  * Uses spatial, temporal, and semantic similarity to detect matches and combines complementary information.
  */
 import axios from "axios";
-import { logDebug, logError, logInfo } from "./utils/logger.js";
+import { log } from "./utils/logger.js";
 import {
   calculateSimilarityScore,
   determinePrimaryRecord,
@@ -16,7 +16,7 @@ import {
  * Main deduplication function that runs as a Netlify serverless function
  */
 export default async (req, context) => {
-  logInfo("Cross-Source Deduplication Background Function started", {
+  log.info("Cross-Source Deduplication Background Function started", {
     time: new Date().toISOString(),
   });
 
@@ -26,7 +26,7 @@ export default async (req, context) => {
     parseFloat(req.queryStringParameters?.confidenceThreshold) || 0.8;
   const maxRecords = parseInt(req.queryStringParameters?.maxRecords) || 100;
 
-  logInfo("Configuration", {
+  log.info("Configuration", {
     dryRun,
     confidenceThreshold,
     maxRecords,
@@ -53,7 +53,7 @@ export default async (req, context) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoString = thirtyDaysAgo.toISOString();
 
-    logInfo("Fetching recent raw_data records", { since: thirtyDaysAgoString });
+    log.info("Fetching recent raw_data records", { since: thirtyDaysAgoString });
 
     // Use pagination to handle large datasets
     let rawDataRecords = [];
@@ -81,19 +81,19 @@ export default async (req, context) => {
       rawDataRecords = [...rawDataRecords, ...response.data.records];
       offset = response.data.offset;
 
-      logDebug(`Fetched ${response.data.records.length} records`, {
+      log.info(`Fetched ${response.data.records.length} records`, {
         total: rawDataRecords.length,
         hasMore: !!offset,
       });
 
       // Break if we've reached the maximum number of records to process
       if (rawDataRecords.length >= maxRecords) {
-        logInfo(`Reached maximum record limit (${maxRecords})`);
+        log.info(`Reached maximum record limit (${maxRecords})`);
         break;
       }
     } while (offset);
 
-    logInfo(`Retrieved ${rawDataRecords.length} records for processing`);
+    log.info(`Retrieved ${rawDataRecords.length} records for processing`);
 
     // Skip processing if no records found
     if (rawDataRecords.length === 0) {
@@ -124,7 +124,7 @@ export default async (req, context) => {
 
     // Get all source names
     const sourceNames = Object.keys(recordsBySource);
-    logInfo(`Found ${sourceNames.length} different sources`, {
+    log.info(`Found ${sourceNames.length} different sources`, {
       sources: sourceNames,
     });
 
@@ -140,7 +140,7 @@ export default async (req, context) => {
         const source2 = sourceNames[j];
         const records2 = recordsBySource[source2];
 
-        logInfo(
+        log.info(
           `Comparing records from ${source1} (${records1.length} records) and ${source2} (${records2.length} records)`
         );
 
@@ -189,7 +189,7 @@ export default async (req, context) => {
       }
     }
 
-    logInfo(`Found ${potentialMatches.length} potential matches`, {
+    log.info(`Found ${potentialMatches.length} potential matches`, {
       highConfidence: highConfidenceMatches,
       mediumConfidence: mediumConfidenceMatches,
       analyzedPairs: potentialMatchesCount,
@@ -213,7 +213,7 @@ export default async (req, context) => {
 
       // Only process high confidence matches if not in dry run mode
       if (!dryRun && match.score.total >= confidenceThreshold) {
-        logInfo(`Processing high confidence match`, {
+        log.info(`Processing high confidence match`, {
           score: match.score.total,
           record1: `${match.record1.fields.source} - ${match.record1.id}`,
           record2: `${match.record2.fields.source} - ${match.record2.id}`,
@@ -252,7 +252,7 @@ export default async (req, context) => {
           );
 
           mergedRecords++;
-          logInfo(`Successfully merged records`, {
+          log.info(`Successfully merged records`, {
             primaryId: primary.id,
             secondaryId: secondary.id,
           });
@@ -265,7 +265,7 @@ export default async (req, context) => {
             mergedFields,
           });
         } catch (error) {
-          logError(`Error merging records`, {
+          log.error(`Error merging records`, {
             primaryId: primary.id,
             secondaryId: secondary.id,
             error: error.message,
@@ -307,7 +307,7 @@ export default async (req, context) => {
       dryRun,
     };
 
-    logInfo("Cross-Source Deduplication complete", summary);
+    log.info("Cross-Source Deduplication complete", summary);
 
     return {
       statusCode: 200,
@@ -318,7 +318,7 @@ export default async (req, context) => {
       }),
     };
   } catch (error) {
-    logError("Error in Cross-Source Deduplication", {
+    log.error("Error in Cross-Source Deduplication", {
       error: error.message,
       stack: error.stack,
     });

@@ -1,7 +1,7 @@
 /**
  * Utilities for record deduplication, matching, and merging
  */
-import { logDebug } from "./logger.js";
+import { log } from "./logger.js";
 import {
   calculateTimeProximityScore,
   calculateSpatialProximityScore,
@@ -75,7 +75,7 @@ export async function calculateSimilarityScore(record1, record2) {
   );
 
   // Log detailed similarity scores for debugging
-  logDebug("Similarity score components", {
+  log.info("Similarity score components", {
     recordIds: [record1.id, record2.id],
     timeScore,
     spatialScore,
@@ -184,7 +184,7 @@ export function determinePrimaryRecord(record1, record2) {
   const score1 = completeness1 * 0.7 + priority1 * 0.3;
   const score2 = completeness2 * 0.7 + priority2 * 0.3;
 
-  logDebug("Primary record determination", {
+  log.info("Primary record determination", {
     record1: {
       id: record1.id,
       source: record1.fields.source,
