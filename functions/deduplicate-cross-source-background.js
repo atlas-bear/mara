@@ -308,6 +308,22 @@ export default async (req, context) => {
     };
 
     log.info("Cross-Source Deduplication complete", summary);
+    
+    // Trigger the process-raw-data-background function
+    try {
+      const siteUrl = process.env.PUBLIC_URL;
+      if (!siteUrl) {
+        log.error("PUBLIC_URL environment variable not set, cannot trigger process-raw-data-background");
+      } else {
+        await axios.post(`${siteUrl}/.netlify/functions/process-raw-data-background`);
+        log.info("Triggered process-raw-data-background function");
+      }
+    } catch (triggerError) {
+      log.error("Failed to trigger process-raw-data-background", {
+        error: triggerError.message
+      });
+      // Continue with function execution despite trigger failure
+    }
 
     return {
       statusCode: 200,
