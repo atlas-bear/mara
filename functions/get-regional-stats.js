@@ -12,12 +12,11 @@ import axios from "axios";
 
 /**
  * Processes incident data to generate statistics for each region
+ * Uses environment variables for Airtable access
  * @async
- * @param {string} baseId - Airtable base ID
- * @param {string} apiKey - Airtable API key
  * @returns {Object|null} Regional statistics object or null if processing fails
  */
-async function processRegionalStats(baseId, apiKey) {
+async function processRegionalStats() {
   try {
     // Define regions to track
     const regions = [
@@ -64,8 +63,8 @@ async function processRegionalStats(baseId, apiKey) {
     )`;
     
     const ytdResponse = await axios.get(
-      `https://api.airtable.com/v0/${baseId}/incident?filterByFormula=${encodeURIComponent(ytdFormula)}`,
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident?filterByFormula=${encodeURIComponent(ytdFormula)}`,
+      { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
     
     // Fetch last year's incidents for same period
@@ -75,8 +74,8 @@ async function processRegionalStats(baseId, apiKey) {
     )`;
     
     const lyResponse = await axios.get(
-      `https://api.airtable.com/v0/${baseId}/incident?filterByFormula=${encodeURIComponent(lyFormula)}`,
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident?filterByFormula=${encodeURIComponent(lyFormula)}`,
+      { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
     
     // Fetch last week's incidents
@@ -86,8 +85,8 @@ async function processRegionalStats(baseId, apiKey) {
     )`;
     
     const lastWeekResponse = await axios.get(
-      `https://api.airtable.com/v0/${baseId}/incident?filterByFormula=${encodeURIComponent(lastWeekFormula)}`,
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident?filterByFormula=${encodeURIComponent(lastWeekFormula)}`,
+      { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
     
     // Fetch previous week's incidents (for comparison)
@@ -97,8 +96,8 @@ async function processRegionalStats(baseId, apiKey) {
     )`;
     
     const prevWeekResponse = await axios.get(
-      `https://api.airtable.com/v0/${baseId}/incident?filterByFormula=${encodeURIComponent(prevWeekFormula)}`,
-      { headers: { Authorization: `Bearer ${apiKey}` } }
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident?filterByFormula=${encodeURIComponent(prevWeekFormula)}`,
+      { headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` } }
     );
     
     // Calculate statistics for each region
@@ -179,16 +178,14 @@ export const handler = async (event) => {
   }
 
   try {
-    const regionalStats = await processRegionalStats(
-      process.env.AT_BASE_ID_CSER,
-      process.env.AT_API_KEY
-    );
+    const regionalStats = await processRegionalStats();
 
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600" // Cache for 1 hour
+        "Cache-Control": "public, max-age=3600", // Cache for 1 hour
+        "Access-Control-Allow-Origin": "*"
       },
       body: JSON.stringify({ regionalStats })
     };

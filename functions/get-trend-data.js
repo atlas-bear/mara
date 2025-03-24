@@ -19,12 +19,11 @@ function getMonthName(dateStr) {
 
 /**
  * Processes incident data to generate historical trends by region and month
+ * Uses environment variables for Airtable access
  * @async
- * @param {string} baseId - Airtable base ID
- * @param {string} apiKey - Airtable API key
  * @returns {Object|null} Historical trends object or null if processing fails
  */
-async function processHistoricalTrends(baseId, apiKey) {
+async function processHistoricalTrends() {
   try {
     // Define regions to track
     const regions = [
@@ -52,9 +51,9 @@ async function processHistoricalTrends(baseId, apiKey) {
     
     // Fetch all incidents within date range
     const response = await axios.get(
-      `https://api.airtable.com/v0/${baseId}/incident?filterByFormula=${encodeURIComponent(formula)}`,
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident?filterByFormula=${encodeURIComponent(formula)}`,
       {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: { Authorization: `Bearer ${process.env.AT_API_KEY}` },
       }
     );
     
@@ -123,16 +122,14 @@ export const handler = async (event) => {
   }
 
   try {
-    const historicalTrends = await processHistoricalTrends(
-      process.env.AT_BASE_ID_CSER,
-      process.env.AT_API_KEY
-    );
+    const historicalTrends = await processHistoricalTrends();
 
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600" // Cache for 1 hour
+        "Cache-Control": "public, max-age=3600", // Cache for 1 hour
+        "Access-Control-Allow-Origin": "*"
       },
       body: JSON.stringify({ historicalTrends })
     };
