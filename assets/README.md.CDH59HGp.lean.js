@@ -1,0 +1,1 @@
+import{_ as t,c as i,o as a,ag as n}from"./chunks/framework.BONmpqY0.js";const u=JSON.parse('{"title":"MARA Documentation","description":"","frontmatter":{},"headers":[],"relativePath":"README.md","filePath":"README.md"}'),o={name:"README.md"};function s(l,e,r,d,c,h){return a(),i("div",null,e[0]||(e[0]=[n("",27)]))}const m=t(o,[["render",s]]);export{u as __pageData,m as default};
