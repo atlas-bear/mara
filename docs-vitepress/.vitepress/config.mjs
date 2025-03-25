@@ -37,6 +37,7 @@ export default defineConfig({
       { text: 'Data Pipeline', link: '/data-pipeline/' },
       { text: 'Deduplication', link: '/deduplication/' },
       { text: 'Flash Reports', link: '/flash-report/' },
+      { text: 'Weekly Reports', link: '/weekly-report/' },
       { text: 'API', link: '/api/' }
     ],
     
@@ -83,6 +84,18 @@ export default defineConfig({
             { text: 'Cache Implementation', link: '/flash-report/cache-implementation' },
             { text: 'Integration Guide', link: '/flash-report/integration-guide' },
             { text: 'Testing Guide', link: '/flash-report/testing-guide' }
+          ]
+        }
+      ],
+      '/weekly-report/': [
+        {
+          text: 'Weekly Reports',
+          items: [
+            { text: 'Overview', link: '/weekly-report/' },
+            { text: 'Implementation', link: '/weekly-report/implementation' },
+            { text: 'Date Handling', link: '/weekly-report/date-handling' },
+            { text: 'Data Flow', link: '/weekly-report/data-flow' },
+            { text: 'API Reference', link: '/weekly-report/api-reference' }
           ]
         }
       ],
