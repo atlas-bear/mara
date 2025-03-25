@@ -46,6 +46,11 @@ schedule = "25,55 * * * *"
 [functions."scheduled-pdf-generation"]
 schedule = "@weekly"
 
+# Weekly report content generation scheduled to run every Monday at 21:00 UTC
+[functions."get-weekly-report-content-background"]
+schedule = "0 21 * * 1"
+background = true
+
 # Background function to deduplicate cross-source data
 [functions."deduplicate-cross-source-background"]
 schedule = "28 * * * *"
