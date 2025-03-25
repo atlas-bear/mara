@@ -1,97 +1,77 @@
-# MARA Documentation Site
+# MARA Documentation
 
-This directory contains the MARA documentation site, built with [Docusaurus 3](https://docusaurus.io/). The site features a clean, professional design inspired by the Atlas Bear brand and Field Notes aesthetic.
+This directory contains the official MARA documentation based on VitePress. It provides comprehensive information about the MARA architecture, features, and APIs.
 
-## Development
+## Documentation Structure
 
-### Prerequisites
+The documentation is organized into the following sections:
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above
-- [Git](https://git-scm.com/downloads) for deployment to GitHub Pages
+- **Guide**: Overview, architecture, installation, and deployment
+- **Components**: Reusable UI components documentation
+- **Data Pipeline**: Data collection, processing, and standardization
+- **Deduplication**: Cross-source deduplication system
+- **Flash Report**: Immediate incident notification system
+- **Weekly Report**: Weekly maritime security analysis
+- **API**: API reference and integration guides
 
-### Installation
+## Local Development
+
+To work on the documentation:
 
 ```bash
-# Clone the repository (if you haven't already)
-git clone https://github.com/atlas-bear/mara.git
-cd mara/docs
-
-# Install dependencies
+cd docs-vitepress
 npm install
+npm run dev
 ```
 
-### Local Development
+This will start a development server at `http://localhost:5173/mara/` with hot-reloading enabled.
+
+## Building the Documentation
+
+To build the documentation for production:
 
 ```bash
-# Start the development server
-npm start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-### Build
-
-```bash
-# Build the website
+cd docs-vitepress
 npm run build
 ```
 
-This command generates static content into the `build` directory that can be served by any static content hosting service.
+This generates static files in the `.vitepress/dist` directory.
 
-### Deployment
+## Migration Status
 
-The site is configured to deploy to GitHub Pages. You can deploy using the following command:
+This documentation is the result of a migration from the previous Docusaurus-based system to VitePress. The migration has been completed with all content transferred from the old docs/ and docs1/ directories. 
 
-```bash
-# Deploy to GitHub Pages
-GIT_USER=<Your GitHub username> USE_SSH=true npm run deploy
-```
+Refer to [MIGRATION-PLAN.md](./MIGRATION-PLAN.md) for details on the migration process and remaining steps.
 
-Alternatively, you can use the deployment script:
+## Documentation Update Process
 
-```bash
-# Make the script executable first
-chmod +x scripts/deploy.sh
+When updating the documentation:
 
-# Run the deployment script
-./scripts/deploy.sh
-```
+1. Make changes to the relevant Markdown files
+2. Run `npm run dev` to preview changes locally
+3. Commit changes to the repository
+4. GitHub Actions will automatically build and deploy the documentation
 
-## Project Structure
+## Adding New Documentation
 
-- **blog/**: Contains blog/updates articles
-- **docs/**: Contains documentation content in Markdown
-- **src/**: Source code of the website
-  - **components/**: React components
-  - **css/**: CSS files
-  - **pages/**: Special pages (like the home page)
-- **static/**: Static assets like images
-- **docusaurus.config.js**: Configuration file for Docusaurus
-- **sidebars.js**: Sidebar configuration for documentation
+To add new documentation:
 
-## Design Elements
+1. Create a new Markdown file in the appropriate directory
+2. Update the sidebar configuration in `.vitepress/config.mjs` if needed
+3. Link to the new page from relevant existing pages
 
-The design follows these principles:
+## Documentation Guidelines
 
-- **Typography**:
-  - Headers: Josefin Sans (bold and distinctive)
-  - Body Text: Source Sans Pro (for readability)
-  - Code: JetBrains Mono (clean developer experience)
+- Use clear, concise language
+- Include code examples where appropriate
+- Use relative links for internal references
+- Include diagrams for complex concepts
+- Keep the documentation up to date with code changes
 
-- **Color Scheme**:
-  - Neutral base with muted, professional palette
-  - Inspired by Field Notes aesthetics (warm earthy tones, soft blues)
-  - Subtle paper texture for background
+## Final Directory Structure Transition Plan
 
-- **Layout**:
-  - Clean navigation
-  - Generous white space
-  - Well-structured content hierarchy
+After the documentation has been reviewed and approved:
 
-## Contributing
-
-Please refer to the [CONTRIBUTING.md](../CONTRIBUTING.md) file in the root directory of this repository for contribution guidelines.
-
-## License
-
-This project is licensed under the terms specified in the [LICENSE](../LICENSE) file in the root of this repository.
+1. The old docs/ and docs1/ directories will be removed
+2. This docs-vitepress/ directory will be renamed to docs/
+3. All repository references will be updated to point to the new docs/ directory

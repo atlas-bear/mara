@@ -36,15 +36,17 @@ Atlas|Bear is committed to providing a cutting-edge platform for all users, from
   - **Flash Report System**: Email notification generation and delivery
 - **/scripts**: Automation and utility scripts
 - **/data**: Sample data and datasets used for development and testing
-- **/docs**: Documentation and guides
-  - **ARCHITECTURE.md**: Detailed technical architecture documentation
+- **/docs**: VitePress-based documentation site
+  - **guide/**: Getting started and architecture guides
   - **data-pipeline/**: Data collection and processing documentation
   - **deduplication/**: Cross-source deduplication system documentation
   - **flash-report/**: Flash Report system documentation
+  - **weekly-report/**: Weekly Report system documentation
+  - **components/**: Reusable component documentation
 
 ## Technical Architecture
 
-For a detailed understanding of MARA's technical architecture, including component structure, routing, and key features, please refer to our [Architecture Documentation](docs/ARCHITECTURE.md).
+For a detailed understanding of MARA's technical architecture, including component structure, routing, and key features, please refer to our [Architecture Documentation](docs/guide/architecture.md).
 
 ### Data Pipeline
 

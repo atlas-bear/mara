@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'docs-vitepress/**'
+      - 'docs/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -31,18 +31,18 @@ jobs:
           node-version: 18
           # Skip caching for now to avoid dependency resolution issues
           # cache: npm
-          # cache-dependency-path: docs-vitepress/package-lock.json
+          # cache-dependency-path: docs/package-lock.json
 
       - name: Install Dependencies
-        run: cd docs-vitepress && npm ci
+        run: cd docs && npm ci
 
       - name: Build VitePress Site
-        run: cd docs-vitepress && npm run docs:build
+        run: cd docs && npm run docs:build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs-vitepress/.vitepress/dist
+          publish_dir: docs/.vitepress/dist
           publish_branch: gh-pages
           force_orphan: true # This option creates a new history for the gh-pages branch, with a single commit
