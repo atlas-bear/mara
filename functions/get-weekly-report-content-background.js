@@ -1,7 +1,14 @@
 /**
  * Background function to pre-generate weekly report content
- * Scheduled to run once per week at the end of the reporting period
- * Generates and caches the Key Developments and 7-Day Forecast sections
+ * 
+ * @fileoverview This serverless function is scheduled to run once per week at 2100 UTC on Mondays,
+ * which marks the end of the weekly reporting period. It generates and caches the Key Developments 
+ * and 7-Day Forecast sections for the just-completed reporting week.
+ * 
+ * The reporting period in this system runs from Monday 2100 UTC to Monday 2100 UTC.
+ * For example, the reporting period for Week 12 runs from Mon Mar 17 21:00 UTC to Mon Mar 24 21:00 UTC.
+ * 
+ * @module get-weekly-report-content-background
  */
 
 import { callClaudeWithPrompt } from "./utils/llm-service.js";
@@ -82,30 +89,156 @@ const fetchHistoricalTrends = async () => {
 
 /**
  * Gets the start and end dates for the current reporting week
- * Weeks run from Monday to Sunday
+ * In this system, weeks run from Monday 2100 UTC to Monday 2100 UTC
+ * (e.g., Week 12 runs from Mon Mar 17 21:00 UTC to Mon Mar 24 21:00 UTC)
  * @returns {Object} Object with start and end dates for the week
  */
 const getCurrentReportingPeriod = () => {
   const now = new Date();
+  
+  // Find the current/most recent Monday at 2100 UTC
   const endDate = new Date(now);
   
-  // Set end time to end of current day
-  endDate.setHours(23, 59, 59, 999);
+  // Adjust to the correct day (Monday)
+  const currentDay = endDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  let daysToAdjust = 0;
   
-  // Calculate the most recent Monday (beginning of the week)
+  if (currentDay === 1) {
+    // Today is Monday - check if it's before or after 2100 UTC
+    const currentHour = endDate.getUTCHours();
+    if (currentHour < 21) {
+      // Before 2100 UTC - use previous Monday
+      daysToAdjust = -7;
+    }
+    // After 2100 UTC - use today
+  } else {
+    // Not Monday - find the most recent Monday
+    daysToAdjust = -(((currentDay - 1) + 7) % 7);
+  }
+  
+  endDate.setDate(endDate.getDate() + daysToAdjust);
+  
+  // Set to exactly 2100 UTC (9:00 PM)
+  endDate.setUTCHours(21, 0, 0, 0);
+  
+  // Start date is exactly 7 days before end date (previous Monday at 2100 UTC)
   const startDate = new Date(endDate);
-  const daysSinceMonday = (startDate.getDay() + 6) % 7; // Monday is 0 in this calculation
-  startDate.setDate(startDate.getDate() - daysSinceMonday);
-  startDate.setHours(0, 0, 0, 0);
+  startDate.setDate(startDate.getDate() - 7);
+  
+  // Get the week number for logging/verification
+  const weekNum = getWeekNumber(endDate);
+  const year = endDate.getFullYear();
+  
+  // Format dates for human-readable logging
+  const startUTC = `${startDate.getUTCFullYear()}-${(startDate.getUTCMonth() + 1).toString().padStart(2, '0')}-${startDate.getUTCDate().toString().padStart(2, '0')} ${startDate.getUTCHours().toString().padStart(2, '0')}:${startDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+  const endUTC = `${endDate.getUTCFullYear()}-${(endDate.getUTCMonth() + 1).toString().padStart(2, '0')}-${endDate.getUTCDate().toString().padStart(2, '0')} ${endDate.getUTCHours().toString().padStart(2, '0')}:${endDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+  
+  log.info(`Generating content for week ${year}-${weekNum}`);
+  log.info(`Reporting period: ${startUTC} to ${endUTC}`);
+  log.info(`ISO dates: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  log.info(`Day of week check - Start: ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][startDate.getDay()]}, End: ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][endDate.getDay()]}`);
   
   return { startDate, endDate };
 };
 
 /**
- * Main function to generate and cache weekly report content
+ * Calculates week number following ISO week date standard
+ * (Same as in src/shared/features/weekly-report/utils/dates.js)
+ * @param {Date} date - Date to get week number for
+ * @returns {number} Week number (1-53)
+ */
+const getWeekNumber = (date) => {
+  // Create a copy of the date to avoid modifying the input
+  const target = new Date(date.valueOf());
+
+  // Find Thursday of the current week
+  const dayNum = (date.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNum + 3);
+
+  // Get first Thursday of the year
+  const firstThursday = new Date(target.getFullYear(), 0, 1);
+  if (firstThursday.getDay() !== 4) {
+    firstThursday.setMonth(0, 1 + ((4 - firstThursday.getDay() + 7) % 7));
+  }
+
+  // Calculate week number
+  const weekNum = 1 + Math.ceil((target - firstThursday) / (7 * 24 * 60 * 60 * 1000));
+
+  return weekNum;
+};
+
+/**
+ * Utility function to test the date calculation for a given input date
+ * This helps verify our logic is correct across different scenarios
+ * @param {string} dateString - ISO date string to test with
+ * @returns {Object} The calculated reporting period
+ */
+const testReportingPeriod = (dateString) => {
+  // Create a date object from the input string
+  const testDate = new Date(dateString);
+  log.info(`Testing reporting period calculation for: ${testDate.toISOString()}`);
+  
+  // Save the original Date constructor
+  const OriginalDate = global.Date;
+  
+  // Mock the Date constructor to return our test date when called without arguments
+  global.Date = class extends OriginalDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        // When called with no args (new Date()), return our test date
+        return new OriginalDate(testDate);
+      }
+      // Otherwise use the original constructor
+      return new OriginalDate(...args);
+    }
+  };
+  
+  // Run our calculation with the mocked date
+  const result = getCurrentReportingPeriod();
+  
+  // Restore the original Date constructor
+  global.Date = OriginalDate;
+  
+  // Format for logging
+  const startUTC = `${result.startDate.getUTCFullYear()}-${(result.startDate.getUTCMonth() + 1).toString().padStart(2, '0')}-${result.startDate.getUTCDate().toString().padStart(2, '0')} ${result.startDate.getUTCHours().toString().padStart(2, '0')}:${result.startDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+  const endUTC = `${result.endDate.getUTCFullYear()}-${(result.endDate.getUTCMonth() + 1).toString().padStart(2, '0')}-${result.endDate.getUTCDate().toString().padStart(2, '0')} ${result.endDate.getUTCHours().toString().padStart(2, '0')}:${result.endDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+  
+  log.info(`Test result for ${dateString}:`);
+  log.info(`Reporting period: ${startUTC} to ${endUTC}`);
+  
+  return result;
+};
+
+/**
+ * Netlify serverless function handler
+ * 
+ * @async
+ * @param {Object} event - The Netlify function event object
+ * @param {Object} event.queryStringParameters - URL query parameters
+ * @param {string} [event.queryStringParameters.debug] - If 'true', runs in debug mode to test date calculations
+ * @returns {Object} Response object with status code and body
  */
 export const handler = async (event) => {
   log.info("Starting weekly report content background generation");
+  
+  // Test the date calculation with different scenarios if in debug mode
+  const isDebug = event?.queryStringParameters?.debug === 'true';
+  if (isDebug) {
+    log.info("Debug mode: Testing date calculations");
+    
+    // Test for multiple scenarios
+    testReportingPeriod("2025-03-24T22:00:00Z"); // Monday after 2100 UTC
+    testReportingPeriod("2025-03-24T20:00:00Z"); // Monday before 2100 UTC
+    testReportingPeriod("2025-03-25T12:00:00Z"); // Tuesday
+    testReportingPeriod("2025-03-23T12:00:00Z"); // Sunday
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ 
+        message: "Debug tests completed, check function logs for results",
+      })
+    };
+  }
   
   try {
     // Get the current reporting period

@@ -130,6 +130,15 @@ export const handler = async (event) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     
+    // Log the date boundaries for verification
+    const startDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][startDate.getDay()];
+    const endDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][endDate.getDay()];
+    const startUTC = `${startDate.getUTCHours()}:${startDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+    const endUTC = `${endDate.getUTCHours()}:${endDate.getUTCMinutes().toString().padStart(2, '0')} UTC`;
+    
+    log.info(`Request for reporting period: ${start} to ${end}`);
+    log.info(`Day of week check - Start: ${startDay} (${startUTC}), End: ${endDay} (${endUTC})`);
+    
     // Create a cache key based on the date range
     const cacheKey = weeklyReportCache.getKey(start, end);
     

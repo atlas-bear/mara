@@ -1,15 +1,37 @@
 export function getCurrentReportingWeek() {
   const now = new Date();
-  // Find next Monday (or today if it's Monday)
+  
+  // Find the current/most recent Monday at 2100 UTC
   const end = new Date(now);
-  end.setDate(now.getDate() + ((1 + 7 - end.getDay()) % 7));
-  // Set to end of day (23:59:59.999) to include all incidents on the last day
-  end.setHours(23, 59, 59, 999);
-
-  // Start date is 7 days before end, at the beginning of day
+  
+  // Adjust to the correct day (Monday)
+  const currentDay = end.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  let daysToAdjust = 0;
+  
+  if (currentDay === 1) {
+    // Today is Monday - check if it's before or after 2100 UTC
+    const currentHour = end.getUTCHours();
+    if (currentHour < 21) {
+      // Before 2100 UTC - use previous Monday
+      daysToAdjust = -7;
+    }
+    // After 2100 UTC - use today
+  } else {
+    // Not Monday - find the most recent Monday
+    daysToAdjust = -(((currentDay - 1) + 7) % 7);
+  }
+  
+  end.setDate(end.getDate() + daysToAdjust);
+  
+  // Set to exactly 2100 UTC (9:00 PM)
+  end.setUTCHours(21, 0, 0, 0);
+  
+  // Start date is exactly 7 days before end date (previous Monday at 2100 UTC)
   const start = new Date(end);
-  start.setDate(end.getDate() - 7);
-  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 7);
+
+  // For debugging
+  console.log(`Reporting period: ${start.toISOString()} to ${end.toISOString()}`);
 
   return { start, end };
 }
@@ -21,13 +43,13 @@ export function getReportingWeek(year, week) {
     // Adjust to next Monday
     end.setDate(end.getDate() + 1);
   }
-  // Set to end of day (23:59:59.999) to include all incidents on the last day
-  end.setHours(23, 59, 59, 999);
+  
+  // Set to exactly 2100 UTC (9:00 PM)
+  end.setUTCHours(21, 0, 0, 0);
 
-  // Start date is 7 days before end, at the beginning of day
+  // Start date is exactly 7 days before end date (previous Monday at 2100 UTC)
   const start = new Date(end);
-  start.setDate(end.getDate() - 7);
-  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 7);
 
   return { start, end };
 }
