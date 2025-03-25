@@ -55,8 +55,12 @@ const getRegionalStats = (incidents) => {
  */
 const fetchHistoricalTrends = async () => {
   try {
+    // Use PUBLIC_URL or SITE_URL if defined, empty string as fallback
+    const baseUrl = process.env.PUBLIC_URL || process.env.SITE_URL || '';
+    console.log("Base URL for trend data:", baseUrl);
+    
     const response = await axios.get(
-      `${process.env.SITE_URL || ''}/.netlify/functions/get-trend-data`,
+      `${baseUrl}/.netlify/functions/get-trend-data`,
       {
         headers: {
           "Content-Type": "application/json"
@@ -122,8 +126,12 @@ export const handler = async (event) => {
     
     // Fetch incidents for the week from existing serverless function
     try {
+      // Use PUBLIC_URL or SITE_URL if defined, empty string as fallback
+      const baseUrl = process.env.PUBLIC_URL || process.env.SITE_URL || '';
+      console.log("Base URL for API calls:", baseUrl);
+      
       const incidentsResponse = await axios.get(
-        `${process.env.SITE_URL || ''}/.netlify/functions/get-weekly-incidents?start=${start}&end=${end}`
+        `${baseUrl}/.netlify/functions/get-weekly-incidents?start=${start}&end=${end}`
       );
       
       const { incidents } = incidentsResponse.data;
