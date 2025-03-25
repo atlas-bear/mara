@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import _ from 'lodash';
 import MaritimeMap from '@shared/components/MaritimeMap';
-import { formatDateRange, getWeekNumber } from '@shared/features/weekly-report/utils/dates';
+import { formatDateRange, getYearWeek } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 import { fetchWeeklyReportContent } from '@shared/features/weekly-report/utils/client-api';
 
@@ -195,7 +195,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
             Executive Brief
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            Week {getWeekNumber(new Date(start))} ({formatDateRange(start, end)})
+            Week {getYearWeek(new Date(start)).week} ({formatDateRange(start, end)})
           </p>
         </div>
       </div>

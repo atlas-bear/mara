@@ -11,6 +11,7 @@ export {
   getReportingWeek,
   formatDateRange,
   getWeekNumber,
+  getYearWeek,
 } from "./utils/dates";
 export {
   fetchHistoricalTrends,

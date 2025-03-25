@@ -122,3 +122,39 @@ export function getWeekNumber(date) {
 
   return weekNum;
 }
+
+/**
+ * Returns the year-week code from a date that matches URL format
+ * This function reverses getReportingWeek() to find the original week number
+ * @param {Date} date - The date to get year-week for
+ * @returns {Object} Object with year and week properties
+ */
+export function getYearWeek(date) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  
+  // Get the first day of the year
+  const firstDay = new Date(Date.UTC(year, 0, 1));
+  
+  // Find the first Monday of the year
+  let firstMonday = new Date(firstDay);
+  while (firstMonday.getUTCDay() !== 1) {
+    firstMonday.setUTCDate(firstMonday.getUTCDate() + 1);
+  }
+  
+  // Calculate days between the first Monday and our date
+  const dateObj = new Date(Date.UTC(year, month, day));
+  dateObj.setUTCHours(21, 0, 0, 0); // Match 2100 UTC for accuracy
+  
+  // Calculate milliseconds between dates
+  const millisecDiff = dateObj.getTime() - firstMonday.getTime();
+  
+  // Convert to days and add 7 to account for the week before the first Monday
+  const daysDiff = Math.floor(millisecDiff / (24 * 60 * 60 * 1000));
+  
+  // Calculate week number (1-indexed)
+  const weekNum = Math.floor(daysDiff / 7) + 1;
+  
+  return { year, week: weekNum };
+}
