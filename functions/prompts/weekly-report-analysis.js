@@ -96,15 +96,17 @@ export const createWeeklyReportPrompt = (incidents, regionalData, startDate, end
   
   EXAMPLE 7-DAY FORECASTS (follow this exact format):
   
-  → Indian Ocean: Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
+  Indian Ocean: Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
   
-  → Southeast Asia: Continued risk of robbery and theft in Singapore Strait expected over the next week. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
+  Southeast Asia: Continued risk of robbery and theft in Singapore Strait expected over the next week. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
   
-  ↗ West Africa: Ongoing piracy threat with active PAG in Gulf of Guinea likely to increase with favorable weather forecast. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
+  West Africa: Ongoing piracy threat with active PAG in Gulf of Guinea likely to increase with favorable weather forecast. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
   
-  → Europe: Military-related incidents in Black Sea expected to remain at current levels. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
+  Europe: Military-related incidents in Black Sea expected to remain at current levels. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
   
-  ↘ Americas: Risk level forecast to decrease slightly as naval patrols increase. Vessels at Callao Anchorage, Peru should maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
+  Americas: Risk level forecast to decrease slightly as naval patrols increase. Vessels at Callao Anchorage, Peru should maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
+
+  NOTE: The trend arrows (↗, ↘, →) will be automatically added before each region name based on the "trend" field in your JSON. DO NOT include the trend arrows in the content or region fields.
   `;
 };
 
