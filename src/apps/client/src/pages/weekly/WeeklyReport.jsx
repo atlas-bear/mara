@@ -196,7 +196,8 @@ function WeeklyReport() {
         <ExecutiveBrief 
           incidents={incidents} 
           start={start} 
-          end={end} 
+          end={end}
+          yearWeek={activeYearWeek} // Pass the year-week from URL
         />
 
         {/* Display each region in order */}

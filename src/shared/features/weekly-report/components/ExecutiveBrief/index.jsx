@@ -101,9 +101,10 @@ const identifyKeyDevelopments = (incidents) => {
  * @param {Array<Object>} props.incidents - Array of incident objects
  * @param {Date} props.start - Start date of the reporting period
  * @param {Date} props.end - End date of the reporting period
+ * @param {string} [props.yearWeek] - Year-week string in format "YYYY-WW" (e.g., "2025-12")
  * @returns {JSX.Element} Executive brief component
  */
-const ExecutiveBrief = ({ incidents, start, end }) => {
+const ExecutiveBrief = ({ incidents, start, end, yearWeek }) => {
   // Transform incidents for map
   const mapIncidents = incidents.map(inc => ({
     latitude: inc.incident.fields.latitude,
@@ -195,7 +196,7 @@ const ExecutiveBrief = ({ incidents, start, end }) => {
             Executive Brief
           </h1>
           <p className="text-sm md:text-base text-gray-600">
-            Week {getYearWeek(new Date(start)).week} ({formatDateRange(start, end)})
+            Week {yearWeek ? yearWeek.split('-')[1] : getYearWeek(new Date(start)).week} ({formatDateRange(start, end)})
           </p>
         </div>
       </div>
