@@ -40,12 +40,20 @@ export function getCurrentReportingWeek() {
 }
 
 export function getReportingWeek(year, week) {
-  // Get the end date (Monday) for the specified week
-  const end = new Date(year, 0, 1 + (week - 1) * 7);
-  while (end.getDay() !== 1) {
-    // Adjust to next Monday
-    end.setDate(end.getDate() + 1);
+  // This function needs to return Monday 21:00 UTC to Monday 21:00 UTC for specific year/week
+  
+  // Get to first day of the year
+  const firstDay = new Date(year, 0, 1);
+  
+  // Find first Monday of the year
+  const firstMonday = new Date(firstDay);
+  while (firstMonday.getDay() !== 1) {
+    firstMonday.setDate(firstMonday.getDate() + 1);
   }
+  
+  // Calculate target Monday (end date) by adding weeks
+  const end = new Date(firstMonday);
+  end.setDate(firstMonday.getDate() + (week - 1) * 7);
   
   // Set to exactly 2100 UTC (9:00 PM)
   end.setUTCHours(21, 0, 0, 0);
@@ -53,7 +61,11 @@ export function getReportingWeek(year, week) {
   // Start date is exactly 7 days before end date (previous Monday at 2100 UTC)
   const start = new Date(end);
   start.setDate(start.getDate() - 7);
-
+  
+  // For debugging
+  console.log(`Year ${year}, Week ${week} reporting period: ${start.toISOString()} to ${end.toISOString()}`);
+  console.log(`Days of week: Start = ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][start.getDay()]}, End = ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][end.getDay()]}`);
+  
   return { start, end };
 }
 
