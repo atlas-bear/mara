@@ -1,59 +1,77 @@
-# MARA Documentation with VitePress
+# MARA Documentation
 
-This directory contains the documentation for the MARA (Maritime Risk Analysis) project using VitePress - a modern documentation framework built on Vite.
+This directory contains the official MARA documentation based on VitePress. It provides comprehensive information about the MARA architecture, features, and APIs.
 
-## Getting Started
+## Documentation Structure
 
-To work with the documentation locally:
+The documentation is organized into the following sections:
+
+- **Guide**: Overview, architecture, installation, and deployment
+- **Components**: Reusable UI components documentation
+- **Data Pipeline**: Data collection, processing, and standardization
+- **Deduplication**: Cross-source deduplication system
+- **Flash Report**: Immediate incident notification system
+- **Weekly Report**: Weekly maritime security analysis
+- **API**: API reference and integration guides
+
+## Local Development
+
+To work on the documentation:
 
 ```bash
-# Navigate to the docs directory
 cd docs-vitepress
-
-# Install dependencies 
 npm install
-
-# Start the development server
-npm run docs:dev
+npm run dev
 ```
 
-Then open your browser to the URL shown in the terminal (typically http://localhost:5173/mara/).
+This will start a development server at `http://localhost:5173/mara/` with hot-reloading enabled.
 
-## Directory Structure
+## Building the Documentation
 
-- `.vitepress/` - VitePress configuration
-  - `config.mjs` - Main configuration file
-  - `.jsdoc.json` - JSDoc configuration for API documentation
-- `api/` - Auto-generated API documentation (created during build)
-- `guide/` - General guides and getting started information
-- `data-pipeline/` - Data pipeline documentation
-- `deduplication/` - Cross-source deduplication system documentation
-- `flash-report/` - Flash Report system documentation
-- `public/` - Static assets
-
-## Writing Documentation
-
-Documentation is written in Markdown format. The sidebar navigation is configured in `.vitepress/config.mjs`.
-
-## Building and Deployment
-
-The documentation is automatically built and deployed to GitHub Pages when changes are pushed to the main branch, using GitHub Actions.
-
-To build the documentation manually:
+To build the documentation for production:
 
 ```bash
-npm run docs:build
+cd docs-vitepress
+npm run build
 ```
 
-To preview the built site:
+This generates static files in the `.vitepress/dist` directory.
 
-```bash
-npm run docs:preview
-```
+## Migration Status
 
-## JSDoc Integration
+This documentation is the result of a migration from the previous Docusaurus-based system to VitePress. The migration has been completed with all content transferred from the old docs/ and docs1/ directories. 
 
-API documentation is automatically generated from JSDoc comments in the source code. To update the API documentation:
+Refer to [MIGRATION-PLAN.md](./MIGRATION-PLAN.md) for details on the migration process and remaining steps.
 
-1. Add or update JSDoc comments in the source code
-2. The documentation will be regenerated during the build process
+## Documentation Update Process
+
+When updating the documentation:
+
+1. Make changes to the relevant Markdown files
+2. Run `npm run dev` to preview changes locally
+3. Commit changes to the repository
+4. GitHub Actions will automatically build and deploy the documentation
+
+## Adding New Documentation
+
+To add new documentation:
+
+1. Create a new Markdown file in the appropriate directory
+2. Update the sidebar configuration in `.vitepress/config.mjs` if needed
+3. Link to the new page from relevant existing pages
+
+## Documentation Guidelines
+
+- Use clear, concise language
+- Include code examples where appropriate
+- Use relative links for internal references
+- Include diagrams for complex concepts
+- Keep the documentation up to date with code changes
+
+## Final Directory Structure Transition Plan
+
+After the documentation has been reviewed and approved:
+
+1. The old docs/ and docs1/ directories will be removed
+2. This docs-vitepress/ directory will be renamed to docs/
+3. All repository references will be updated to point to the new docs/ directory

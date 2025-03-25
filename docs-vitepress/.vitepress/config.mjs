@@ -1,12 +1,26 @@
 import { defineConfig } from 'vitepress';
 
-// API Pages generation will be handled differently for now
+// API Pages configuration
 const apiPages = {
   sidebars: [
     {
       text: 'API Reference',
       items: [
         { text: 'Overview', link: '/api/' },
+        { text: 'Authentication', link: '/api/authentication' },
+        { text: 'Rate Limits', link: '/api/rate-limits' },
+        { text: 'Error Codes', link: '/api/error-codes' },
+        {
+          text: 'Endpoints',
+          collapsed: false,
+          items: [
+            { text: 'Incidents', link: '/api/endpoints/incidents' },
+            { text: 'Reports', link: '/api/endpoints/reports' },
+            { text: 'Hotspots', link: '/api/endpoints/hotspots' },
+            { text: 'Countries', link: '/api/endpoints/countries' },
+            { text: 'Ports', link: '/api/endpoints/ports' }
+          ]
+        }
       ]
     }
   ]
@@ -34,6 +48,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/' },
+      { text: 'Components', link: '/components/' },
       { text: 'Data Pipeline', link: '/data-pipeline/' },
       { text: 'Deduplication', link: '/deduplication/' },
       { text: 'Flash Reports', link: '/flash-report/' },
@@ -48,7 +63,19 @@ export default defineConfig({
           text: 'Introduction',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
-            { text: 'Architecture', link: '/guide/architecture' }
+            { text: 'Architecture', link: '/guide/architecture' },
+            { text: 'Installation', link: '/guide/installation' },
+            { text: 'Deployment', link: '/guide/deployment' }
+          ]
+        }
+      ],
+      '/components/': [
+        {
+          text: 'UI Components',
+          items: [
+            { text: 'Overview', link: '/components/' },
+            { text: 'PDF Download Button', link: '/components/pdf-download-button' },
+            { text: 'Maritime Map', link: '/components/maritime-map' }
           ]
         }
       ],

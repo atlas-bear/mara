@@ -13,9 +13,13 @@ This document outlines the plan for migrating the MARA documentation from Docusa
 | ✅ | Migrate data pipeline documentation |
 | ✅ | Migrate deduplication documentation |
 | ✅ | Migrate flash report documentation |
+| ✅ | Migrate weekly report documentation |
+| ✅ | Migrate API documentation |
+| ✅ | Migrate component documentation |
+| ✅ | Add installation and deployment guides |
 | ✅ | Set up VitePress-JSDoc integration |
 | ✅ | Configure GitHub Actions for deployment |
-| 🔄 | Test documentation locally |
+| ✅ | Test documentation locally |
 | ⬜ | Deploy to GitHub Pages |
 | ⬜ | Update repository to use new documentation |
 | ⬜ | Remove old Docusaurus documentation |
@@ -37,6 +41,10 @@ This document outlines the plan for migrating the MARA documentation from Docusa
 - [x] Data pipeline documentation
 - [x] Deduplication system documentation
 - [x] Flash report documentation
+- [x] Weekly report documentation
+- [x] API documentation
+- [x] Component documentation
+- [x] Installation and deployment guides
 
 ### 3. Deployment Setup
 
@@ -46,17 +54,31 @@ This document outlines the plan for migrating the MARA documentation from Docusa
 
 ### 4. Testing and Verification
 
-- [ ] Local testing:
-  - [ ] Navigation links
-  - [ ] Images and assets
-  - [ ] API documentation generation
-  - [ ] Mobile responsiveness
+- [x] Local testing:
+  - [x] Navigation links
+  - [x] Images and assets
+  - [x] API documentation generation
+  - [x] Mobile responsiveness
 
 ### 5. Transition
 
 - [ ] Deploy to GitHub Pages
 - [ ] Update repository documentation references
-- [ ] Remove old Docusaurus documentation
+- [ ] Remove old documentation (docs/ and docs1/ directories)
+- [ ] Rename docs-vitepress to docs
+
+## Final Steps for Documentation Restructuring
+
+1. **Deploy the VitePress Documentation**
+   - Confirm all content is migrated and properly linked
+   - Deploy to GitHub Pages to verify everything works in production
+
+2. **Directory Cleanup**
+   - After successful deployment, remove the old docs/ and docs1/ directories
+   - Rename docs-vitepress to docs to simplify the structure
+
+3. **Update Repository References**
+   - Update any references in the codebase or READMEs to point to the new documentation location
 
 ## Notes
 

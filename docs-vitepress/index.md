@@ -2,7 +2,7 @@
 layout: home
 hero:
   name: MARA
-  text: Multi-source Analysis and Reporting Architecture
+  text: Maritime Risk Analysis
   tagline: Comprehensive maritime security incident monitoring and reporting
   image:
     src: https://drive.google.com/uc?id=1OB5Lwgpp03DB9vs50T_kkKzL5VV_y5Eo

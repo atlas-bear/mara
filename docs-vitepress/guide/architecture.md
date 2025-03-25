@@ -55,6 +55,9 @@ mara/
 - **Networking**: Axios for API calls
 - **Data Sources**: Airtable as the backend database
 - **AI Integration**: Claude for intelligent data analysis
+- **Email Delivery**: SendGrid for email notifications
+- **Cache Storage**: Netlify Blob Storage for caching
+- **Authentication**: JWT-based token system
 
 ## Applications
 
@@ -87,7 +90,7 @@ The main MARA application is the central intelligence platform that includes:
 **Flash Report (/flash-report/:incidentId)**
 
 - Immediate incident notifications
-- Email alerts via Novu integration
+- Email alerts via SendGrid integration
 - Detailed incident analysis
 - Interactive incident location mapping
 
@@ -118,6 +121,42 @@ The client application is a white-labeled version that provides specific functio
 - Focused feature set for client needs
 
 **Entry Point**: `src/apps/client/src/main.jsx`
+
+## Shared Architecture
+
+### Components
+
+Shared components are stored in `src/shared/components` and include basic UI elements that are used across applications:
+
+- `MaritimeMap`: Interactive map component for displaying maritime incidents
+- `PDFDownloadButton`: Browser-based PDF generation for reports
+- Other UI components as needed
+
+### Features
+
+Feature modules in `src/shared/features` encapsulate complete features that can be imported by any application:
+
+- `weekly-report/`: Weekly report generation and display
+  - Components for different sections of the report (ExecutiveBrief, RegionalBrief, IncidentDetails)
+  - Utilities for date handling and data fetching
+  - API integration
+
+Each feature module follows this structure:
+
+```
+feature-name/
+├── components/     # React components specific to this feature
+├── utils/          # Utility functions for this feature
+└── index.js        # Public API exports
+```
+
+## Data Flow
+
+1. **API Layer**: Netlify functions act as a secure API layer
+2. **Data Fetching**: Client-side data fetching using Axios
+3. **State Management**: React useState and useEffect for component state
+4. **Shared Logic**: Common business logic in shared utilities
+5. **Rendering**: Component rendering with data passed via props
 
 ## Data Processing Pipeline
 
@@ -150,6 +189,10 @@ schedule = "25,55 * * * *"
 [functions."deduplicate-cross-source-background"]
 schedule = "28 * * * *"
 background = true
+
+[functions."get-weekly-report-content-background"]
+schedule = "0 21 * * 1"
+background = true
 ```
 
 This configuration:
@@ -160,6 +203,18 @@ This configuration:
   - Data collection functions to fetch from maritime sources
   - Deduplication function to identify and merge duplicate reports
   - Processing function to transform raw data into incident records
+  - Weekly report generation function to run at 21:00 UTC on Mondays
+
+### Function Dependencies
+
+Each function can have its own package.json to manage dependencies:
+
+```
+functions/
+└── get-weekly-incidents/
+    ├── index.js
+    └── package.json  # Optional but recommended for dependency management
+```
 
 ## Environment Configuration
 
@@ -172,6 +227,9 @@ Each application requires specific environment variables:
 - `AT_API_KEY`: Airtable API key
 - `ANTHROPIC_API_KEY`: Claude API key for AI analysis
 - `PUBLIC_URL`: Public URL for the application
+- `SENDGRID_API_KEY`: SendGrid API key for email delivery
+- `NETLIFY_BLOB_INSERT_URL`: URL for Netlify Blob Storage insert operations
+- `NETLIFY_BLOB_READ_URL`: URL for Netlify Blob Storage read operations
 
 ### Client App
 
@@ -183,7 +241,9 @@ Each application requires specific environment variables:
 - `VITE_CLIENT_SECONDARY_COLOR`: Brand secondary color
 - `VITE_CLIENT_LOGO`: Client logo URL
 
-## Development Workflow
+## Build and Deployment
+
+### Development Workflow
 
 1. Run the dev server for a specific app using Turbo:
 
@@ -195,9 +255,79 @@ Each application requires specific environment variables:
 
 2. Use Netlify Dev for local function testing:
    ```
-   cd src/apps/client
    netlify dev
    ```
+
+### Production Builds
+
+- Each application has its own Netlify site
+- Builds are triggered by commits to the main branch
+- Environment variables are managed in Netlify's UI
+- Functions are deployed alongside the application
+
+## Adding a New White-Label Client
+
+To create a new white-labeled instance for another client:
+
+1. Clone the client app template:
+
+   ```
+   cp -r src/apps/client src/apps/new-client
+   ```
+
+2. Update package.json with a new name:
+
+   ```json
+   {
+     "name": "@mara/new-client",
+     ...
+   }
+   ```
+
+3. Configure environment variables for the new client
+
+4. Set up a new Netlify site for deployment
+
+5. Customize branding elements as needed
+
+## Common Issues and Troubleshooting
+
+### Styling Issues
+
+If components appear unstyled, ensure that Tailwind is configured correctly to scan shared components:
+
+```js
+// In tailwind.config.js
+module.exports = {
+  content: [
+    "./index.html",
+    "./**/*.{js,ts,jsx,tsx}",
+    "../../shared/**/*.{js,ts,jsx,tsx}",
+  ],
+  // ...
+};
+```
+
+### Function Deployment
+
+For Netlify Functions, make sure:
+
+1. The netlify.toml has the proper functions configuration:
+
+   ```toml
+   [functions]
+   directory = "functions"
+   node_bundler = "esbuild"
+   ```
+
+2. Dependencies are correctly installed. While not strictly required with esbuild bundling, including a package.json in the functions directory can help manage dependencies explicitly.
+
+### Environment Variables
+
+Ensure environment variables are correctly set in:
+
+- `.env` for local development
+- Netlify UI for production deployment
 
 ## Monorepo Management
 
@@ -212,3 +342,11 @@ The project uses NPM Workspaces and Turborepo for monorepo management:
   "workspaces": ["src/apps/*", "src/shared"]
 }
 ```
+
+## Future Architecture Considerations
+
+1. **State Management**: For more complex state, consider implementing Redux or Context API
+2. **API Layer**: Expand the API abstraction to handle more complex operations
+3. **Testing**: Add Jest and React Testing Library for component testing
+4. **CI/CD**: Enhance the build pipeline with automated testing
+5. **TypeScript**: Consider migrating to TypeScript for improved type safety
