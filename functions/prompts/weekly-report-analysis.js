@@ -49,13 +49,14 @@ export const createWeeklyReportPrompt = (incidents, regionalData, startDate, end
      - If there are fewer than 4 significant incidents, supplement with regional trends or ongoing security situations
 
   2. 7-DAY FORECAST (for each of the 5 major regions):
-     - Provide a specific, detailed forward-looking security assessment for each region
-     - Focus on current active threats, probable incidents, and evolving security situations
-     - Include specific locations, sea lanes, and areas with elevated risk
-     - Mention relevant threat actors, their motives, and tactical patterns when applicable
-     - Add concrete, actionable precautions tailored to the specific threats
-     - Indicate trend direction (up, down, or stable)
-     - Regions: West Africa, Southeast Asia, Indian Ocean, Europe, Americas
+     - Create a TRUE FORECAST that predicts what will happen in the next 7 days
+     - Begin each forecast with the predicted maritime security situation
+     - Explicitly state what incidents are likely to occur and where
+     - Focus on probability language: "high likelihood," "expected to continue," "significant probability"
+     - Include a very brief tactical recommendation as the second part of each forecast
+     - Structure forecasts as: "Forecast of what will happen + Brief advice to vessels"
+     - Regions must include: West Africa, Southeast Asia, Indian Ocean, Europe, Americas
+     - Indicate trend direction with an arrow character at the start: ↗ (up), ↘ (down), → (stable)
 
   CURRENT WEEK'S DATA:
   Reporting Period: ${startDate.toDateString()} to ${endDate.toDateString()}
@@ -79,10 +80,12 @@ export const createWeeklyReportPrompt = (incidents, regionalData, startDate, end
       {
         "region": "Region name",
         "trend": "up|down|stable",
-        "content": "Forecast text - 1-2 sentences describing the upcoming risk pattern and recommendations"
+        "content": "Forecast text - prediction of likely incidents followed by tactical recommendations"
       }
     ]
   }
+  
+  NOTE: When the JSON is processed, the trend values will be converted to arrows (↗ for up, ↘ for down, → for stable)
 
   IMPORTANT GUIDELINES:
   - Be specific about the nature of threats in each region
@@ -91,17 +94,17 @@ export const createWeeklyReportPrompt = (incidents, regionalData, startDate, end
   - Include specific locations/sea lanes where applicable
   - For regions with no incidents, assess based on historical patterns
   
-  EXAMPLE 7-DAY FORECASTS (follow this style):
+  EXAMPLE 7-DAY FORECASTS (follow this exact format):
   
-  Indian Ocean: Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
+  → Indian Ocean: Heightened alert with significant probability of renewed Houthi attacks in Red Sea and Gulf of Aden. Vessels advised to exercise extreme caution and maintain maximum distance from Yemen coastline.
   
-  Southeast Asia: Continued risk of robbery and theft in Singapore Strait. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
+  → Southeast Asia: Continued risk of robbery and theft in Singapore Strait expected over the next week. Increased vigilance recommended in Phillip Channel. Republic of Singapore Navy patrols have reduced incidents in Singapore territorial waters.
   
-  West Africa: Ongoing piracy threat with active PAG in Gulf of Guinea. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
+  ↗ West Africa: Ongoing piracy threat with active PAG in Gulf of Guinea likely to increase with favorable weather forecast. Vessels advised to enhance lookout, ensure prompt reporting of suspicious activity, and follow Best Management Practices.
   
-  Europe: Continued risk of military-related incidents in Black Sea. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
+  → Europe: Military-related incidents in Black Sea expected to remain at current levels. Maritime traffic calling at Israeli ports advised to exercise extreme caution and contact local authorities for updated security protocols.
   
-  Americas: Risk level remains moderate. Vessels at Callao Anchorage, Peru advised to maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
+  ↘ Americas: Risk level forecast to decrease slightly as naval patrols increase. Vessels at Callao Anchorage, Peru should maintain vigilance during nighttime hours (0000-0800 UTC). Haiti continues to have deteriorating security conditions.
   `;
 };
 
