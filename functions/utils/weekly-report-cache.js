@@ -67,6 +67,22 @@ export const weeklyReportCache = {
    */
   get: async (key) => {
     try {
+      // Log diagnostic info
+      log.info("Attempting to get cache:", {
+        key,
+        siteId: process.env.NETLIFY_SITE_ID,
+        hasNetlifySiteId: !!process.env.NETLIFY_SITE_ID,
+        hasAccessToken: !!process.env.NETLIFY_ACCESS_TOKEN,
+      });
+
+      // Get list of all available keys for debugging
+      try {
+        const list = await weeklyReportStore.list();
+        log.info("Available cache keys:", { keys: list });
+      } catch (listError) {
+        log.warn("Could not list cache keys", listError);
+      }
+
       const cacheData = await weeklyReportStore.get(key, { type: "json" });
       if (!cacheData) {
         log.info(`Weekly report cache miss: ${key}`);

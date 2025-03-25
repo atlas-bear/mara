@@ -4,7 +4,7 @@ export function getCurrentReportingWeek() {
   // Find the current/most recent Monday at 2100 UTC
   const end = new Date(now);
   
-  // Adjust to the correct day (Monday)
+  // Calculate days until next Monday (0 if today is Monday)
   const currentDay = end.getDay(); // 0 = Sunday, 1 = Monday, etc.
   let daysToAdjust = 0;
   
@@ -15,10 +15,13 @@ export function getCurrentReportingWeek() {
       // Before 2100 UTC - use previous Monday
       daysToAdjust = -7;
     }
-    // After 2100 UTC - use today
+    // After 2100 UTC - use today (daysToAdjust stays 0)
+  } else if (currentDay === 0) {
+    // Sunday - next Monday is tomorrow
+    daysToAdjust = 1;
   } else {
-    // Not Monday - find the most recent Monday
-    daysToAdjust = -(((currentDay - 1) + 7) % 7);
+    // Tuesday through Saturday - calculate days until next Monday
+    daysToAdjust = 8 - currentDay; // (8 - currentDay) gives days until next Monday
   }
   
   end.setDate(end.getDate() + daysToAdjust);

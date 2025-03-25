@@ -99,7 +99,7 @@ const getCurrentReportingPeriod = () => {
   // Find the current/most recent Monday at 2100 UTC
   const endDate = new Date(now);
   
-  // Adjust to the correct day (Monday)
+  // Calculate days until next Monday (0 if today is Monday)
   const currentDay = endDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
   let daysToAdjust = 0;
   
@@ -110,10 +110,13 @@ const getCurrentReportingPeriod = () => {
       // Before 2100 UTC - use previous Monday
       daysToAdjust = -7;
     }
-    // After 2100 UTC - use today
+    // After 2100 UTC - use today (daysToAdjust stays 0)
+  } else if (currentDay === 0) {
+    // Sunday - next Monday is tomorrow
+    daysToAdjust = 1;
   } else {
-    // Not Monday - find the most recent Monday
-    daysToAdjust = -(((currentDay - 1) + 7) % 7);
+    // Tuesday through Saturday - calculate days until next Monday
+    daysToAdjust = 8 - currentDay; // (8 - currentDay) gives days until next Monday
   }
   
   endDate.setDate(endDate.getDate() + daysToAdjust);
@@ -221,8 +224,57 @@ const testReportingPeriod = (dateString) => {
 export const handler = async (event) => {
   log.info("Starting weekly report content background generation");
   
-  // Test the date calculation with different scenarios if in debug mode
+  // Debug mode options
   const isDebug = event?.queryStringParameters?.debug === 'true';
+  const testCache = event?.queryStringParameters?.testCache === 'true';
+  
+  // Test cache if requested
+  if (testCache) {
+    try {
+      log.info("Debug mode: Testing cache operations");
+      
+      // Test cache key
+      const testKey = "weekly-report-test-" + Date.now();
+      const testData = { 
+        keyDevelopments: [{region: "Test", level: "orange", content: "Test development"}],
+        forecast: [{region: "Test", trend: "stable", content: "Test forecast"}]
+      };
+      
+      // Store test data
+      log.info(`Storing test data with key: ${testKey}`);
+      await weeklyReportCache.store(testKey, testData);
+      
+      // Retrieve the data
+      log.info(`Retrieving test data with key: ${testKey}`);
+      const retrieved = await weeklyReportCache.get(testKey);
+      
+      // Clean up
+      log.info(`Deleting test data with key: ${testKey}`);
+      await weeklyReportCache.delete(testKey);
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+          message: "Cache test completed, check function logs for results",
+          cacheWorking: !!retrieved,
+          testKey,
+          storedData: testData,
+          retrievedData: retrieved
+        })
+      };
+    } catch (error) {
+      log.error("Error testing cache", error);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ 
+          message: "Cache test failed",
+          error: error.message
+        })
+      };
+    }
+  }
+  
+  // Test date calculations
   if (isDebug) {
     log.info("Debug mode: Testing date calculations");
     
