@@ -51,20 +51,7 @@ export function getCurrentReportingWeek() {
 }
 
 export function getReportingWeek(year, week) {
-  // Special cases for testing - keep these overrides for consistency with tests
-  if (year === 2025 && week === 12) {
-    const start = new Date("2025-03-17T21:00:00.000Z");
-    const end = new Date("2025-03-24T21:00:00.000Z");
-    return { start, end };
-  }
-  
-  if (year === 2025 && week === 6) {
-    const start = new Date("2025-02-03T21:00:00.000Z");
-    const end = new Date("2025-02-10T21:00:00.000Z");
-    return { start, end };
-  }
-  
-  // Calculate dates dynamically for all other weeks
+  // Calculate dates dynamically for all weeks
   
   // Get the first day of the year
   const firstDay = new Date(Date.UTC(year, 0, 1));
