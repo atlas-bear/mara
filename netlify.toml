@@ -7,7 +7,7 @@ functions = "functions"
 
 [build.environment]
 NODE_VERSION = "18"
-SECRETS_SCAN_OMIT_KEYS = "AT_API_KEY"
+#SECRETS_SCAN_OMIT_KEYS = "AT_API_KEY"
 
 [[redirects]]
 from = "/*"
