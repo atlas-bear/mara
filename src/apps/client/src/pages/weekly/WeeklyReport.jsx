@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate, useSearchParams } from 'react-router-dom';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import { 
   ExecutiveBrief, 
   RegionalBrief, 
@@ -158,7 +160,30 @@ function WeeklyReport() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 py-8">
-        <div className="max-w-4xl mx-auto">Loading...</div>
+        <div className="max-w-4xl mx-auto p-4">
+          {/* Executive Brief Skeleton */}
+          <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+            <Skeleton height={40} width={300} className="mb-4" />
+            <Skeleton count={3} className="mb-2" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <Skeleton height={100} />
+              <Skeleton height={100} />
+              <Skeleton height={100} />
+            </div>
+          </div>
+          
+          {/* Regional Briefs Skeleton */}
+          {Array(3).fill().map((_, index) => (
+            <div key={index} className="bg-white shadow-md rounded-lg p-6 mb-8">
+              <Skeleton height={30} width={200} className="mb-4" />
+              <Skeleton count={2} className="mb-4" />
+              <div className="mt-4">
+                <Skeleton height={200} className="mb-4" />
+                <Skeleton count={3} className="mb-2" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
