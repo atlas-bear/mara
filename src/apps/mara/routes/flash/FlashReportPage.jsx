@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import PreviewMode from '../../components/FlashReport/PreviewMode';
 import EmailTemplate from '../../components/FlashReport/EmailTemplate';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -202,10 +204,39 @@ function FlashReportPage() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h1>
-          <p className="text-gray-600">Fetching incident data for {incidentId}.</p>
+      <div className="min-h-screen bg-gray-100 py-8">
+        <div className="container mx-auto px-4">
+          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-6">
+              <Skeleton width={300} height={36} />
+              <div className="flex gap-2">
+                <Skeleton width={120} height={40} />
+                <Skeleton width={120} height={40} />
+              </div>
+            </div>
+            
+            <div className="border-b border-gray-200 mb-6">
+              <Skeleton width={200} height={40} />
+            </div>
+            
+            {/* Preview Skeleton */}
+            <div className="mt-6">
+              <div className="mb-4">
+                <Skeleton height={60} className="mb-4" />
+                <Skeleton count={2} className="mb-2" />
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <Skeleton height={30} width={200} className="mb-4" />
+                <Skeleton count={3} className="mb-2" />
+              </div>
+              
+              <div className="mt-4">
+                <Skeleton height={300} className="mb-6" />
+                <Skeleton count={4} className="mb-2" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
