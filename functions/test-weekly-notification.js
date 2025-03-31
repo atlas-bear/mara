@@ -29,15 +29,18 @@ export async function handler(event) {
     // Parse test parameters from the request body
     let testEmail = null;
     let includeClientExample = false;
+    let sendClientVersion = false;
     
     if (event.body) {
       try {
         const payload = JSON.parse(event.body);
         testEmail = payload.testEmail;
         includeClientExample = payload.includeClientExample === true;
+        sendClientVersion = payload.sendClientVersion === true;
         
         console.log(`Test email: ${testEmail || 'None specified'}`);
         console.log(`Include client example: ${includeClientExample ? 'YES' : 'NO'}`);
+        console.log(`Send client version to test email: ${sendClientVersion ? 'YES' : 'NO'}`);
       } catch (e) {
         console.error("Error parsing test parameters:", e);
       }
@@ -187,7 +190,7 @@ export async function handler(event) {
     const results = await Promise.all(
       recipients.map(async (recipient) => {
         try {
-          // Get email content
+          // Get email content for standard version
           const useClientBranding = shouldUseClientBranding(recipient.email);
           
           // Determine which URL to use based on email domain
@@ -208,10 +211,10 @@ export async function handler(event) {
           
           const html = generateWeeklyReportEmailHtml(emailData, defaultBranding);
           
-          // Create subject line
+          // Create subject line for standard version
           const subject = `[TEST] Weekly Maritime Security Report - ${dateRange}`;
           
-          // Send email
+          // Send standard version email
           const emailMessage = {
             to: recipient.email,
             from: {
@@ -225,25 +228,94 @@ export async function handler(event) {
           
           const [response] = await sgMail.send(emailMessage);
           
-          console.log(`Test notification sent to ${recipient.email}: ${response.statusCode}`);
+          console.log(`Standard test notification sent to ${recipient.email}: ${response.statusCode}`);
           
-          return {
+          // Track results
+          const result = {
             email: recipient.email,
+            version: "standard",
             status: "sent",
             statusCode: response.statusCode,
             reportUrl,
             useClientBranding
           };
+          
+          // If requested, also send the client version to the test email
+          if (sendClientVersion && clientReportUrl) {
+            try {
+              // Create client version with client URL
+              const clientReportUrlWithYearWeek = `${clientReportUrl}/${yearWeekCode}`;
+              
+              const clientEmailData = {
+                weekNumber: week,
+                year,
+                yearWeek: yearWeekCode,
+                dateRange,
+                reportUrl: clientReportUrlWithYearWeek,
+              };
+              
+              const clientHtml = generateWeeklyReportEmailHtml(clientEmailData, defaultBranding);
+              
+              // Create subject line for client version
+              const clientSubject = `[TEST-CLIENT] Weekly Maritime Security Report - ${dateRange}`;
+              
+              // Send client version email
+              const clientEmailMessage = {
+                to: recipient.email,
+                from: {
+                  email: fromEmail,
+                  name: defaultBranding.companyName,
+                },
+                subject: clientSubject,
+                html: clientHtml,
+                categories: ["test", "client", "weekly-report", "maritime"],
+              };
+              
+              const [clientResponse] = await sgMail.send(clientEmailMessage);
+              
+              console.log(`Client test notification also sent to ${recipient.email}: ${clientResponse.statusCode}`);
+              
+              // Add client version to results
+              return [
+                result,
+                {
+                  email: recipient.email,
+                  version: "client",
+                  status: "sent",
+                  statusCode: clientResponse.statusCode,
+                  reportUrl: clientReportUrlWithYearWeek,
+                  useClientBranding: true
+                }
+              ];
+            } catch (clientError) {
+              console.error(`Error sending client version to ${recipient.email}:`, clientError);
+              return [
+                result,
+                {
+                  email: recipient.email,
+                  version: "client",
+                  status: "failed",
+                  error: clientError.message,
+                }
+              ];
+            }
+          }
+          
+          return result;
         } catch (error) {
           console.error(`Error sending to ${recipient.email}:`, error);
           return {
             email: recipient.email,
+            version: "standard",
             status: "failed",
             error: error.message,
           };
         }
       })
     );
+    
+    // Flatten results array since some items might be arrays now
+    const flatResults = results.flat();
     
     // Return success response
     return {
@@ -253,9 +325,9 @@ export async function handler(event) {
         message: "Weekly report test notification sent",
         yearWeek: yearWeekCode,
         dateRange,
-        sentCount: results.filter(r => r.status === "sent").length,
-        failedCount: results.filter(r => r.status === "failed").length,
-        results,
+        sentCount: flatResults.filter(r => r.status === "sent").length,
+        failedCount: flatResults.filter(r => r.status === "failed").length,
+        results: flatResults,
         clientDomainInfo: clientDomainInfo.length > 0 ? {
           message: "The following shows what would be sent to users with client domains",
           domains: clientDomains,
