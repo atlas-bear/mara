@@ -1,7 +1,6 @@
 /**
- * Send a notification email when the weekly report is ready
- * This scheduled function runs every Tuesday at 08:00 UTC
- * to inform subscribers that the weekly report is available
+ * Test function for weekly report notifications
+ * This function is a testing endpoint for the weekly report notification system
  */
 
 import { getSupabaseClient } from "./utils/supabase.js";
@@ -13,28 +12,46 @@ import { getCurrentReportingWeek, getYearWeek } from "../src/shared/features/wee
 import sgMail from "@sendgrid/mail";
 
 /**
- * Main handler function for sending weekly report notifications
- * This is triggered by Netlify's scheduled function runner
+ * Main handler function for testing weekly report notifications
+ * This is an HTTP endpoint that can be called to test the notification system
  */
 export async function handler(event) {
   try {
-    // Check if this is a scheduled trigger (when run by Netlify's scheduler)
-    const isScheduled = event.headers && event.headers["x-netlify-event"] === "schedule";
-    
-    // Only allow scheduled events - this function is not meant to be called directly
-    if (!isScheduled) {
-      console.log("This function is meant to be triggered by the scheduler only");
+    // Only allow POST requests
+    if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
         headers: corsHeaders,
-        body: JSON.stringify({ 
-          error: "Method not allowed",
-          message: "This function is only triggered by the scheduler. Use test-weekly-notification for testing."
-        }),
+        body: JSON.stringify({ error: "Method not allowed" }),
       };
     }
 
-    console.log("Weekly report notification function triggered by scheduler");
+    // Parse test parameters from the request body
+    let testEmail = null;
+    let includeClientExample = false;
+    
+    if (event.body) {
+      try {
+        const payload = JSON.parse(event.body);
+        testEmail = payload.testEmail;
+        includeClientExample = payload.includeClientExample === true;
+        
+        console.log(`Test email: ${testEmail || 'None specified'}`);
+        console.log(`Include client example: ${includeClientExample ? 'YES' : 'NO'}`);
+      } catch (e) {
+        console.error("Error parsing test parameters:", e);
+      }
+    }
+
+    if (!testEmail) {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: "testEmail is required" }),
+      };
+    }
+
+    console.log(`Weekly report notification test triggered for ${testEmail}`);
     
     // Initialize SendGrid client
     const apiKey = getEnv("SENDGRID_API_KEY");
@@ -53,27 +70,37 @@ export async function handler(event) {
     const { year, week } = getYearWeek(end);
     const yearWeekCode = `${year}-${week.toString().padStart(2, '0')}`;
     
-    console.log(`Sending notifications for report ${yearWeekCode} (${start.toISOString()} to ${end.toISOString()})`);
+    console.log(`Testing notifications for report ${yearWeekCode} (${start.toISOString()} to ${end.toISOString()})`);
     
     // Get from email from environment variables
     const fromEmail = getEnv("SENDGRID_FROM_EMAIL", "mara@atlasbear.co");
     
-    // Get all recipients who have opted in for weekly reports
-    const recipients = await getWeeklyReportRecipients();
+    // Set up recipients for the test
+    let recipients = [{
+      email: testEmail,
+      name: 'Test User',
+      metadata: { userId: 'test', preferences: {} }
+    }];
     
-    if (!recipients || recipients.length === 0) {
-      console.log("No recipients found for weekly report notifications");
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ 
-          message: "No recipients found",
-          yearWeek: yearWeekCode
-        }),
-      };
+    let skippedRecipients = [];
+    
+    // If requested, create a simulated client domain recipient for demo
+    if (includeClientExample) {
+      // Get client domains to create an example
+      const clientDomains = (getEnv("CLIENT_DOMAINS") || '').split(',').map(d => d.trim()).filter(Boolean);
+      
+      if (clientDomains.length > 0) {
+        // Create an example object to show what would be sent to client domain users
+        const clientDomain = clientDomains[0];
+        const exampleClientEmail = `example@${clientDomain}`;
+        
+        skippedRecipients = [{
+          email: exampleClientEmail,
+          name: 'Example Client User',
+          metadata: { userId: 'example-client', preferences: {} }
+        }];
+      }
     }
-    
-    console.log(`Found ${recipients.length} recipients for weekly report notification`);
     
     // Get branding for email
     const defaultBranding = getDefaultBranding();
@@ -94,7 +121,37 @@ export async function handler(event) {
     // Format date range for display
     const dateRange = formatDateRange(start, end);
     
-    // Send emails to each recipient
+    // For client example, prepare the skipped emails info
+    const skippedEmailsInfo = await Promise.all(
+      skippedRecipients.map(async (recipient) => {
+        try {
+          // Determine client URL for this recipient
+          const useClientBranding = shouldUseClientBranding(recipient.email);
+          
+          let reportUrl;
+          if (useClientBranding && clientReportUrl) {
+            reportUrl = `${clientReportUrl}/${yearWeekCode}`;
+          } else {
+            reportUrl = `${publicUrl}/weekly-report/${yearWeekCode}`;
+          }
+          
+          return {
+            email: recipient.email,
+            status: "would-send",
+            reportUrl,
+            useClientBranding
+          };
+        } catch (error) {
+          return {
+            email: recipient.email,
+            status: "failed",
+            error: error.message
+          };
+        }
+      })
+    );
+    
+    // Send emails to the test recipient
     const results = await Promise.all(
       recipients.map(async (recipient) => {
         try {
@@ -120,7 +177,7 @@ export async function handler(event) {
           const html = generateWeeklyReportEmailHtml(emailData, defaultBranding);
           
           // Create subject line
-          const subject = `Weekly Maritime Security Report - ${dateRange}`;
+          const subject = `[TEST] Weekly Maritime Security Report - ${dateRange}`;
           
           // Send email
           const emailMessage = {
@@ -131,17 +188,19 @@ export async function handler(event) {
             },
             subject,
             html,
-            categories: ["weekly-report", "maritime"],
+            categories: ["test", "weekly-report", "maritime"],
           };
           
           const [response] = await sgMail.send(emailMessage);
           
-          console.log(`Weekly report notification sent to ${recipient.email}: ${response.statusCode}`);
+          console.log(`Test notification sent to ${recipient.email}: ${response.statusCode}`);
           
           return {
             email: recipient.email,
             status: "sent",
-            statusCode: response.statusCode
+            statusCode: response.statusCode,
+            reportUrl,
+            useClientBranding
           };
         } catch (error) {
           console.error(`Error sending to ${recipient.email}:`, error);
@@ -159,69 +218,26 @@ export async function handler(event) {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
-        message: "Weekly report notifications sent",
+        message: "Weekly report test notification sent",
         yearWeek: yearWeekCode,
         dateRange,
         sentCount: results.filter(r => r.status === "sent").length,
         failedCount: results.filter(r => r.status === "failed").length,
-        results
+        results,
+        skippedEmailsInfo: skippedEmailsInfo,
       }),
     };
     
   } catch (error) {
-    console.error("Error in weekly report notification function:", error);
+    console.error("Error in weekly report test notification function:", error);
     return {
       statusCode: 500,
       headers: corsHeaders,
       body: JSON.stringify({
-        error: "Error sending weekly report notifications",
+        error: "Error sending test notification",
         message: error.message,
       }),
     };
-  }
-}
-
-/**
- * Fetch recipients for weekly report from Supabase
- * Gets users who have opted in to receive weekly reports
- * @returns {Promise<Array>} Array of recipient objects with email
- */
-async function getWeeklyReportRecipients() {
-  const supabase = getSupabaseClient();
-  
-  try {
-    console.log('Fetching weekly report recipients from Supabase');
-    
-    // Query users with receive_weekly_reports = true
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name, preferences')
-      .eq('receive_weekly_reports', true);
-    
-    if (error) {
-      console.error('Error fetching weekly report recipients:', error);
-      throw error;
-    }
-    
-    console.log(`Found ${data?.length || 0} recipients for weekly report`);
-    
-    if (!data || data.length === 0) {
-      return [];
-    }
-    
-    // Format recipients
-    return data.map(user => ({
-      email: user.email,
-      name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-      metadata: {
-        userId: user.id,
-        preferences: user.preferences || {}
-      }
-    }));
-    
-  } catch (error) {
-    console.error('Error in getWeeklyReportRecipients:', error);
-    throw error;
   }
 }
 
@@ -309,6 +325,13 @@ function generateWeeklyReportEmailHtml(data, branding) {
             </p>
           </div>
         </div>
+      </div>
+
+      <!-- Test Banner -->
+      <div style="background-color: #FEF2F2; padding: 16px; text-align: center; border-bottom: 1px solid #FEE2E2;">
+        <p style="margin: 0; font-size: 14px; color: #B91C1C; font-weight: bold;">
+          THIS IS A TEST EMAIL - No action required
+        </p>
       </div>
 
       <!-- Notification Message -->

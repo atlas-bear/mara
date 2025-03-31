@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script sends a test request to the weekly report notification function
+# This script sends a test request to the weekly report notification test function
 # Usage: ./test-weekly-email.sh [NETLIFY_URL] [TEST_EMAIL]
 
 # Get the Netlify URL from command line or use default
@@ -13,10 +13,10 @@ echo "Sending test to: $NETLIFY_URL"
 echo "Test email will be sent to: $TEST_EMAIL"
 echo "Including client domain example: YES"
 
-# Send the request
-curl -X POST "$NETLIFY_URL/.netlify/functions/send-weekly-report-notification" \
+# Send the request to the test function specifically made for testing
+curl -X POST "$NETLIFY_URL/.netlify/functions/test-weekly-notification" \
   -H "Content-Type: application/json" \
-  -d "{\"testMode\": true, \"testEmail\": \"$TEST_EMAIL\", \"includeClientExample\": true}"
+  -d "{\"testEmail\": \"$TEST_EMAIL\", \"includeClientExample\": true}"
 
 echo ""
 echo "Request sent. Check the Netlify logs for details."
