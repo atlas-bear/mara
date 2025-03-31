@@ -121,25 +121,57 @@ export async function handler(event) {
     // Format date range for display
     const dateRange = formatDateRange(start, end);
     
-    // For client example, prepare the skipped emails info
-    const skippedEmailsInfo = await Promise.all(
-      skippedRecipients.map(async (recipient) => {
+    // Create examples for client domains even if not explicitly requested
+    let clientDomainExamples = [];
+    
+    // Get client domains to create examples
+    const clientDomains = (getEnv("CLIENT_DOMAINS") || '').split(',').map(d => d.trim()).filter(Boolean);
+    
+    if (clientDomains.length > 0) {
+      // Create example objects to show what would be sent to client domain users
+      clientDomainExamples = clientDomains.map(domain => ({
+        email: `example@${domain}`,
+        name: `Example ${domain} User`,
+        metadata: { userId: `example-${domain}`, preferences: {} }
+      }));
+      
+      console.log(`Created ${clientDomainExamples.length} client domain examples`);
+    }
+    
+    // Prepare examples of what would be sent to client domains
+    const clientDomainInfo = await Promise.all(
+      clientDomainExamples.map(async (recipient) => {
         try {
-          // Determine client URL for this recipient
-          const useClientBranding = shouldUseClientBranding(recipient.email);
+          // Client domains should always use client branding
+          const useClientBranding = true;
           
+          // Should always use client URL for these examples
           let reportUrl;
-          if (useClientBranding && clientReportUrl) {
+          if (clientReportUrl) {
             reportUrl = `${clientReportUrl}/${yearWeekCode}`;
           } else {
             reportUrl = `${publicUrl}/weekly-report/${yearWeekCode}`;
           }
           
+          // Generate a sample of the email HTML that would be sent
+          const emailData = {
+            weekNumber: week,
+            year,
+            yearWeek: yearWeekCode,
+            dateRange,
+            reportUrl,
+          };
+          
+          const html = generateWeeklyReportEmailHtml(emailData, defaultBranding);
+          
           return {
             email: recipient.email,
             status: "would-send",
             reportUrl,
-            useClientBranding
+            useClientBranding,
+            emailSubject: `Weekly Maritime Security Report - ${dateRange}`,
+            // Include a preview of the html that would be sent
+            emailPreview: html.substring(0, 500) + "... [truncated]"
           };
         } catch (error) {
           return {
@@ -224,7 +256,11 @@ export async function handler(event) {
         sentCount: results.filter(r => r.status === "sent").length,
         failedCount: results.filter(r => r.status === "failed").length,
         results,
-        skippedEmailsInfo: skippedEmailsInfo,
+        clientDomainInfo: clientDomainInfo.length > 0 ? {
+          message: "The following shows what would be sent to users with client domains",
+          domains: clientDomains,
+          examples: clientDomainInfo
+        } : null,
       }),
     };
     
