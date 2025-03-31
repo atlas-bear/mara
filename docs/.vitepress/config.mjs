@@ -122,7 +122,8 @@ export default defineConfig({
             { text: 'Implementation', link: '/weekly-report/implementation' },
             { text: 'Date Handling', link: '/weekly-report/date-handling' },
             { text: 'Data Flow', link: '/weekly-report/data-flow' },
-            { text: 'API Reference', link: '/weekly-report/api-reference' }
+            { text: 'API Reference', link: '/weekly-report/api-reference' },
+            { text: 'Email Notifications', link: '/weekly-report/email-notifications' }
           ]
         }
       ],
