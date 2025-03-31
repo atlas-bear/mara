@@ -59,3 +59,7 @@ background = true
 # Background processing function to process raw data
 [functions."process-raw-data-background"]
 background = true
+
+# Weekly report notification scheduled to run every Tuesday at 08:00 UTC
+[functions."send-weekly-report-notification"]
+schedule = "0 8 * * 2"
