@@ -21,6 +21,7 @@ The Weekly Report provides a structured summary of maritime security incidents w
 - **Efficient Caching:** Seven-day caching of report content
 - **Multi-Tenant Support:** White-labeled reports for branded client applications
 - **PDF Export:** Capability to generate PDF versions of reports
+- **Email Notifications:** Automated alerts to subscribers when new reports are available
 
 ## Components
 
@@ -54,3 +55,7 @@ See the [Data Flow Documentation](./data-flow.md) for details on how data moves 
 ## API Reference
 
 See the [API Reference](./api-reference.md) for the endpoints used by the Weekly Report system.
+
+## Email Notifications
+
+See the [Email Notifications](./email-notifications.md) documentation for details on the automated notification system.

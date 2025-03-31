@@ -46,9 +46,12 @@ Key files in the implementation:
 ├── get-weekly-incidents.js         # Serverless function for incident data
 ├── get-weekly-report-content.js    # On-demand report content generation
 ├── get-weekly-report-content-background.js # Scheduled content generation
+├── send-weekly-report-notification.js # Scheduled email notification (Tuesdays)
+├── test-weekly-notification.js     # Test endpoint for email notifications
 └── utils/
     ├── weekly-report-cache.js      # 7-day caching implementation
-    └── llm-service.js              # AI service integration
+    ├── llm-service.js              # AI service integration
+    └── supabase.js                 # Database access including user subscriptions
 ```
 
 ## Client-Side Components
@@ -135,6 +138,14 @@ Response format:
 ### get-weekly-report-content-background.js
 
 Scheduled function that runs every Monday at 21:00 UTC to generate and cache weekly report content for the period that just ended.
+
+### send-weekly-report-notification.js
+
+Scheduled function that runs every Tuesday at 08:00 UTC to send email notifications about the newly available weekly report to subscribed users.
+
+### test-weekly-notification.js
+
+Testing endpoint for manually triggering weekly report email notifications without waiting for the scheduled run.
 
 ## Caching Implementation
 
