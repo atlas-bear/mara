@@ -9,7 +9,10 @@ import { shouldUseClientBranding } from "./utils/supabase.js";
 import { getEnv } from "./utils/environment.js";
 import { renderEmailTemplate } from "./utils/email.js";
 import { corsHeaders } from "./utils/environment.js";
-import { getCurrentReportingWeek, getYearWeek } from "../src/shared/features/weekly-report/utils/dates.js";
+import {
+  getCurrentReportingWeek,
+  getYearWeek,
+} from "../src/shared/features/weekly-report/utils/dates.js";
 import sgMail from "@sendgrid/mail";
 
 /**
@@ -19,23 +22,27 @@ import sgMail from "@sendgrid/mail";
 export async function handler(event) {
   try {
     // Check if this is a scheduled trigger (when run by Netlify's scheduler)
-    const isScheduled = event.headers && event.headers["x-netlify-event"] === "schedule";
-    
+    const isScheduled =
+      event.headers && event.headers["x-netlify-event"] === "schedule";
+
     // Only allow scheduled events - this function is not meant to be called directly
     if (!isScheduled) {
-      console.log("This function is meant to be triggered by the scheduler only");
+      console.log(
+        "This function is meant to be triggered by the scheduler only"
+      );
       return {
         statusCode: 405,
         headers: corsHeaders,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           error: "Method not allowed",
-          message: "This function is only triggered by the scheduler. Use test-weekly-notification for testing."
+          message:
+            "This function is only triggered by the scheduler. Use test-weekly-notification for testing.",
         }),
       };
     }
 
     console.log("Weekly report notification function triggered by scheduler");
-    
+
     // Initialize SendGrid client
     const apiKey = getEnv("SENDGRID_API_KEY");
     if (!apiKey) {
@@ -47,60 +54,66 @@ export async function handler(event) {
       };
     }
     sgMail.setApiKey(apiKey);
-    
+
     // Get current reporting week dates
     const { start, end } = getCurrentReportingWeek();
     const { year, week } = getYearWeek(end);
-    const yearWeekCode = `${year}-${week.toString().padStart(2, '0')}`;
-    
-    console.log(`Sending notifications for report ${yearWeekCode} (${start.toISOString()} to ${end.toISOString()})`);
-    
+    const yearWeekCode = `${year}-${week.toString().padStart(2, "0")}`;
+
+    console.log(
+      `Sending notifications for report ${yearWeekCode} (${start.toISOString()} to ${end.toISOString()})`
+    );
+
     // Get from email from environment variables
     const fromEmail = getEnv("SENDGRID_FROM_EMAIL", "mara@atlasbear.co");
-    
+
     // Get all recipients who have opted in for weekly reports
     const recipients = await getWeeklyReportRecipients();
-    
+
     if (!recipients || recipients.length === 0) {
       console.log("No recipients found for weekly report notifications");
       return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: "No recipients found",
-          yearWeek: yearWeekCode
+          yearWeek: yearWeekCode,
         }),
       };
     }
-    
-    console.log(`Found ${recipients.length} recipients for weekly report notification`);
-    
+
+    console.log(
+      `Found ${recipients.length} recipients for weekly report notification`
+    );
+
     // Get branding for email
     const defaultBranding = getDefaultBranding();
-    
+
     // Get public URL from environment
     const publicUrl = getEnv("PUBLIC_URL");
     const clientReportUrl = getEnv("CLIENT_REPORT_URL");
-    
+
     if (!publicUrl) {
       console.error("PUBLIC_URL environment variable is missing");
       return {
         statusCode: 500,
         headers: corsHeaders,
-        body: JSON.stringify({ error: "Configuration error - missing PUBLIC_URL" }),
+        body: JSON.stringify({
+          error: "Configuration error - missing PUBLIC_URL",
+        }),
       };
     }
-    
+
     // Format date range for display
     const dateRange = formatDateRange(start, end);
-    
+
     // Send emails to each recipient
     const results = await Promise.all(
       recipients.map(async (recipient) => {
         try {
           // Get email content
           const useClientBranding = shouldUseClientBranding(recipient.email);
-          
+
           // Determine which URL to use based on email domain
           let reportUrl;
           if (useClientBranding && clientReportUrl) {
@@ -108,7 +121,7 @@ export async function handler(event) {
           } else {
             reportUrl = `${publicUrl}/weekly-report/${yearWeekCode}`;
           }
-          
+
           const emailData = {
             weekNumber: week,
             year,
@@ -116,12 +129,15 @@ export async function handler(event) {
             dateRange,
             reportUrl,
           };
-          
-          const html = generateWeeklyReportEmailHtml(emailData, defaultBranding);
-          
+
+          const html = generateWeeklyReportEmailHtml(
+            emailData,
+            defaultBranding
+          );
+
           // Create subject line
           const subject = `Weekly Maritime Security Report - ${dateRange}`;
-          
+
           // Send email
           const emailMessage = {
             to: recipient.email,
@@ -133,15 +149,17 @@ export async function handler(event) {
             html,
             categories: ["weekly-report", "maritime"],
           };
-          
+
           const [response] = await sgMail.send(emailMessage);
-          
-          console.log(`Weekly report notification sent to ${recipient.email}: ${response.statusCode}`);
-          
+
+          console.log(
+            `Weekly report notification sent to ${recipient.email}: ${response.statusCode}`
+          );
+
           return {
             email: recipient.email,
             status: "sent",
-            statusCode: response.statusCode
+            statusCode: response.statusCode,
           };
         } catch (error) {
           console.error(`Error sending to ${recipient.email}:`, error);
@@ -153,7 +171,7 @@ export async function handler(event) {
         }
       })
     );
-    
+
     // Return success response
     return {
       statusCode: 200,
@@ -162,12 +180,11 @@ export async function handler(event) {
         message: "Weekly report notifications sent",
         yearWeek: yearWeekCode,
         dateRange,
-        sentCount: results.filter(r => r.status === "sent").length,
-        failedCount: results.filter(r => r.status === "failed").length,
-        results
+        sentCount: results.filter((r) => r.status === "sent").length,
+        failedCount: results.filter((r) => r.status === "failed").length,
+        results,
       }),
     };
-    
   } catch (error) {
     console.error("Error in weekly report notification function:", error);
     return {
@@ -188,39 +205,38 @@ export async function handler(event) {
  */
 async function getWeeklyReportRecipients() {
   const supabase = getSupabaseClient();
-  
+
   try {
-    console.log('Fetching weekly report recipients from Supabase');
-    
+    console.log("Fetching weekly report recipients from Supabase");
+
     // Query users with receive_weekly_reports = true
     const { data, error } = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name, preferences')
-      .eq('receive_weekly_reports', true);
-    
+      .from("users")
+      .select("id, email, first_name, last_name, preferences")
+      .eq("receive_weekly_reports", true);
+
     if (error) {
-      console.error('Error fetching weekly report recipients:', error);
+      console.error("Error fetching weekly report recipients:", error);
       throw error;
     }
-    
+
     console.log(`Found ${data?.length || 0} recipients for weekly report`);
-    
+
     if (!data || data.length === 0) {
       return [];
     }
-    
+
     // Format recipients
-    return data.map(user => ({
+    return data.map((user) => ({
       email: user.email,
-      name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+      name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
       metadata: {
         userId: user.id,
-        preferences: user.preferences || {}
-      }
+        preferences: user.preferences || {},
+      },
     }));
-    
   } catch (error) {
-    console.error('Error in getWeeklyReportRecipients:', error);
+    console.error("Error in getWeeklyReportRecipients:", error);
     throw error;
   }
 }
@@ -249,9 +265,15 @@ function formatDateRange(start, end) {
  */
 function getDefaultBranding() {
   // Use environment variables for branding configuration
-  const defaultLogo = getEnv("DEFAULT_LOGO", "https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/public/mara_logo_k4epmo.png");
-  const defaultName = getEnv("DEFAULT_COMPANY_NAME", "MARA Maritime Risk Analysis");
-  
+  const defaultLogo = getEnv(
+    "DEFAULT_LOGO",
+    "https://res.cloudinary.com/dwnh4b5sx/image/upload/v1741248008/branding/public/mara_logo_k4epmo.png"
+  );
+  const defaultName = getEnv(
+    "DEFAULT_COMPANY_NAME",
+    "MARA Maritime Risk Analysis"
+  );
+
   return {
     logo: defaultLogo,
     companyName: defaultName,
@@ -275,7 +297,7 @@ function generateWeeklyReportEmailHtml(data, branding) {
   const primaryColor = colors.primary;
   const secondaryColor = colors.secondary;
   const currentYear = new Date().getFullYear();
-  
+
   return `
   <!DOCTYPE html>
   <html>
@@ -329,7 +351,7 @@ function generateWeeklyReportEmailHtml(data, branding) {
       </div>
 
       <!-- View Online Button -->
-      <div style="padding: 24px; text-align: center; border-bottom: 1px solid #E5E7EB;">
+      <div style="padding: 24px; text-align: center;">
         <a href="${reportUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${primaryColor}; color: white; font-weight: 600; text-decoration: none; border-radius: 6px;">
           View Weekly Report
         </a>
