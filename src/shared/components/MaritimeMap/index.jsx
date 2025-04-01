@@ -3,6 +3,29 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
 
+// Global WebGL context management
+if (typeof window !== 'undefined') {
+  // Initialize global WebGL context tracking
+  window.__maraWebGLContexts = window.__maraWebGLContexts || {
+    count: 0,
+    contexts: new Set(),
+    maxContexts: 8, // Safari has a limit around 8-16
+    register: function(canvas) {
+      this.count++;
+      this.contexts.add(canvas);
+      console.log(`WebGL context registered (${this.count} active)`);
+    },
+    unregister: function(canvas) {
+      this.count = Math.max(0, this.count - 1);
+      this.contexts.delete(canvas);
+      console.log(`WebGL context unregistered (${this.count} active)`);
+    },
+    isLimitReached: function() {
+      return this.count >= this.maxContexts;
+    }
+  };
+}
+
 // More robust browser detection
 const detectBrowser = () => {
   try {
@@ -35,6 +58,11 @@ const detectBrowser = () => {
 const browserType = detectBrowser();
 const isSafari = browserType === 'safari' || browserType === 'ios';
 
+// Set a lower context limit for Safari
+if (typeof window !== 'undefined' && window.__maraWebGLContexts && isSafari) {
+  window.__maraWebGLContexts.maxContexts = 6;
+}
+
 /**
  * Interactive map component for displaying maritime incidents
  * 
@@ -56,6 +84,7 @@ const MaritimeMap = ({
   const mapInstance = useRef(null);
   const [mapError, setMapError] = useState(false);
   const [mapWarning, setMapWarning] = useState(false);
+  const [webGLLimitReached, setWebGLLimitReached] = useState(false);
 
   useLayoutEffect(() => {
     // Always clean up the previous map instance before creating a new one
@@ -103,6 +132,15 @@ const MaritimeMap = ({
       }
     }
 
+    // Check if we've reached the WebGL context limit
+    if (typeof window !== 'undefined' && 
+        window.__maraWebGLContexts && 
+        window.__maraWebGLContexts.isLimitReached()) {
+      console.warn(`WebGL context limit reached (${window.__maraWebGLContexts.count}). Using static fallback.`);
+      setWebGLLimitReached(true);
+      return;
+    }
+    
     // Get MapBox token from environment
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!token) {
@@ -499,6 +537,18 @@ const MaritimeMap = ({
       
       mapInstance.current = map;
 
+      // Register this WebGL context with our global tracker
+      if (typeof window !== 'undefined' && window.__maraWebGLContexts) {
+        try {
+          const canvas = map.getCanvas();
+          if (canvas) {
+            window.__maraWebGLContexts.register(canvas);
+          }
+        } catch (e) {
+          console.warn('Error registering WebGL context:', e);
+        }
+      }
+
       // Track error listener
       trackEvent('error', (e) => {
         console.error('Map error:', e);
@@ -512,8 +562,80 @@ const MaritimeMap = ({
 
     return () => {
       if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
+        try {
+          // Get the WebGL context before removing the map
+          let gl = null;
+          try {
+            const canvas = mapInstance.current.getCanvas();
+            if (canvas) {
+              // Get the WebGL context
+              gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            }
+          } catch (e) {
+            console.warn('Error getting WebGL context:', e);
+          }
+          
+          // Remove all event listeners to prevent memory leaks
+          mapInstance.current.off();
+          
+          // Remove the map instance
+          mapInstance.current.remove();
+          
+          // Unregister this WebGL context from our global tracker
+          if (typeof window !== 'undefined' && window.__maraWebGLContexts) {
+            try {
+              const canvas = mapInstance.current.getCanvas();
+              if (canvas) {
+                window.__maraWebGLContexts.unregister(canvas);
+              }
+            } catch (e) {
+              console.warn('Error unregistering WebGL context:', e);
+            }
+          }
+
+          // If we got the WebGL context, release it manually
+          if (gl) {
+            // Call lose context extension to release the context
+            const loseContext = gl.getExtension('WEBGL_lose_context');
+            if (loseContext) {
+              loseContext.loseContext();
+            }
+            
+            // Manual WebGL cleanup
+            const numTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+            for (let unit = 0; unit < numTextureUnits; ++unit) {
+              gl.activeTexture(gl.TEXTURE0 + unit);
+              gl.bindTexture(gl.TEXTURE_2D, null);
+              gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+            }
+            
+            // Unbind buffers
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+            gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            
+            // Clear the canvas one last time
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+          }
+          
+          // Clear the reference
+          mapInstance.current = null;
+          
+          // Force garbage collection via timeout
+          setTimeout(() => {
+            // This log statement forces a closure to execute after a timeout,
+            // which can help browser garbage collection work more efficiently
+            console.log('Map cleanup complete');
+          }, 100);
+        } catch (e) {
+          console.warn('Error during map cleanup:', e);
+          // Still try to clean up as best we can
+          if (mapInstance.current) {
+            mapInstance.current.remove();
+            mapInstance.current = null;
+          }
+        }
       }
     };
   // Recreate the map if we have a large number of incidents (more than 20)
@@ -589,7 +711,19 @@ const MaritimeMap = ({
     });
   }, [incidents]);
 
-  if (mapError) {
+  // Show appropriate error message based on error type
+  if (webGLLimitReached) {
+    // For WebGL context limit, show a more informative message
+    return (
+      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
+        <p className="text-gray-700 font-medium mb-2">WebGL Context Limit Reached</p>
+        <p className="text-gray-500 text-sm text-center">
+          Too many maps are loaded at once. This data includes {incidents.length} incidents.
+          Try viewing fewer maps at once or refreshing the page.
+        </p>
+      </div>
+    );
+  } else if (mapError) {
     return (
       <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
         <p className="text-gray-500">Unable to load map. Please check console for errors.</p>
