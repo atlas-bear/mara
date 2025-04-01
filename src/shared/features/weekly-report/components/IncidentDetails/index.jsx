@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCoordinates, formatLocation } from '@shared/features/weekly-report';
-import MaritimeMap from '@shared/components/MaritimeMap';
+import StaticMap from '@shared/components/StaticMap';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },
@@ -110,9 +110,8 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
       {/* Incident Map */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-        <MaritimeMap 
+        <StaticMap 
           incidents={mapIncidents}
-          useClustering={false}
           center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
           zoom={5}
         />
