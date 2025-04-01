@@ -36,56 +36,8 @@ const MaritimeMap = ({
     // Always clean up the previous map instance before creating a new one
     if (mapInstance.current) {
       try {
-        // More thorough cleanup for v3
-        const map = mapInstance.current;
-        
-        // Remove event listeners
-        map.off();
-        
-        // Remove any layers that might be using WebGL resources
-        try {
-          if (map.getStyle() && map.getStyle().layers) {
-            const layers = map.getStyle().layers
-              .filter(layer => layer.id && layer.id.startsWith('incidents-'))
-              .map(layer => layer.id);
-              
-            layers.forEach(id => {
-              if (map.getLayer(id)) {
-                map.removeLayer(id);
-              }
-            });
-          }
-        } catch (e) {
-          console.warn('Error removing layers:', e);
-        }
-        
-        // Remove sources
-        try {
-          if (map.getSource('incidents')) {
-            map.removeSource('incidents');
-          }
-        } catch (e) {
-          console.warn('Error removing sources:', e);
-        }
-        
-        // Force WebGL resource cleanup
-        try {
-          const canvas = map.getCanvas();
-          if (canvas) {
-            const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-            if (gl) {
-              const loseExtension = gl.getExtension('WEBGL_lose_context');
-              if (loseExtension) {
-                loseExtension.loseContext();
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Error forcing WebGL cleanup:', e);
-        }
-        
-        // Final cleanup
-        map.remove();
+        // Clean up
+        mapInstance.current.remove();
         mapInstance.current = null;
       } catch (error) {
         console.warn('Error cleaning up map:', error);
@@ -108,7 +60,7 @@ const MaritimeMap = ({
       const defaultStyle = 'mapbox://styles/mapbox/light-v11'; // More reliable style
       const customStyle = 'mapbox://styles/mara-admin/clsbsqqvb011f01qqfwo95y4q';
       
-      // Create map with v3 options
+      // Create map
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: customStyle,
@@ -119,19 +71,9 @@ const MaritimeMap = ({
         navigationControl: false,
         failIfMajorPerformanceCaveat: false,
         maxZoom: 18,
+        trackResize: true,
         dragRotate: false,
-        fadeDuration: 0,
-        
-        // v3-specific optimizations
-        optimizeForTerrain: false,
-        antialias: false,
-        crossSourceCollisions: false,
-        localFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif", 
-        maxParallelImageRequests: 3,
-        
-        // Performance optimizations
-        renderWorldCopies: incidents.length < 5,
-        trackResize: true
+        fadeDuration: 0
       });
       
       // Handle style loading errors
@@ -288,25 +230,12 @@ const MaritimeMap = ({
           map.addImage(`pulsing-dot-${type}`, pulsingDotForType(color), { pixelRatio: 2 });
         });
 
-        // Limit markers to most recent for performance and stability
-        // For Safari and other browsers with performance issues
-        const maxMarkersPerMap = isSafari ? 3 : 10;
-        let visibleIncidents = incidents;
-        
-        // If too many incidents, only show the most recent ones
-        if (incidents.length > maxMarkersPerMap) {
-          // Sort by recency if date_time_utc is available in properties
-          // Otherwise just take the first N
-          visibleIncidents = incidents.slice(0, maxMarkersPerMap);
-          console.log(`Showing only ${maxMarkersPerMap} markers out of ${incidents.length} incidents`);
-        }
-        
         // Add source and layer for incidents with normalized types
         map.addSource('incidents', {
           type: 'geojson',
           data: {
             type: 'FeatureCollection',
-            features: visibleIncidents.map(incident => {
+            features: incidents.map(incident => {
               // Get normalized category for this incident type
               const normalizedType = normalizeIncidentType(incident.type);
               
@@ -381,27 +310,10 @@ const MaritimeMap = ({
       setMapError(true);
     }
 
-    // Thorough cleanup when component unmounts
     return () => {
       if (mapInstance.current) {
-        try {
-          // Remove event listeners to prevent memory leaks
-          mapInstance.current.off();
-          
-          // Remove all markers, popups, and controls
-          mapInstance.current.remove();
-          
-          // Clear the reference
-          mapInstance.current = null;
-          
-          // Request garbage collection
-          setTimeout(() => {
-            // This timeout helps browser process cleanup
-            console.log('Map resources cleaned up');
-          }, 100);
-        } catch (e) {
-          console.warn('Error during map cleanup on unmount:', e);
-        }
+        mapInstance.current.remove();
+        mapInstance.current = null;
       }
     };
   }, [center, zoom, incidents]);
@@ -451,19 +363,9 @@ const MaritimeMap = ({
       return 'default';
     };
 
-    // Limit markers to most recent for performance and stability
-    const maxMarkersPerMap = isSafari ? 3 : 10;
-    let visibleIncidents = incidents;
-    
-    // If too many incidents, only show the most recent ones
-    if (incidents.length > maxMarkersPerMap) {
-      visibleIncidents = incidents.slice(0, maxMarkersPerMap);
-      console.log(`Update: Showing only ${maxMarkersPerMap} markers out of ${incidents.length} incidents`);
-    }
-    
     map.getSource('incidents').setData({
       type: 'FeatureCollection',
-      features: visibleIncidents.map(incident => {
+      features: incidents.map(incident => {
         // Get normalized category for this incident type
         const normalizedType = normalizeIncidentType(incident.type);
         
