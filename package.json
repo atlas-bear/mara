@@ -38,7 +38,7 @@
     "chrome-aws-lambda": "^10.1.0",
     "cloudinary": "^2.5.1",
     "lucide-react": "^0.263.1",
-    "mapbox-gl": "^3.10.0",
+    "mapbox-gl": "^2.15.0",
     "puppeteer-core": "^10.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
