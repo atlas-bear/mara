@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
+
+// Lazy load the static map component
+const StaticMaritimeMap = lazy(() => import('./StaticMap'));
 
 // More robust browser detection
 const detectBrowser = () => {
@@ -32,8 +35,15 @@ const detectBrowser = () => {
   }
 };
 
+// Detection helper variables
 const browserType = detectBrowser();
 const isSafari = browserType === 'safari' || browserType === 'ios';
+const isLowPowerDevice = navigator.hardwareConcurrency < 4 || 
+                        /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+// Keep track of global WebGL context usage
+let globalWebGLContextCount = 0;
+const MAX_WEBGL_CONTEXTS = 7; // Conservative limit safe for most browsers
 
 /**
  * Interactive map component for displaying maritime incidents
@@ -56,10 +66,12 @@ const MaritimeMap = ({
   const [mapWarning, setMapWarning] = useState(false);
 
   useLayoutEffect(() => {
-    // Always clean up the previous map instance before creating a new one
-    if (mapInstance.current) {
+    // Cleanup function to handle map destruction
+    const cleanupMap = () => {
+      if (!mapInstance.current) return;
+      
       try {
-        // Explicitly remove all event listeners
+        // 1. Explicitly remove all event listeners
         if (mapInstance.current.listeners) {
           for (const [event, handler] of Object.entries(mapInstance.current.listeners || {})) {
             mapInstance.current.off(event, handler);
@@ -67,19 +79,52 @@ const MaritimeMap = ({
           mapInstance.current.listeners = {};
         }
         
-        // Force texture and buffer cleanup - in v3 we do this differently
+        // 2. Remove all layers to help with cleanup
         try {
-          // Try to manually trigger resource cleanup through public API
-          // V3 handles cleanup more automatically
+          const layerIds = mapInstance.current.getStyle().layers
+            .filter(layer => layer.id.startsWith('incidents-'))
+            .map(layer => layer.id);
+            
+          layerIds.forEach(id => {
+            if (mapInstance.current.getLayer(id)) {
+              mapInstance.current.removeLayer(id);
+            }
+          });
+          
+          // Remove sources
+          if (mapInstance.current.getSource('incidents')) {
+            mapInstance.current.removeSource('incidents');
+          }
+        } catch (e) {
+          console.warn('Error removing layers and sources:', e);
+        }
+        
+        // 3. Force WebGL context cleanup
+        try {
           if (mapInstance.current.getCanvas() && mapInstance.current.getCanvas().getContext) {
             const gl = mapInstance.current.getCanvas().getContext('webgl2') || 
                       mapInstance.current.getCanvas().getContext('webgl');
                       
             if (gl) {
+              // Clear all buffers
+              gl.colorMask(true, true, true, true);
+              gl.clearColor(0, 0, 0, 0);
+              gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+              
               // Force context loss to release resources
               const extension = gl.getExtension('WEBGL_lose_context');
               if (extension) {
                 extension.loseContext();
+              }
+              
+              // Get all extension objects and try to clean them up
+              const extensions = gl.getSupportedExtensions();
+              if (extensions) {
+                extensions.forEach(ext => {
+                  try {
+                    gl.getExtension(ext);
+                  } catch (e) {}
+                });
               }
             }
           }
@@ -87,19 +132,32 @@ const MaritimeMap = ({
           console.warn('Failed to cleanup WebGL context:', e);
         }
         
-        // Standard removal
+        // 4. Standard removal
         mapInstance.current.remove();
         mapInstance.current = null;
         
-        // Force a garbage collection trigger (helps with Safari)
+        // 5. Aggressively clean up DOM references
+        if (mapContainer.current) {
+          // Clear any child elements
+          while (mapContainer.current.firstChild) {
+            mapContainer.current.removeChild(mapContainer.current.firstChild);
+          }
+        }
+        
+        // 6. Force a garbage collection trigger (helps with Safari)
         setTimeout(() => {
-          // The timeout helps browsers process the cleanup
-          // before creating a new context
-        }, 50);
+          // Manually lower the global counter after timeout
+          if (globalWebGLContextCount > 0) {
+            globalWebGLContextCount--;
+          }
+        }, 100);
       } catch (cleanupError) {
         console.warn('Error during map cleanup:', cleanupError);
       }
-    }
+    };
+    
+    // Clean up any existing map before creating a new one
+    cleanupMap();
 
     // Get MapBox token from environment
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -423,15 +481,11 @@ const MaritimeMap = ({
       setMapError(true);
     }
 
-    return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
+    // Make sure we clean up when unmounting
+    return cleanupMap;
   // Recreate the map if we have a large number of incidents (more than 20)
   // This helps prevent the "too many WebGL contexts" error
-  }, [incidents.length > 20]);
+  }, [incidents.length > 20, shouldUseStaticMap]);
 
   // Update markers when incidents change
   useEffect(() => {
@@ -509,26 +563,46 @@ const MaritimeMap = ({
     );
   }
 
-  // Special handling for Safari browser
-  if (isSafari && incidents.length > 20) {
+  // Count WebGL contexts when creating a map
+  useEffect(() => {
+    globalWebGLContextCount++;
+    return () => {
+      globalWebGLContextCount--;
+    };
+  }, []);
+  
+  // Determine when to use static map instead of interactive map
+  const shouldUseStaticMap = 
+    // Use static map in these conditions:
+    (isSafari && incidents.length > 10) || // Safari with moderate number of incidents
+    (isLowPowerDevice && incidents.length > 15) || // Low-power devices
+    incidents.length > 40 || // Any browser with many incidents
+    globalWebGLContextCount >= MAX_WEBGL_CONTEXTS; // Too many maps already
+  
+  // For overviews with multiple incidents, use static map
+  if (shouldUseStaticMap) {
     return (
-      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
-        <p className="text-gray-700 font-medium mb-2">Map view limited in Safari</p>
-        <p className="text-gray-500 text-sm text-center">
-          There are {incidents.length} incidents to display, which exceeds Safari's WebGL limits.
-          For full map functionality, please use Chrome or Firefox, or view incidents by region.
-        </p>
-      </div>
+      <Suspense fallback={
+        <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
+          <p className="text-gray-500">Loading optimized map view...</p>
+        </div>
+      }>
+        <StaticMaritimeMap 
+          incidents={incidents}
+          center={center}
+          zoom={zoom}
+        />
+      </Suspense>
     );
   }
   
-  // Display a special error message for very large datasets in any browser
-  if (incidents.length > 50) {
+  // For very large datasets, display a message instead
+  if (incidents.length > 75) {
     return (
       <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
         <p className="text-gray-700 font-medium mb-2">Large number of incidents detected</p>
         <p className="text-gray-500 text-sm text-center">
-          There are {incidents.length} incidents to display, which may exceed browser capacity.
+          There are {incidents.length} incidents to display, which exceeds recommended limits.
           Please view incidents by region instead for optimal performance.
         </p>
       </div>
