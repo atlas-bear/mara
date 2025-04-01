@@ -21,7 +21,7 @@ const StaticMaritimeMap = ({
   width = 800,
   height = 300
 }) => {
-  // Get MapBox token
+  // Get MapBox token - safely access environment variables
   const token = import.meta?.env?.VITE_MAPBOX_TOKEN || '';
   
   // Reference color scheme from the interactive map
