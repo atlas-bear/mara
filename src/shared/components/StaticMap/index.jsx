@@ -38,18 +38,51 @@ const StaticMap = ({
       let markers = '';
       
       if (incidents && incidents.length > 0) {
-        // Add a pin for each incident
-        markers = incidents.map(incident => {
+        // Use a GeoJSON overlay for custom circle markers
+        const features = incidents.map(incident => {
           // Get color based on incident type
           const color = getMarkerColorByType(incident.type);
           
-          // Use proper marker syntax per Mapbox Static API docs
-          // Format: pin-s+color(lon,lat) or pin-l+color(lon,lat)
-          return `pin-l+${color}(${incident.longitude},${incident.latitude})`;
-        }).join(',');
+          return {
+            type: "Feature",
+            properties: {
+              "marker-color": `#${color}`,
+              "marker-size": "large",
+              "title": incident.title || "Incident",
+              "type": incident.type || "Unknown"
+            },
+            geometry: {
+              type: "Point",
+              coordinates: [incident.longitude, incident.latitude]
+            }
+          };
+        });
+        
+        const geojson = {
+          type: "FeatureCollection",
+          features: features
+        };
+        
+        // URL encode the GeoJSON for the static map API
+        markers = `geojson(${encodeURIComponent(JSON.stringify(geojson))})`;
       } else if (center && center.length === 2) {
-        // If no incidents, put a single marker at the center
-        markers = `pin-l+f00(${center[0]},${center[1]})`;
+        // If no incidents, create a single circle marker at the center
+        const geojson = {
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: {
+              "marker-color": "#f00",
+              "marker-size": "large"
+            },
+            geometry: {
+              type: "Point",
+              coordinates: [center[0], center[1]]
+            }
+          }]
+        };
+        
+        markers = `geojson(${encodeURIComponent(JSON.stringify(geojson))})`;
       }
       
       // Use the exact same custom map style as in MaritimeMap
@@ -62,8 +95,23 @@ const StaticMap = ({
       
       setMapUrl(url);
       
-      // Create fallback URL with standard mapbox style
-      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-l+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
+      // Create fallback URL with standard mapbox style and simple circle marker
+      const fallbackGeojson = {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: {
+            "marker-color": "#ff0000",
+            "marker-size": "large"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [center[0], center[1]]
+          }
+        }]
+      };
+      
+      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/geojson(${encodeURIComponent(JSON.stringify(fallbackGeojson))})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
     } catch (err) {
       console.error('Error generating static map URL:', err);
       setError(true);
