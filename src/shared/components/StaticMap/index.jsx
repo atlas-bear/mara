@@ -43,26 +43,27 @@ const StaticMap = ({
           // Get color based on incident type
           const color = getMarkerColorByType(incident.type);
           
-          // Use pin marker syntax which is more reliable than circle
-          return `pin-l-circle+${color}(${incident.longitude},${incident.latitude})`;
+          // Use proper marker syntax per Mapbox Static API docs
+          // Format: pin-s+color(lon,lat) or pin-l+color(lon,lat)
+          return `pin-l+${color}(${incident.longitude},${incident.latitude})`;
         }).join(',');
       } else if (center && center.length === 2) {
         // If no incidents, put a single marker at the center
-        markers = `pin-l-circle+f00(${center[0]},${center[1]})`;
+        markers = `pin-l+f00(${center[0]},${center[1]})`;
       }
       
-      // Use the standard mapbox style (most reliable)
-      const mapStyle = 'mapbox/light-v10';
+      // Use the exact same custom map style as in MaritimeMap
+      const mapStyle = 'mara-admin/clsbsqqvb011f01qqfwo95y4q';
       
-      // Generate the static map URL
+      // Generate the static map URL according to Mapbox docs
       const url = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
         markers
       }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
       
       setMapUrl(url);
       
-      // Create fallback URL with even more basic style
-      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-l+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
+      // Create fallback URL with standard mapbox style
+      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-l+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
     } catch (err) {
       console.error('Error generating static map URL:', err);
       setError(true);
