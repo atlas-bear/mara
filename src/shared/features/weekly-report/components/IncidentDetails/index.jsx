@@ -112,6 +112,7 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
         <MaritimeMap 
           incidents={mapIncidents}
+          useClustering={false}
           center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
           zoom={5}
         />

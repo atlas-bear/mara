@@ -43,12 +43,14 @@ const isSafari = browserType === 'safari' || browserType === 'ios';
  * @param {Array<Object>} [props.incidents=[]] - Array of incident objects to display on the map
  * @param {Array<number>} [props.center=[103.8, 1.12]] - Initial map center coordinates [longitude, latitude]
  * @param {number} [props.zoom=8] - Initial zoom level
+ * @param {boolean} [props.useClustering=true] - Whether to enable marker clustering
  * @returns {JSX.Element} Rendered map component
  */
 const MaritimeMap = ({ 
   incidents = [], 
   center = [103.8, 1.12],
-  zoom = 8
+  zoom = 8,
+  useClustering = true
 }) => {
   const mapContainer = useRef(null);
   const mapInstance = useRef(null);
@@ -333,7 +335,7 @@ const MaritimeMap = ({
           map.addImage(`pulsing-dot-${type}`, pulsingDotForType(color), { pixelRatio: 2 });
         });
 
-        // Add source and layer for incidents with normalized types
+        // Add source and layer for incidents with normalized types and optional clustering
         map.addSource('incidents', {
           type: 'geojson',
           data: {
@@ -356,16 +358,70 @@ const MaritimeMap = ({
                 }
               };
             })
-          }
+          },
+          // Enable clustering for performance and to handle many incidents
+          cluster: useClustering,
+          clusterMaxZoom: 14,
+          clusterRadius: 50
         });
 
-        // Add layers for each incident category
+        // Add cluster layer if clustering is enabled
+        if (useClustering) {
+          // Add a layer for the clusters
+          map.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'incidents',
+            filter: ['has', 'point_count'],
+            paint: {
+              // Use step expressions for circle radius and color based on point count
+              'circle-color': [
+                'step',
+                ['get', 'point_count'],
+                '#51bbd6', // Default color
+                5, '#f1f075', // 5+ points color
+                10, '#f28cb1' // 10+ points color
+              ],
+              'circle-radius': [
+                'step',
+                ['get', 'point_count'],
+                20, // Default radius
+                5, 25, // 5+ points radius
+                10, 30 // 10+ points radius
+              ],
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff'
+            }
+          });
+        
+          // Add a layer for the cluster count
+          map.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'incidents',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': '{point_count_abbreviated}',
+              'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+              'text-size': 12
+            },
+            paint: {
+              'text-color': '#ffffff'
+            }
+          });
+        }
+        
+        // Add layers for individual incident points
         Object.keys(typeColors).forEach(type => {
           map.addLayer({
             id: `incidents-${type}`,
             type: 'symbol',
             source: 'incidents',
-            filter: ['==', 'type', type],
+            // Only show unclustered points of this type
+            filter: ['all', 
+              ['!', ['has', 'point_count']],
+              ['==', ['get', 'type'], type]
+            ],
             layout: {
               'icon-image': `pulsing-dot-${type}`,
               'icon-allow-overlap': true
@@ -376,7 +432,38 @@ const MaritimeMap = ({
         // List of all layer IDs for event handling
         const allLayerIds = Object.keys(typeColors).map(type => `incidents-${type}`);
         
-        // Add popups on click for all incident types
+        // Handle cluster clicks - zoom in when a cluster is clicked
+        if (useClustering) {
+          map.on('click', 'clusters', (e) => {
+            const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+            const clusterId = features[0].properties.cluster_id;
+            
+            // Get the cluster expansion zoom
+            map.getSource('incidents').getClusterExpansionZoom(
+              clusterId,
+              (err, zoom) => {
+                if (err) return;
+                
+                // Zoom to the cluster
+                map.easeTo({
+                  center: features[0].geometry.coordinates,
+                  zoom: zoom
+                });
+              }
+            );
+          });
+          
+          // Change cursor on hover for clusters
+          map.on('mouseenter', 'clusters', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          
+          map.on('mouseleave', 'clusters', () => {
+            map.getCanvas().style.cursor = '';
+          });
+        }
+        
+        // Add popups on click for individual incident types
         map.on('click', allLayerIds, (e) => {
           const coordinates = e.features[0].geometry.coordinates.slice();
           const { title, description, originalType, type } = e.features[0].properties;
@@ -478,6 +565,7 @@ const MaritimeMap = ({
       return 'default';
     };
 
+    // Update the GeoJSON data with the same properties
     map.getSource('incidents').setData({
       type: 'FeatureCollection',
       features: incidents.map(incident => {

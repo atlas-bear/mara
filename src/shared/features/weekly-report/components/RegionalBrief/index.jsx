@@ -270,6 +270,7 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
           incidents={mapIncidents}
           center={region.defaultCenter}
           zoom={region.defaultZoom}
+          useClustering={true}
         />
         <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3 flex-wrap">
           <span className="flex items-center">

@@ -210,6 +210,7 @@ const ExecutiveBrief = ({ incidents, start, end, yearWeek }) => {
           incidents={mapIncidents}
           center={[40, 20]}
           zoom={1}
+          useClustering={true}
         />
         <div className="mt-2 text-xs text-gray-500 flex justify-end gap-3 flex-wrap">
           <span className="flex items-center">
