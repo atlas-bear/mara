@@ -8,7 +8,8 @@ import {
   IncidentDetails,
   getReportingWeek,
   formatDateRange,
-  fetchWeeklyIncidents 
+  fetchWeeklyIncidents,
+  MapManagerProvider
 } from '@shared/features/weekly-report';
 
 // Define regions with their display properties
@@ -178,14 +179,15 @@ function WeeklyReportPage() {
   console.log('Incidents by region:', incidentsByRegion);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      
-      <ExecutiveBrief 
-        incidents={incidents} 
-        start={start} 
-        end={end}
-        yearWeek={activeYearWeek} // Pass the year-week from URL
-      />
+    <MapManagerProvider>
+      <div className="min-h-screen bg-gray-100 py-8">
+        
+        <ExecutiveBrief 
+          incidents={incidents} 
+          start={start} 
+          end={end}
+          yearWeek={activeYearWeek} // Pass the year-week from URL
+        />
 
       {/* Display each region in order */}
       {REGION_ORDER.map(region => {
@@ -228,6 +230,7 @@ function WeeklyReportPage() {
         );
       })}
     </div>
+    </MapManagerProvider>
   );
 }
 

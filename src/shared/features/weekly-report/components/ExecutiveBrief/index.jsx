@@ -2,10 +2,10 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import _ from 'lodash';
-import MaritimeMap from '@shared/components/MaritimeMap';
 import { formatDateRange, getYearWeek } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 import { fetchWeeklyReportContent } from '@shared/features/weekly-report/utils/client-api';
+import { SharedMap, MAP_IDS, useMapManager } from '@shared/features/weekly-report/utils/map-manager';
 
 // Color mappings for key development levels
 const LEVEL_COLORS = {
@@ -206,7 +206,8 @@ const ExecutiveBrief = ({ incidents, start, end, yearWeek }) => {
         <h2 className="text-lg font-semibold text-gray-900 mb-3">
           Active Incidents
         </h2>
-        <MaritimeMap 
+        <SharedMap 
+          mapId={MAP_IDS.GLOBAL}
           incidents={mapIncidents}
           center={[40, 20]}
           zoom={1}

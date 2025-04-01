@@ -23,3 +23,11 @@ export { getFirstSentence } from "./utils/text";
 // Data exports
 export { mockHistoricalTrends } from "./utils/mock-data";
 export { historicalTrends, regionalMonthlyData, regionalStats, refreshReportData } from "./utils/report-data";
+
+// Map manager exports
+export { 
+  MapManagerProvider, 
+  useMapManager, 
+  SharedMap,
+  MAP_IDS
+} from "./utils/map-manager";
