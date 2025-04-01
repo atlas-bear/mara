@@ -44,6 +44,7 @@ export const isMapLoaded = (mapId) => {
  * Mount a map to a container
  * @param {string} mapId - ID for the map
  * @param {HTMLElement} container - DOM container element
+ * @param {Object} mapboxgl - The mapboxgl library
  * @param {Object} options - Map options
  * @returns {Object|null} - Map info object or null if failed
  */
@@ -53,15 +54,13 @@ export const mountMap = (mapId, container, mapboxgl, options = {}) => {
     return null;
   }
   
-  const mapboxToken = options.accessToken;
-  if (!mapboxToken) {
-    console.error('MapBox token not found');
-    return null;
-  }
-  
+  // We don't expect token to be passed in options, it's set directly on mapboxgl
   try {
-    // Set access token
-    mapboxgl.accessToken = mapboxToken;
+    // Check if token is already set
+    if (!mapboxgl.accessToken) {
+      console.error('MapBox token not set on mapboxgl.accessToken');
+      return null;
+    }
     
     // Default style that's more reliable
     const defaultStyle = 'mapbox://styles/mapbox/light-v11';
@@ -385,13 +384,15 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
       }
       
       // Add popups on click for individual incident types
-      const mapboxgl = options.mapboxgl;
-      if (mapboxgl) {
-        map.on('click', allLayerIds, (e) => {
-          const coordinates = e.features[0].geometry.coordinates.slice();
-          const { title, description, originalType, type } = e.features[0].properties;
+      map.on('click', allLayerIds, (e) => {
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const { title, description, originalType, type } = e.features[0].properties;
 
-          new mapboxgl.Popup()
+        // Get the constructor of the map to create a popup
+        // This allows us to use the same mapboxgl instance without passing it
+        const Popup = map.constructor.Popup;
+        if (Popup) {
+          new Popup()
             .setLngLat(coordinates)
             .setHTML(`
               <h3 class="font-bold">${title}</h3>
@@ -399,8 +400,8 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
               <p class="text-xs text-gray-500 mt-2">Incident type: ${originalType}</p>
             `)
             .addTo(map);
-        });
-      }
+        }
+      });
 
       // Change cursor on hover for all incident types
       map.on('mouseenter', allLayerIds, () => {

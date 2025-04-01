@@ -29,8 +29,9 @@ const SharedMap = ({
   const mapContainer = useRef(null);
   const [error, setError] = useState(false);
   
-  // Get MapBox token from environment
-  const token = import.meta?.env?.VITE_MAPBOX_TOKEN;
+  // Get MapBox token from environment using Vite's import.meta.env
+  // This is the standard approach used throughout the codebase
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
   
   // Mount map on first render
   useEffect(() => {
@@ -44,13 +45,14 @@ const SharedMap = ({
     // Check if we already have this map instance
     let mapInfo = getMapInstance(mapId);
     
+    // Set the token first before trying to mount
+    mapboxgl.accessToken = token;
+
     // If it's not created yet, mount a new one
     if (!mapInfo) {
       mapInfo = mountMap(mapId, mapContainer.current, mapboxgl, { 
-        accessToken: token,
         center, 
-        zoom,
-        mapboxgl
+        zoom
       });
       
       if (!mapInfo) {
@@ -100,8 +102,7 @@ const SharedMap = ({
         updateMap(mapId, incidents, { 
           center, 
           zoom, 
-          useClustering,
-          mapboxgl 
+          useClustering 
         });
       } else {
         // Not loaded yet, check again soon
@@ -119,12 +120,14 @@ const SharedMap = ({
   
   // Update map data when incidents or view options change
   useEffect(() => {
-    // Only try to update if map should be loaded
+    // Only try to update if map should be loaded and token is available
+    if (!token) return;
+    
     const mapInfo = getMapInstance(mapId);
     if (mapInfo && mapInfo.loaded) {
-      updateMap(mapId, incidents, { center, zoom, useClustering, mapboxgl });
+      updateMap(mapId, incidents, { center, zoom, useClustering });
     }
-  }, [mapId, incidents, center, zoom, useClustering]);
+  }, [mapId, incidents, center, zoom, useClustering, token]);
   
   // Show error if map fails to load
   if (error) {
