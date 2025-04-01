@@ -8,9 +8,9 @@ if (typeof window !== 'undefined') {
   // Use a simple counter system that won't get mixed up
   window.__maraMapCount = window.__maraMapCount || 0;
   
-  // Different limits for different browsers
+  // Much higher limits are possible now with efficient circle layers
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  window.__maraMaxMaps = isSafari ? 8 : 20;
+  window.__maraMaxMaps = isSafari ? 30 : 50;
 }
 
 // More robust browser detection
@@ -338,25 +338,25 @@ const MaritimeMap = ({
             minzoom: 0,   // Visible at all zoom levels
             maxzoom: 16,  // But not at very high zoom
             paint: {
-              // Use step expressions for circle radius and color based on point count
+              // Use threat level colors that match our severity scale
               'circle-color': [
                 'step',
                 ['get', 'point_count'],
-                '#51bbd6', // Default color for small clusters
-                3, '#f1f075', // 3+ points color
-                7, '#f28cb1' // 7+ points color
+                '#3b82f6', // Low (1-2 incidents): Blue
+                3, '#f59e0b', // Moderate (3-6 incidents): Orange
+                7, '#ef4444'  // Substantial/Critical (7+ incidents): Red
               ],
               'circle-radius': [
                 'step',
                 ['get', 'point_count'],
-                18, // Default radius for small clusters
-                3, 22, // 3+ points radius
-                7, 26 // 7+ points radius
+                18, // Small clusters
+                3, 25, // Medium clusters
+                7, 30  // Large clusters
               ],
-              'circle-stroke-width': 1,
+              'circle-stroke-width': 2,
               'circle-stroke-color': '#fff',
               'circle-opacity': 0.9,
-              'circle-stroke-opacity': 0.9
+              'circle-stroke-opacity': 1
             }
           });
         
@@ -382,9 +382,32 @@ const MaritimeMap = ({
           // Parse the color components
           const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
           
+          // First add a larger "halo" circle for each point for better visibility
+          map.addLayer({
+            id: `incidents-${type}-halo`,
+            type: 'circle',
+            source: 'incidents',
+            // Only show unclustered points of this type
+            filter: ['all', 
+              ['!', ['has', 'point_count']],
+              ['==', ['get', 'type'], type]
+            ],
+            paint: {
+              // Outer halo
+              'circle-radius': 10,  // Larger radius for the halo
+              'circle-color': `rgba(${r}, ${g}, ${b}, 0.3)`,  // Transparent version of the main color
+              'circle-stroke-width': 0,
+              
+              // Make the halo stand out
+              'circle-opacity': 0.6,
+              'circle-blur': 0.5  // Slight blur for a glow effect
+            }
+          });
+          
+          // Then add the main circle on top
           map.addLayer({
             id: `incidents-${type}`,
-            type: 'circle',  // Using circles instead of symbols
+            type: 'circle',
             source: 'incidents',
             // Only show unclustered points of this type
             filter: ['all', 
@@ -393,19 +416,19 @@ const MaritimeMap = ({
             ],
             paint: {
               // Main circle
-              'circle-radius': 6,
+              'circle-radius': 6,  // Slightly larger than before
               'circle-color': `rgb(${r}, ${g}, ${b})`,
-              'circle-stroke-width': 1.5,
+              'circle-stroke-width': 2,  // Thicker border
               'circle-stroke-color': '#ffffff',
               
               // Make the circle stand out
               'circle-opacity': 0.9,
-              'circle-stroke-opacity': 0.9
+              'circle-stroke-opacity': 1
             }
           });
         });
 
-        // List of all layer IDs for event handling
+        // List of all layer IDs for event handling (main circles only, not halos)
         const allLayerIds = Object.keys(typeColors).map(type => `incidents-${type}`);
         
         // Handle cluster clicks - zoom in when a cluster is clicked
