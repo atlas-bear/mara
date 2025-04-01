@@ -2,6 +2,7 @@
 export { default as ExecutiveBrief } from "./components/ExecutiveBrief";
 export { default as RegionalBrief } from "./components/RegionalBrief";
 export { default as IncidentDetails } from "./components/IncidentDetails";
+export { default as SharedMap } from "./components/SharedMap";
 
 // Utils exports
 export { fetchWeeklyIncidents } from "./utils/api";
@@ -26,8 +27,9 @@ export { historicalTrends, regionalMonthlyData, regionalStats, refreshReportData
 
 // Map manager exports
 export { 
-  MapManagerProvider, 
-  useMapManager, 
-  SharedMap,
-  MAP_IDS
+  MAP_IDS,
+  getMapInstance,
+  mountMap,
+  updateMap,
+  unmountMap
 } from "./utils/map-manager";

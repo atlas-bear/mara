@@ -1,8 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
-import { getFirstSentence } from '@shared/features/weekly-report';
-import { regionalMonthlyData, regionalStats } from '../../utils/report-data';
-import { SharedMap, MAP_IDS, useMapManager } from '@shared/features/weekly-report/utils/map-manager';
+import { getFirstSentence, SharedMap, MAP_IDS, regionalMonthlyData, regionalStats } from '@shared/features/weekly-report';
 
 // Define regions info
 const REGIONS = {

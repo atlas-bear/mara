@@ -1,8 +1,7 @@
 import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { formatCoordinates, formatLocation } from '@shared/features/weekly-report';
-import { SharedMap, useMapManager } from '@shared/features/weekly-report/utils/map-manager';
+import { formatCoordinates, formatLocation, SharedMap } from '@shared/features/weekly-report';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },

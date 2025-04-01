@@ -5,7 +5,7 @@ import _ from 'lodash';
 import { formatDateRange, getYearWeek } from '@shared/features/weekly-report/utils/dates';
 import { fetchAllHistoricalTrends } from '@shared/features/weekly-report/utils/trend-api';
 import { fetchWeeklyReportContent } from '@shared/features/weekly-report/utils/client-api';
-import { SharedMap, MAP_IDS, useMapManager } from '@shared/features/weekly-report/utils/map-manager';
+import { SharedMap, MAP_IDS } from '@shared/features/weekly-report';
 
 // Color mappings for key development levels
 const LEVEL_COLORS = {
