@@ -3,25 +3,33 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
 
-// Global WebGL context management
+// Initialize mapbox-gl
+mapboxgl.prewarm();  // Prewarm the WebGL pipeline (v3 feature)
+
+// Simplified WebGL context tracking (improved efficiency)
 if (typeof window !== 'undefined') {
-  // Initialize global WebGL context tracking
+  // Initialize a simpler tracking system
   window.__maraWebGLContexts = window.__maraWebGLContexts || {
-    count: 0,
-    contexts: new Set(),
-    maxContexts: 8, // Safari has a limit around 8-16
-    register: function(canvas) {
-      this.count++;
-      this.contexts.add(canvas);
-      console.log(`WebGL context registered (${this.count} active)`);
+    // We're now using static markers, so higher limits should be fine
+    maxContexts: 16,   // Higher limit since we're more efficient now
+    
+    // Keep track of map instances for better management
+    mapInstances: new Set(),
+    
+    register: function(map) {
+      this.mapInstances.add(map);
     },
-    unregister: function(canvas) {
-      this.count = Math.max(0, this.count - 1);
-      this.contexts.delete(canvas);
-      console.log(`WebGL context unregistered (${this.count} active)`);
+    
+    unregister: function(map) {
+      this.mapInstances.delete(map);
     },
+    
+    getActiveCount: function() {
+      return this.mapInstances.size;
+    },
+    
     isLimitReached: function() {
-      return this.count >= this.maxContexts;
+      return this.getActiveCount() >= this.maxContexts;
     }
   };
 }
@@ -246,70 +254,53 @@ const MaritimeMap = ({
 
       map.on('load', () => {
 
-        // Add pulsing dot image
-        const size = 200;
+        // Create static marker images instead of animated ones
+        // This is much more efficient for WebGL resources
+        const size = 64;
+        
         /**
-         * Creates a pulsing dot animation for incident markers
+         * Creates a static dot image for incident markers (no animation)
+         * This is much more efficient for WebGL performance
          * 
          * @param {string} color - The RGB color string (format: "R,G,B")
-         * @returns {Object} A mapbox custom image object with animation
+         * @returns {HTMLCanvasElement} Canvas with marker image
          * @private
          */
-        const pulsingDotForType = (color) => ({
-          width: size,
-          height: size,
-          data: new Uint8Array(size * size * 4),
-          onAdd: function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = this.width;
-            canvas.height = this.height;
-            this.context = canvas.getContext('2d');
-          },
-          render: function() {
-            const duration = 1000;
-            const t = (performance.now() % duration) / duration;
-            const radius = (size / 2) * 0.3;
-            const outerRadius = (size / 2) * 0.7 * t + radius;
-            const context = this.context;
-
-            // Clear canvas
-            context.clearRect(0, 0, this.width, this.height);
-
-            // Draw outer circle
-            context.beginPath();
-            context.arc(
-              this.width / 2,
-              this.height / 2,
-              outerRadius,
-              0,
-              Math.PI * 2
-            );
-            context.fillStyle = `rgba(${color}, ${1 - t})`;
-            context.fill();
-
-            // Draw inner circle
-            context.beginPath();
-            context.arc(
-              this.width / 2,
-              this.height / 2,
-              radius,
-              0,
-              Math.PI * 2
-            );
-            context.fillStyle = `rgba(${color}, 1)`;
-            context.strokeStyle = 'white';
-            context.lineWidth = 2 + 4 * (1 - t);
-            context.fill();
-            context.stroke();
-
-            // Update this image's data with data from the canvas
-            this.data = context.getImageData(0, 0, this.width, this.height).data;
-
-            // Continuously render until we don't
-            map.triggerRepaint();
-            return true;
-          }
-        });
+        const createMarkerImage = (color) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const context = canvas.getContext('2d');
+          
+          // Draw filled circle with border
+          const centerX = size / 2;
+          const centerY = size / 2;
+          const radius = size / 5;
+          
+          // Draw outer glow
+          const gradient = context.createRadialGradient(
+            centerX, centerY, radius * 0.8,
+            centerX, centerY, radius * 2.5
+          );
+          gradient.addColorStop(0, `rgba(${color}, 0.8)`);
+          gradient.addColorStop(1, `rgba(${color}, 0)`);
+          
+          context.beginPath();
+          context.arc(centerX, centerY, radius * 2.5, 0, Math.PI * 2);
+          context.fillStyle = gradient;
+          context.fill();
+          
+          // Draw main circle
+          context.beginPath();
+          context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          context.fillStyle = `rgb(${color})`;
+          context.strokeStyle = 'white';
+          context.lineWidth = 2;
+          context.fill();
+          context.stroke();
+          
+          return canvas;
+        };
 
         /**
          * Normalizes incident types into predefined categories for consistent display
@@ -368,9 +359,13 @@ const MaritimeMap = ({
           'default': '107,114,128'   // Gray - Fallback for uncategorized
         };
         
-        // Add pulsing dot image for each category
+        // Add static marker images for each category (no animation)
         Object.entries(typeColors).forEach(([type, color]) => {
-          map.addImage(`pulsing-dot-${type}`, pulsingDotForType(color), { pixelRatio: 2 });
+          // Create a static marker image
+          const markerImage = createMarkerImage(color);
+          
+          // Add it to the map as a normal image
+          map.addImage(`marker-${type}`, markerImage, { pixelRatio: 1 });
         });
 
         // Add source and layer for incidents with normalized types and optional clustering
@@ -399,8 +394,12 @@ const MaritimeMap = ({
           },
           // Enable clustering for performance and to handle many incidents
           cluster: useClustering,
-          clusterMaxZoom: 14,
-          clusterRadius: 50
+          clusterMaxZoom: 14,  // Max zoom level for clusters
+          clusterRadius: 50,   // Radius to cluster points
+          maxzoom: 16,         // Maximum zoom level to cache source data for
+          generateId: true,    // Generates a unique id for each feature (improves performance)
+          buffer: 128,         // Tile buffer size (higher = smoother clustering)
+          tolerance: 0.375     // Simplification tolerance (higher = better performance)
         });
 
         // Add cluster layer if clustering is enabled
@@ -411,24 +410,28 @@ const MaritimeMap = ({
             type: 'circle',
             source: 'incidents',
             filter: ['has', 'point_count'],
+            minzoom: 0,   // Visible at all zoom levels
+            maxzoom: 16,  // But not at very high zoom
             paint: {
               // Use step expressions for circle radius and color based on point count
               'circle-color': [
                 'step',
                 ['get', 'point_count'],
-                '#51bbd6', // Default color
-                5, '#f1f075', // 5+ points color
-                10, '#f28cb1' // 10+ points color
+                '#51bbd6', // Default color for small clusters
+                3, '#f1f075', // 3+ points color
+                7, '#f28cb1' // 7+ points color
               ],
               'circle-radius': [
                 'step',
                 ['get', 'point_count'],
-                20, // Default radius
-                5, 25, // 5+ points radius
-                10, 30 // 10+ points radius
+                18, // Default radius for small clusters
+                3, 22, // 3+ points radius
+                7, 26 // 7+ points radius
               ],
               'circle-stroke-width': 1,
-              'circle-stroke-color': '#fff'
+              'circle-stroke-color': '#fff',
+              'circle-opacity': 0.9,
+              'circle-stroke-opacity': 0.9
             }
           });
         
@@ -461,8 +464,9 @@ const MaritimeMap = ({
               ['==', ['get', 'type'], type]
             ],
             layout: {
-              'icon-image': `pulsing-dot-${type}`,
-              'icon-allow-overlap': true
+              'icon-image': `marker-${type}`,
+              'icon-allow-overlap': true,
+              'icon-size': 0.7
             }
           });
         });
@@ -537,15 +541,12 @@ const MaritimeMap = ({
       
       mapInstance.current = map;
 
-      // Register this WebGL context with our global tracker
+      // Register map instance with our global tracker
       if (typeof window !== 'undefined' && window.__maraWebGLContexts) {
         try {
-          const canvas = map.getCanvas();
-          if (canvas) {
-            window.__maraWebGLContexts.register(canvas);
-          }
+          window.__maraWebGLContexts.register(map);
         } catch (e) {
-          console.warn('Error registering WebGL context:', e);
+          console.warn('Error registering map instance:', e);
         }
       }
 
@@ -581,15 +582,12 @@ const MaritimeMap = ({
           // Remove the map instance
           mapInstance.current.remove();
           
-          // Unregister this WebGL context from our global tracker
+          // Unregister map instance from our global tracker
           if (typeof window !== 'undefined' && window.__maraWebGLContexts) {
             try {
-              const canvas = mapInstance.current.getCanvas();
-              if (canvas) {
-                window.__maraWebGLContexts.unregister(canvas);
-              }
+              window.__maraWebGLContexts.unregister(mapInstance.current);
             } catch (e) {
-              console.warn('Error unregistering WebGL context:', e);
+              console.warn('Error unregistering map instance:', e);
             }
           }
 
@@ -713,20 +711,21 @@ const MaritimeMap = ({
 
   // Show appropriate error message based on error type
   if (webGLLimitReached) {
-    // For WebGL context limit, show a more informative message
+    // For WebGL context limit, show a simplified placeholder that's less distracting
     return (
-      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
-        <p className="text-gray-700 font-medium mb-2">WebGL Context Limit Reached</p>
-        <p className="text-gray-500 text-sm text-center">
-          Too many maps are loaded at once. This data includes {incidents.length} incidents.
-          Try viewing fewer maps at once or refreshing the page.
+      <div className="w-full h-[300px] rounded-lg bg-gray-50 border border-gray-200 flex flex-col items-center justify-center p-2">
+        <p className="text-sm text-gray-500 text-center italic">
+          This region has {incidents.length} incident{incidents.length > 1 ? 's' : ''}.
+          <br/>
+          Please view earlier maps for details.
         </p>
       </div>
     );
   } else if (mapError) {
+    // For other errors
     return (
       <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">Unable to load map. Please check console for errors.</p>
+        <p className="text-gray-500 text-sm">Unable to load map. Please refresh to try again.</p>
       </div>
     );
   }
