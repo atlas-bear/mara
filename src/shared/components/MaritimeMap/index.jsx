@@ -3,53 +3,14 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './MapStyles.css';
 
-// Lazy load the static map component
+// Lazy load the static map component for Safari
 const StaticMaritimeMap = lazy(() => import('./StaticMap'));
 
-// More robust browser detection
-const detectBrowser = () => {
-  try {
-    // Detect Safari
-    if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
-      return 'safari';
-    }
-    
-    // Detect iOS WebKit (used in all iOS browsers)
-    if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-      return 'ios';
-    }
-    
-    // Detect Firefox
-    if (navigator.userAgent.indexOf('Firefox') !== -1) {
-      return 'firefox';
-    }
-    
-    // Detect Chrome
-    if (navigator.userAgent.indexOf('Chrome') !== -1) {
-      return 'chrome';
-    }
-    
-    return 'unknown';
-  } catch (e) {
-    return 'unknown';
-  }
-};
-
-// Detection helper variables - safely initialize
-const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
-const browserType = isBrowser ? detectBrowser() : 'unknown';
-const isSafari = isBrowser && (browserType === 'safari' || browserType === 'ios');
-const isLowPowerDevice = isBrowser && (
-  (navigator.hardwareConcurrency !== undefined && navigator.hardwareConcurrency < 4) || 
-  /iPhone|iPad|iPod/.test(navigator.userAgent)
+// Simple Safari detection
+const isSafari = typeof navigator !== 'undefined' && (
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream)
 );
-
-// Keep track of global WebGL context usage
-// Use window to ensure it's properly initialized across component instances
-if (typeof window !== 'undefined') {
-  window.__mapboxGLContextCount = window.__mapboxGLContextCount || 0;
-}
-const MAX_WEBGL_CONTEXTS = 7; // Conservative limit safe for most browsers
 
 /**
  * Interactive map component for displaying maritime incidents
@@ -72,98 +33,16 @@ const MaritimeMap = ({
   const [mapWarning, setMapWarning] = useState(false);
 
   useLayoutEffect(() => {
-    // Cleanup function to handle map destruction
-    const cleanupMap = () => {
-      if (!mapInstance.current) return;
-      
+    // Always clean up the previous map instance before creating a new one
+    if (mapInstance.current) {
       try {
-        // 1. Explicitly remove all event listeners
-        if (mapInstance.current.listeners) {
-          for (const [event, handler] of Object.entries(mapInstance.current.listeners || {})) {
-            mapInstance.current.off(event, handler);
-          }
-          mapInstance.current.listeners = {};
-        }
-        
-        // 2. Remove all layers to help with cleanup
-        try {
-          const layerIds = mapInstance.current.getStyle().layers
-            .filter(layer => layer.id.startsWith('incidents-'))
-            .map(layer => layer.id);
-            
-          layerIds.forEach(id => {
-            if (mapInstance.current.getLayer(id)) {
-              mapInstance.current.removeLayer(id);
-            }
-          });
-          
-          // Remove sources
-          if (mapInstance.current.getSource('incidents')) {
-            mapInstance.current.removeSource('incidents');
-          }
-        } catch (e) {
-          console.warn('Error removing layers and sources:', e);
-        }
-        
-        // 3. Force WebGL context cleanup
-        try {
-          if (mapInstance.current.getCanvas() && mapInstance.current.getCanvas().getContext) {
-            const gl = mapInstance.current.getCanvas().getContext('webgl2') || 
-                      mapInstance.current.getCanvas().getContext('webgl');
-                      
-            if (gl) {
-              // Clear all buffers
-              gl.colorMask(true, true, true, true);
-              gl.clearColor(0, 0, 0, 0);
-              gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-              
-              // Force context loss to release resources
-              const extension = gl.getExtension('WEBGL_lose_context');
-              if (extension) {
-                extension.loseContext();
-              }
-              
-              // Get all extension objects and try to clean them up
-              const extensions = gl.getSupportedExtensions();
-              if (extensions) {
-                extensions.forEach(ext => {
-                  try {
-                    gl.getExtension(ext);
-                  } catch (e) {}
-                });
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to cleanup WebGL context:', e);
-        }
-        
-        // 4. Standard removal
+        // Clean up
         mapInstance.current.remove();
         mapInstance.current = null;
-        
-        // 5. Aggressively clean up DOM references
-        if (mapContainer.current) {
-          // Clear any child elements
-          while (mapContainer.current.firstChild) {
-            mapContainer.current.removeChild(mapContainer.current.firstChild);
-          }
-        }
-        
-        // 6. Force a garbage collection trigger (helps with Safari)
-        setTimeout(() => {
-          // Manually lower the global counter after timeout
-          if (typeof window !== 'undefined' && window.__mapboxGLContextCount > 0) {
-            window.__mapboxGLContextCount--;
-          }
-        }, 100);
-      } catch (cleanupError) {
-        console.warn('Error during map cleanup:', cleanupError);
+      } catch (error) {
+        console.warn('Error cleaning up map:', error);
       }
-    };
-    
-    // Clean up any existing map before creating a new one
-    cleanupMap();
+    }
 
     // Get MapBox token from environment
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -177,29 +56,11 @@ const MaritimeMap = ({
       // Set access token for MapBox GL
       mapboxgl.accessToken = token;
       
-      // Suppress console errors for resource loading failures
-      // This handles resource loading errors in a consistent way across versions
-      const originalConsoleError = console.error;
-      console.error = function(...args) {
-        // Filter out the errors related to MapBox resource loading
-        if (args[0] && 
-            (typeof args[0] === 'string' && args[0].includes('Failed to load resource')) ||
-            (args[0] instanceof Error && args[0].message && 
-             (args[0].message.includes('Mapbox') || args[0].message.includes('resource')))) {
-          console.warn('MapBox resource loading issue - this is expected and non-critical');
-          return;
-        }
-        originalConsoleError.apply(console, args);
-      };
-      
       // Use a fallback style if the custom style fails
       const defaultStyle = 'mapbox://styles/mapbox/light-v11'; // More reliable style
       const customStyle = 'mapbox://styles/mara-admin/clsbsqqvb011f01qqfwo95y4q';
       
-      // Instead of trying to modify readonly config properties,
-      // we'll use a different approach to handle events.mapbox.com errors
-      
-      // Create map with settings for v3 compatibility
+      // Create map
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: customStyle,
@@ -208,38 +69,16 @@ const MaritimeMap = ({
         preserveDrawingBuffer: true,
         attributionControl: false,
         navigationControl: false,
-        failIfMajorPerformanceCaveat: false, // More permissive rendering
-        localFontFamily: "'Noto Sans', 'Noto Sans CJK SC', sans-serif", // Updated font fallbacks property
+        failIfMajorPerformanceCaveat: false,
         maxZoom: 18,
-        interactive: true, // Keep map interactive
-        boxZoom: true,
-        dragRotate: false, // Simplify interaction model
-        touchZoomRotate: true,
-        doubleClickZoom: true,
-        keyboard: false, // Disable unnecessary keyboard handlers
-        fadeDuration: 0, // Reduce animations
-        preserveDrawingBuffer: true,
-        trackUserLocation: false, // Don't track user location
-        pitchWithRotate: false, // Simplify 3D
-        renderWorldCopies: true, // For global views
-        optimizeForTerrain: false, // No terrain in this app
-        testMode: false, // Production mode
-        
-        // Safari-specific optimizations
-        performanceMetricsCollection: false,
-        collectResourceTiming: false,
-        crossSourceCollisions: false, // Improve performance with many points
+        trackResize: true,
+        dragRotate: false,
+        fadeDuration: 0
       });
       
-      // Add error handler specifically for style loading
-      map.on('style.load', () => {
-        // Map style loaded successfully
-      });
-      
-      // Handle various error scenarios including resource loading
+      // Handle style loading errors
       map.on('error', (e) => {
-        // Don't crash on tile loading errors, just log them
-        console.warn('MapBox error captured:', e.error ? e.error.message || 'Unknown error' : 'Unknown error');
+        console.warn('MapBox error:', e.error ? e.error.message || 'Unknown error' : 'Unknown error');
           
         // Style loading error fallback
         if (e.error && ((e.error.status === 404 && e.error.url && e.error.url.includes('styles')) ||
@@ -262,14 +101,8 @@ const MaritimeMap = ({
           setMapError(true);
         }
       });
-      
-      // Restore console.error after map creation
-      setTimeout(() => {
-        console.error = originalConsoleError;
-      }, 5000); // Give map time to load resources
 
       map.on('load', () => {
-
         // Add pulsing dot image
         const size = 200;
         /**
@@ -465,19 +298,9 @@ const MaritimeMap = ({
         });
       });
 
-      // Initialize event listener tracking object
-      map.listeners = {};
-      
-      // Use custom tracking for event listeners
-      const trackEvent = (event, handler) => {
-        map.listeners[event] = handler;
-        map.on(event, handler);
-      };
-      
       mapInstance.current = map;
 
-      // Track error listener
-      trackEvent('error', (e) => {
+      map.on('error', (e) => {
         console.error('Map error:', e);
         setMapError(true);
       });
@@ -487,11 +310,13 @@ const MaritimeMap = ({
       setMapError(true);
     }
 
-    // Make sure we clean up when unmounting
-    return cleanupMap;
-  // Recreate the map if we have a large number of incidents (more than 20)
-  // This helps prevent the "too many WebGL contexts" error
-  }, [incidents.length > 20, shouldUseStaticMap]);
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, [center, zoom, incidents]);
 
   // Update markers when incidents change
   useEffect(() => {
@@ -561,36 +386,8 @@ const MaritimeMap = ({
     });
   }, [incidents]);
 
-  if (mapError) {
-    return (
-      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">Unable to load map. Please check console for errors.</p>
-      </div>
-    );
-  }
-
-  // Count WebGL contexts when creating a map
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.__mapboxGLContextCount = (window.__mapboxGLContextCount || 0) + 1;
-    }
-    return () => {
-      if (typeof window !== 'undefined' && window.__mapboxGLContextCount > 0) {
-        window.__mapboxGLContextCount--;
-      }
-    };
-  }, []);
-  
-  // Determine when to use static map instead of interactive map
-  const shouldUseStaticMap = 
-    // Use static map in these conditions:
-    (isSafari && incidents.length > 10) || // Safari with moderate number of incidents
-    (isLowPowerDevice && incidents.length > 15) || // Low-power devices
-    incidents.length > 40 || // Any browser with many incidents
-    (typeof window !== 'undefined' && (window.__mapboxGLContextCount || 0) >= MAX_WEBGL_CONTEXTS); // Too many maps already
-  
-  // For overviews with multiple incidents, use static map
-  if (shouldUseStaticMap) {
+  // For Safari with multiple incidents, use the static map
+  if (isSafari && incidents.length > 10) {
     return (
       <Suspense fallback={
         <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
@@ -606,19 +403,29 @@ const MaritimeMap = ({
     );
   }
   
-  // For very large datasets, display a message instead
-  if (incidents.length > 75) {
+  // For very large datasets in any browser, display a message
+  if (incidents.length > 50) {
     return (
       <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
         <p className="text-gray-700 font-medium mb-2">Large number of incidents detected</p>
         <p className="text-gray-500 text-sm text-center">
-          There are {incidents.length} incidents to display, which exceeds recommended limits.
+          There are {incidents.length} incidents to display, which may exceed browser capacity.
           Please view incidents by region instead for optimal performance.
         </p>
       </div>
     );
   }
 
+  // Show error message if map initialization failed
+  if (mapError) {
+    return (
+      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-500">Unable to load map. Please check console for errors.</p>
+      </div>
+    );
+  }
+
+  // Default case: render interactive map
   return (
     <div className="relative w-full">
       <div 
