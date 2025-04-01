@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 /**
  * A lightweight static map component that uses Mapbox Static Images API
@@ -19,36 +19,57 @@ const StaticMap = ({
   className = "w-full h-[300px] rounded-lg",
   style = { border: '1px solid #e5e7eb' }
 }) => {
-  // Get Mapbox token from environment
-  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  const [mapUrl, setMapUrl] = useState('');
+  const [fallbackUrl, setFallbackUrl] = useState('');
+  const [error, setError] = useState(false);
   
-  if (!token) {
+  useEffect(() => {
+    // Get Mapbox token from environment
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    
+    if (!token) {
+      setError(true);
+      return;
+    }
+    
+    try {
+      // Process incidents to create markers with custom styling
+      const markers = incidents.map(incident => {
+        // Get color based on incident type
+        const color = getMarkerColorByType(incident.type);
+        
+        // Create marker string - use circle markers instead of pins
+        // Use size-l for larger circles (similar to pulsing dots)
+        return `circle-xl+${color.replace('#', '')}(${incident.longitude},${incident.latitude})`;
+      }).join(',');
+      
+      // Use the same custom map style as the interactive map
+      const mapStyle = 'mapbox/light-v11'; // Use standard mapbox style for more reliability
+      
+      // Generate the static map URL
+      const url = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
+        markers || `circle-xl+EF4444(${center[0]},${center[1]})`
+      }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
+      
+      setMapUrl(url);
+      
+      // Create fallback URL with default mapbox style
+      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/circle-xl+EF4444(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
+    } catch (err) {
+      console.error('Error generating static map URL:', err);
+      setError(true);
+    }
+  }, [incidents, center, zoom]);
+  
+  if (error || !mapUrl) {
     return (
       <div className={className} style={style}>
         <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-          <p className="text-gray-500 text-sm">Map token not available</p>
+          <p className="text-gray-500 text-sm">Map could not be loaded</p>
         </div>
       </div>
     );
   }
-  
-  // Process incidents to create markers with custom styling
-  const markers = incidents.map(incident => {
-    // Get color based on incident type
-    const color = getMarkerColorByType(incident.type);
-    
-    // Create marker string - use circle markers instead of pins
-    // Use size-l for larger circles (similar to pulsing dots)
-    return `circle-l+${color.replace('#', '')}(${incident.longitude},${incident.latitude})`;
-  }).join(',');
-  
-  // Use the same custom map style as the interactive map
-  const mapStyle = 'mara-admin/clsbsqqvb011f01qqfwo95y4q';
-  
-  // Generate the static map URL
-  const mapUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
-    markers || `circle-l+666666(${center[0]},${center[1]})`
-  }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
   
   return (
     <div className={className} style={style}>
@@ -58,9 +79,8 @@ const StaticMap = ({
         className="w-full h-full object-cover rounded-lg"
         loading="lazy"
         onError={(e) => {
-          console.warn('Error loading static map:', e);
-          // Fallback to default style with circle marker
-          e.target.src = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/circle-l+EF4444(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
+          console.warn('Error loading static map, trying fallback');
+          e.target.src = fallbackUrl;
         }}
       />
     </div>

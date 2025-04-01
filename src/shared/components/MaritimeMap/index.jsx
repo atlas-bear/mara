@@ -449,7 +449,7 @@ const MaritimeMap = ({
             ],
             layout: {
               'icon-image': `pulsing-dot-${type}`,
-              'icon-size': 0.1, // Adjust as needed
+              'icon-size': 0.4, // Increased size for better visibility
               'icon-allow-overlap': true,
               'icon-ignore-placement': true
             }
