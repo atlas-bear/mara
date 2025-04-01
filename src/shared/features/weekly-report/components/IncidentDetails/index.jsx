@@ -1,7 +1,8 @@
 import React from 'react';
 import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { formatCoordinates, formatLocation, SharedMap } from '@shared/features/weekly-report';
+import { formatCoordinates, formatLocation } from '@shared/features/weekly-report';
+import MaritimeMap from '@shared/components/MaritimeMap';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },
@@ -109,8 +110,7 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
       {/* Incident Map */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-        <SharedMap 
-          mapId={`region-${fields.region.toLowerCase().replace(/\s+/g, '-')}`}
+        <MaritimeMap 
           incidents={mapIncidents}
           useClustering={false}
           center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}

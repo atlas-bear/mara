@@ -1,6 +1,7 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
-import { getFirstSentence, SharedMap, MAP_IDS, regionalMonthlyData, regionalStats } from '@shared/features/weekly-report';
+import { getFirstSentence, regionalMonthlyData, regionalStats } from '@shared/features/weekly-report';
+import MaritimeMap from '@shared/components/MaritimeMap';
 
 // Define regions info
 const REGIONS = {
@@ -264,8 +265,7 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
       {/* Recent Incidents Map */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Incidents</h2>
-        <SharedMap 
-          mapId={`region-${currentRegion.toLowerCase().replace(/\s+/g, '-')}`}
+        <MaritimeMap
           incidents={mapIncidents}
           center={region.defaultCenter}
           zoom={region.defaultZoom}

@@ -2,7 +2,6 @@
 export { default as ExecutiveBrief } from "./components/ExecutiveBrief";
 export { default as RegionalBrief } from "./components/RegionalBrief";
 export { default as IncidentDetails } from "./components/IncidentDetails";
-export { default as SharedMap } from "./components/SharedMap";
 
 // Utils exports
 export { fetchWeeklyIncidents } from "./utils/api";
@@ -24,13 +23,3 @@ export { getFirstSentence } from "./utils/text";
 // Data exports
 export { mockHistoricalTrends } from "./utils/mock-data";
 export { historicalTrends, regionalMonthlyData, regionalStats, refreshReportData } from "./utils/report-data";
-
-// MAP_IDS constants
-export const MAP_IDS = {
-  GLOBAL: 'global',
-  WEST_AFRICA: 'west-africa',
-  SOUTHEAST_ASIA: 'southeast-asia',
-  INDIAN_OCEAN: 'indian-ocean',
-  AMERICAS: 'americas',
-  EUROPE: 'europe'
-};
