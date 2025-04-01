@@ -32,21 +32,22 @@ const StaticMap = ({
     );
   }
   
-  // Process incidents to create markers
+  // Process incidents to create markers with custom styling
   const markers = incidents.map(incident => {
     // Get color based on incident type
     const color = getMarkerColorByType(incident.type);
     
-    // Create marker string
-    return `pin-l+${color.replace('#', '')}(${incident.longitude},${incident.latitude})`;
+    // Create marker string - use circle markers instead of pins
+    // Use size-l for larger circles (similar to pulsing dots)
+    return `circle-l+${color.replace('#', '')}(${incident.longitude},${incident.latitude})`;
   }).join(',');
   
-  // Use a light map style consistent with the interactive maps
-  const mapStyle = 'mapbox/light-v11';
+  // Use the same custom map style as the interactive map
+  const mapStyle = 'mara-admin/clsbsqqvb011f01qqfwo95y4q';
   
   // Generate the static map URL
   const mapUrl = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
-    markers || `pin-l(${center[0]},${center[1]})`
+    markers || `circle-l+666666(${center[0]},${center[1]})`
   }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
   
   return (
@@ -58,7 +59,8 @@ const StaticMap = ({
         loading="lazy"
         onError={(e) => {
           console.warn('Error loading static map:', e);
-          e.target.src = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-l(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
+          // Fallback to default style with circle marker
+          e.target.src = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/circle-l+EF4444(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
         }}
       />
     </div>
@@ -73,32 +75,56 @@ function getMarkerColorByType(type) {
   
   const lowerType = String(type).toLowerCase();
   
-  // Violent incidents - Red
+  // Normalize type using the same logic as in MaritimeMap
+  const normalizedType = normalizeIncidentType(lowerType);
+  
+  // Return color based on normalized type - match MaritimeMap colors
+  const typeColors = {
+    'violent': 'EF4444',     // Red - rgb(239,68,68)
+    'robbery': '22C55E',     // Green - rgb(34,197,94)
+    'military': '8B5CF6',    // Purple - rgb(139,92,246)
+    'suspicious': 'F97316',  // Orange - rgb(249,115,22)
+    'cyber': '06B6D4',       // Cyan - rgb(6,182,212)
+    'smuggling': 'A855F7',   // Purple-pink - rgb(168,85,247)
+    'default': '6B7280'      // Gray - rgb(107,114,128)
+  };
+  
+  return typeColors[normalizedType] || typeColors.default;
+}
+
+// Helper function to normalize incident types - this matches the logic in MaritimeMap
+function normalizeIncidentType(lowerType) {
+  // VIOLENT INCIDENTS - Red
   if (/attack|arm|weapon|assault|fire|shoot|boarding|board|piracy|hijack|kidnap|explosion|explosi/.test(lowerType)) {
-    return 'EF4444';
+    return 'violent';
   }
   
-  // Robbery/theft - Green
+  // ROBBERY/THEFT INCIDENTS - Green
   if (/robbery|theft|steal|stolen/.test(lowerType)) {
-    return '22C55E';
+    return 'robbery';
   }
   
-  // Military - Purple
+  // MILITARY/NAVAL INCIDENTS - Purple
   if (/military|navy|coast guard|firing exercise|exercise|drill/.test(lowerType)) {
-    return '8B5CF6';
+    return 'military';
   }
   
-  // Suspicious - Orange
+  // SUSPICIOUS/ADVISORY INCIDENTS - Orange
   if (/suspicious|approach|attempt|advisory|alert|irregular|general alert|sighting|sight/.test(lowerType)) {
-    return 'F97316';
+    return 'suspicious';
   }
   
-  // Other types
-  if (/cyber/.test(lowerType)) return '06B6D4'; // Cyan
-  if (/smuggl/.test(lowerType)) return 'A855F7'; // Purple-pink
+  // OTHER CATEGORIZED INCIDENTS
+  if (/cyber/.test(lowerType)) return 'cyber';
+  if (/smuggl/.test(lowerType)) return 'smuggling';
   
-  // Default - Gray
-  return '6B7280';
+  // Handle "unknown" type more gracefully
+  if (lowerType === 'unknown' || lowerType === 'unknown type') {
+    return 'suspicious';
+  }
+  
+  // Default for uncategorized
+  return 'default';
 }
 
 export default StaticMap;

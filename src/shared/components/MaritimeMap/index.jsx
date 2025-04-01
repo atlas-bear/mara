@@ -377,53 +377,81 @@ const MaritimeMap = ({
           });
         }
         
-        // Add layers for individual incident points using circles
+        // Create pulsing dot images for each type of incident
         Object.entries(typeColors).forEach(([type, color]) => {
           // Parse the color components
           const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
           
-          // First add a larger "halo" circle for each point for better visibility
-          map.addLayer({
-            id: `incidents-${type}-halo`,
-            type: 'circle',
-            source: 'incidents',
-            // Only show unclustered points of this type
-            filter: ['all', 
-              ['!', ['has', 'point_count']],
-              ['==', ['get', 'type'], type]
-            ],
-            paint: {
-              // Outer halo
-              'circle-radius': 10,  // Larger radius for the halo
-              'circle-color': `rgba(${r}, ${g}, ${b}, 0.3)`,  // Transparent version of the main color
-              'circle-stroke-width': 0,
+          // Create pulsing dot function
+          const size = 200;
+          const pulsingDot = {
+            width: size,
+            height: size,
+            data: new Uint8Array(size * size * 4),
+            
+            // Update the pulse function
+            onAdd: function() {
+              const canvas = document.createElement('canvas');
+              canvas.width = this.width;
+              canvas.height = this.height;
+              this.context = canvas.getContext('2d');
+            },
+            
+            // This is run every time the map needs the dot image
+            render: function() {
+              const duration = 1500;
+              const t = (performance.now() % duration) / duration;
               
-              // Make the halo stand out
-              'circle-opacity': 0.6,
-              'circle-blur': 0.5  // Slight blur for a glow effect
+              const radius = (size / 2) * 0.3;
+              const outerRadius = (size / 2) * 0.7 * t + radius;
+              const context = this.context;
+              
+              // Clear canvas
+              context.clearRect(0, 0, this.width, this.height);
+              
+              // Draw outer circle - pulsing part
+              context.beginPath();
+              context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
+              context.fillStyle = `rgba(${r}, ${g}, ${b}, ${1 - t})`;
+              context.fill();
+              
+              // Draw inner circle - solid part
+              context.beginPath();
+              context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+              context.fillStyle = `rgb(${r}, ${g}, ${b})`;
+              context.strokeStyle = 'white';
+              context.lineWidth = 2;
+              context.fill();
+              context.stroke();
+              
+              // Update this image
+              this.data = context.getImageData(0, 0, this.width, this.height).data;
+              
+              // Keep rendering indefinitely
+              map.triggerRepaint();
+              
+              // Return true to keep rendering
+              return true;
             }
-          });
+          };
           
-          // Then add the main circle on top
+          // Add the pulsing dot as a map image
+          map.addImage(`pulsing-dot-${type}`, pulsingDot, { pixelRatio: 2 });
+          
+          // Add a layer for this type
           map.addLayer({
             id: `incidents-${type}`,
-            type: 'circle',
+            type: 'symbol',
             source: 'incidents',
-            // Only show unclustered points of this type
             filter: ['all', 
               ['!', ['has', 'point_count']],
               ['==', ['get', 'type'], type]
             ],
-            paint: {
-              // Main circle
-              'circle-radius': 6,  // Slightly larger than before
-              'circle-color': `rgb(${r}, ${g}, ${b})`,
-              'circle-stroke-width': 2,  // Thicker border
-              'circle-stroke-color': '#ffffff',
-              
-              // Make the circle stand out
-              'circle-opacity': 0.9,
-              'circle-stroke-opacity': 1
+            layout: {
+              'icon-image': `pulsing-dot-${type}`,
+              'icon-size': 0.1, // Adjust as needed
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true
             }
           });
         });
