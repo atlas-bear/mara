@@ -98,8 +98,13 @@ The `IncidentDetails` component shows detailed information for a specific incide
 <IncidentDetails 
   incident={incident}
   showHistoricalContext={false}
+  useInteractiveMap={false} // Uses StaticMap by default to avoid WebGL context limits
 />
 ```
+
+The `useInteractiveMap` prop determines which map component to use:
+- `false` (default): Uses the lightweight StaticMap component (recommended for Weekly Reports)
+- `true`: Uses the interactive MaritimeMap component (used in Flash Reports)
 
 ## Serverless Functions
 

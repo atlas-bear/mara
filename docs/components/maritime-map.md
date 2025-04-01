@@ -25,10 +25,20 @@ The component is located at `/src/shared/components/MaritimeMap/index.jsx` and i
 
 The map implementation:
 1. Uses Mapbox GL JS for high-performance mapping
-2. Implements custom markers for different incident types
+2. Implements custom animated pulsing dot markers for different incident types
 3. Uses GeoJSON for efficient data representation
 4. Provides interaction handlers for user events
 5. Supports responsive design principles for different screen sizes
+6. Limits WebGL context usage to prevent browser limitations (especially in Safari)
+7. Implements marker clustering for areas with many incidents
+
+### Browser Considerations
+
+The component manages WebGL context limitations:
+1. Automatically detects browser type (Safari, Chrome, Firefox)
+2. Sets appropriate WebGL context limits based on browser capabilities
+3. Provides a fallback display for scenarios where WebGL context limits are exceeded
+4. Uses a global counter to track active map instances across the application
 
 ## Usage
 
@@ -82,13 +92,33 @@ function IncidentMap() {
 - React: For component lifecycle and state management
 - custom-icon-loader: Internal utility for loading custom marker icons
 
+## When to Use MaritimeMap vs. StaticMap
+
+The MARA system provides two map components to address different use cases:
+
+- **MaritimeMap**: Use for primary interactive maps where user interaction is important and WebGL context usage is managed carefully. Best for executive briefs, regional overviews, and interactive features.
+
+- **StaticMap**: Use for secondary map displays where showing location is sufficient and reducing WebGL context usage is critical. Best for incident details pages in weekly reports and other pages with many map instances.
+
+### Integration with IncidentDetails
+
+The `IncidentDetails` component accepts a `useInteractiveMap` prop that toggles between the two map types:
+
+```jsx
+// Use interactive map (MaritimeMap) for Flash Reports
+<IncidentDetails incident={data} useInteractiveMap={true} />
+
+// Use static map (StaticMap) for Weekly Reports to avoid WebGL context limits
+<IncidentDetails incident={data} useInteractiveMap={false} />
+```
+
 ## Future Improvements
 
 Potential enhancements:
 
 1. Add heatmap visualization for incident density
-2. Implement clustering for areas with many incidents
-3. Add time-based animations for incident sequences
-4. Support for drawing tools for custom regions
-5. Enhanced filtering capabilities by incident attributes
-6. Improved performance for large datasets
+2. Add time-based animations for incident sequences
+3. Support for drawing tools for custom regions
+4. Enhanced filtering capabilities by incident attributes
+5. Improved performance for large datasets
+6. Further optimization of WebGL context usage

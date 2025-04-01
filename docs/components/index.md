@@ -6,6 +6,7 @@ This section contains documentation for reusable UI components in the MARA syste
 
 - [PDF Download Button](./pdf-download-button) - Browser-based PDF generation component
 - [Maritime Map](./maritime-map) - Interactive map visualization component
+- [Static Map](./static-map) - Lightweight static map component for reducing WebGL usage
 
 ## Component Documentation Guidelines
 
