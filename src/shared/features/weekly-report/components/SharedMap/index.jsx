@@ -35,6 +35,12 @@ const SharedMap = ({
   
   // Mount map on first render
   useEffect(() => {
+    console.log(`SharedMap init ${mapId}:`, { 
+      hasContainer: !!mapContainer.current,
+      hasToken: !!token,
+      incidents: incidents.length
+    });
+    
     if (!mapContainer.current) return;
     if (!token) {
       console.error('MapBox token not found in environment variables');
@@ -65,30 +71,64 @@ const SharedMap = ({
         const oldContainer = mapInfo.map.getContainer();
         const parent = oldContainer.parentNode;
         
+        // Log details for debugging
+        console.log(`Moving map ${mapId} to new container:`, {
+          hasParent: !!parent,
+          oldSize: oldContainer ? { width: oldContainer.clientWidth, height: oldContainer.clientHeight } : null,
+          newContainer: mapContainer.current ? mapContainer.current.className : 'unknown'
+        });
+        
         if (parent) {
-          // Temporarily hide the map to avoid flicker
-          oldContainer.style.display = 'none';
-          
-          // Remember the old dimensions
-          const width = oldContainer.clientWidth;
-          const height = oldContainer.clientHeight;
-          
-          // Remove from old container
-          parent.removeChild(oldContainer);
-          
-          // Add to new container
-          mapContainer.current.appendChild(oldContainer);
-          
-          // Restore visibility and resize
-          oldContainer.style.display = 'block';
-          oldContainer.style.width = '100%';
-          oldContainer.style.height = '100%';
-          
-          // Force a resize to fit the new container
-          mapInfo.map.resize();
+          // Approach 1: Move the container
+          try {
+            // Temporarily hide the map to avoid flicker
+            oldContainer.style.display = 'none';
+            
+            // Remove from old container
+            parent.removeChild(oldContainer);
+            
+            // Add to new container
+            mapContainer.current.appendChild(oldContainer);
+            
+            // Restore visibility and resize
+            oldContainer.style.display = 'block';
+            oldContainer.style.width = '100%';
+            oldContainer.style.height = '100%';
+            
+            // Force a resize to fit the new container
+            mapInfo.map.resize();
+          } catch (moveError) {
+            console.error('Error moving map container, trying alternate approach:', moveError);
+            
+            // Approach 2: Create new map in new container
+            try {
+              // Remove old map
+              mapInfo.map.remove();
+              
+              // Create new map in the new container
+              mapInfo = mountMap(mapId, mapContainer.current, mapboxgl, { 
+                center, 
+                zoom
+              });
+            } catch (recreateError) {
+              console.error('Error recreating map:', recreateError);
+              setError(true);
+            }
+          }
+        } else {
+          // If no parent, try to reuse the map object with the new container
+          try {
+            mapInfo = mountMap(mapId, mapContainer.current, mapboxgl, { 
+              center, 
+              zoom
+            });
+          } catch (e) {
+            console.error('Error creating new map:', e);
+            setError(true);
+          }
         }
       } catch (e) {
-        console.error('Error moving map:', e);
+        console.error('Error handling map container:', e);
         setError(true);
       }
     }

@@ -56,6 +56,12 @@ export const mountMap = (mapId, container, mapboxgl, options = {}) => {
   
   // We don't expect token to be passed in options, it's set directly on mapboxgl
   try {
+    console.log(`Mounting map ${mapId} to container`, { 
+      containerId: container.id,
+      containerClass: container.className,
+      hasToken: !!mapboxgl.accessToken
+    });
+    
     // Check if token is already set
     if (!mapboxgl.accessToken) {
       console.error('MapBox token not set on mapboxgl.accessToken');
@@ -145,11 +151,24 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
   try {
     // Zoom to new center/zoom if provided
     if (options.center && options.zoom) {
-      map.jumpTo({
+      // Use easeTo instead of jumpTo for smoother transitions
+      // and to avoid potential issues with rapid changes
+      map.easeTo({
         center: options.center,
-        zoom: options.zoom
+        zoom: options.zoom,
+        duration: 0 // Immediate for initial load
       });
     }
+    
+    // Check map status to troubleshoot
+    console.log(`Map ${mapId} update:`, { 
+      center: options.center, 
+      zoom: options.zoom,
+      incidentCount: incidents.length,
+      mapLoaded: map.loaded(),
+      currentCenter: map.getCenter(),
+      currentZoom: map.getZoom()
+    });
     
     // Check if we already have the incidents source
     let sourceExists = false;
@@ -212,27 +231,44 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
     
     // If the source does not exist yet, create it
     if (!sourceExists) {
-      // Create GeoJSON data from incidents
+      // Create GeoJSON data from incidents with validation
+      const features = incidents.map(incident => {
+        // Get normalized category for this incident type
+        const normalizedType = normalizeIncidentType(incident.type);
+        
+        // Make sure coordinates are numbers
+        const longitude = parseFloat(incident.longitude);
+        const latitude = parseFloat(incident.latitude);
+        
+        // Skip invalid coordinates
+        if (isNaN(longitude) || isNaN(latitude)) {
+          console.warn('Invalid coordinates in incident', incident);
+          return null;
+        }
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          properties: {
+            title: incident.title || 'Unknown Incident',
+            description: incident.description || '',
+            originalType: incident.type || 'unknown',
+            type: normalizedType
+          }
+        };
+      }).filter(feature => feature !== null);
+      
+      console.log(`Creating source for map ${mapId}:`, {
+        featureCount: features.length,
+        source: 'incidents'
+      });
+      
       const geoJsonData = {
         type: 'FeatureCollection',
-        features: incidents.map(incident => {
-          // Get normalized category for this incident type
-          const normalizedType = normalizeIncidentType(incident.type);
-          
-          return {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [incident.longitude, incident.latitude]
-            },
-            properties: {
-              title: incident.title,
-              description: incident.description,
-              originalType: incident.type,
-              type: normalizedType
-            }
-          };
-        })
+        features: features
       };
       
       // Add source and clustering settings
@@ -412,27 +448,45 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
         map.getCanvas().style.cursor = '';
       });
     } else {
-      // If the source already exists, just update the data
+      // If the source already exists, create a valid GeoJSON even with empty incidents
+      const features = incidents.map(incident => {
+        // Get normalized category for this incident type
+        const normalizedType = normalizeIncidentType(incident.type);
+        
+        // Make sure coordinates are numbers
+        const longitude = parseFloat(incident.longitude);
+        const latitude = parseFloat(incident.latitude);
+        
+        // Skip invalid coordinates
+        if (isNaN(longitude) || isNaN(latitude)) {
+          console.warn('Invalid coordinates in incident', incident);
+          return null;
+        }
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          properties: {
+            title: incident.title || 'Unknown Incident',
+            description: incident.description || '',
+            originalType: incident.type || 'unknown',
+            type: normalizedType
+          }
+        };
+      }).filter(feature => feature !== null);
+      
+      console.log(`Updating source for map ${mapId}:`, {
+        featureCount: features.length,
+        source: 'incidents'
+      });
+      
+      // Update the source with the filtered features
       map.getSource('incidents').setData({
         type: 'FeatureCollection',
-        features: incidents.map(incident => {
-          // Get normalized category for this incident type
-          const normalizedType = normalizeIncidentType(incident.type);
-          
-          return {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [incident.longitude, incident.latitude]
-            },
-            properties: {
-              title: incident.title,
-              description: incident.description,
-              originalType: incident.type,
-              type: normalizedType
-            }
-          };
-        })
+        features: features
       });
     }
     
