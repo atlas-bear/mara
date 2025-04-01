@@ -35,14 +35,20 @@ const detectBrowser = () => {
   }
 };
 
-// Detection helper variables
-const browserType = detectBrowser();
-const isSafari = browserType === 'safari' || browserType === 'ios';
-const isLowPowerDevice = navigator.hardwareConcurrency < 4 || 
-                        /iPhone|iPad|iPod/.test(navigator.userAgent);
+// Detection helper variables - safely initialize
+const isBrowser = typeof window !== 'undefined' && typeof navigator !== 'undefined';
+const browserType = isBrowser ? detectBrowser() : 'unknown';
+const isSafari = isBrowser && (browserType === 'safari' || browserType === 'ios');
+const isLowPowerDevice = isBrowser && (
+  (navigator.hardwareConcurrency !== undefined && navigator.hardwareConcurrency < 4) || 
+  /iPhone|iPad|iPod/.test(navigator.userAgent)
+);
 
 // Keep track of global WebGL context usage
-let globalWebGLContextCount = 0;
+// Use window to ensure it's properly initialized across component instances
+if (typeof window !== 'undefined') {
+  window.__mapboxGLContextCount = window.__mapboxGLContextCount || 0;
+}
 const MAX_WEBGL_CONTEXTS = 7; // Conservative limit safe for most browsers
 
 /**
@@ -147,8 +153,8 @@ const MaritimeMap = ({
         // 6. Force a garbage collection trigger (helps with Safari)
         setTimeout(() => {
           // Manually lower the global counter after timeout
-          if (globalWebGLContextCount > 0) {
-            globalWebGLContextCount--;
+          if (typeof window !== 'undefined' && window.__mapboxGLContextCount > 0) {
+            window.__mapboxGLContextCount--;
           }
         }, 100);
       } catch (cleanupError) {
@@ -565,9 +571,13 @@ const MaritimeMap = ({
 
   // Count WebGL contexts when creating a map
   useEffect(() => {
-    globalWebGLContextCount++;
+    if (typeof window !== 'undefined') {
+      window.__mapboxGLContextCount = (window.__mapboxGLContextCount || 0) + 1;
+    }
     return () => {
-      globalWebGLContextCount--;
+      if (typeof window !== 'undefined' && window.__mapboxGLContextCount > 0) {
+        window.__mapboxGLContextCount--;
+      }
     };
   }, []);
   
@@ -577,7 +587,7 @@ const MaritimeMap = ({
     (isSafari && incidents.length > 10) || // Safari with moderate number of incidents
     (isLowPowerDevice && incidents.length > 15) || // Low-power devices
     incidents.length > 40 || // Any browser with many incidents
-    globalWebGLContextCount >= MAX_WEBGL_CONTEXTS; // Too many maps already
+    (typeof window !== 'undefined' && (window.__mapboxGLContextCount || 0) >= MAX_WEBGL_CONTEXTS); // Too many maps already
   
   // For overviews with multiple incidents, use static map
   if (shouldUseStaticMap) {
