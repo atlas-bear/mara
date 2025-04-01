@@ -144,15 +144,19 @@ export const mountMap = (mapId, container, mapboxgl, options = {}) => {
  */
 export const updateMap = (mapId, incidents = [], options = {}) => {
   const mapInfo = mapInstances ? mapInstances.get(mapId) : null;
-  if (!mapInfo || !mapInfo.map || !mapInfo.loaded) return false;
+  
+  // If map info doesn't exist or map isn't created yet, exit early
+  if (!mapInfo || !mapInfo.map) return false;
   
   const map = mapInfo.map;
   
+  // Check if map is loaded properly
+  const isLoaded = mapInfo.loaded && map.loaded();
+  
   try {
     // Zoom to new center/zoom if provided
-    if (options.center && options.zoom) {
+    if (isLoaded && options.center && options.zoom) {
       // Use easeTo instead of jumpTo for smoother transitions
-      // and to avoid potential issues with rapid changes
       map.easeTo({
         center: options.center,
         zoom: options.zoom,
@@ -165,10 +169,24 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
       center: options.center, 
       zoom: options.zoom,
       incidentCount: incidents.length,
-      mapLoaded: map.loaded(),
-      currentCenter: map.getCenter(),
-      currentZoom: map.getZoom()
+      mapLoaded: isLoaded,
+      currentCenter: map.getCenter ? map.getCenter() : null,
+      currentZoom: map.getZoom ? map.getZoom() : null
     });
+    
+    // If the map isn't loaded yet, queue the update for later
+    if (!isLoaded) {
+      console.log(`Map ${mapId} not loaded yet, queuing update`);
+      
+      // Queue an update for when the map is loaded
+      map.once('load', () => {
+        console.log(`Map ${mapId} now loaded, running queued update`);
+        mapInfo.loaded = true;
+        updateMap(mapId, incidents, options);
+      });
+      
+      return true;
+    }
     
     // Check if we already have the incidents source
     let sourceExists = false;
@@ -448,7 +466,7 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
         map.getCanvas().style.cursor = '';
       });
     } else {
-      // If the source already exists, create a valid GeoJSON even with empty incidents
+      // Generate features for all cases
       const features = incidents.map(incident => {
         // Get normalized category for this incident type
         const normalizedType = normalizeIncidentType(incident.type);
@@ -483,11 +501,147 @@ export const updateMap = (mapId, incidents = [], options = {}) => {
         source: 'incidents'
       });
       
-      // Update the source with the filtered features
-      map.getSource('incidents').setData({
-        type: 'FeatureCollection',
-        features: features
-      });
+      if (sourceExists) {
+        // Update the source with the filtered features
+        map.getSource('incidents').setData({
+          type: 'FeatureCollection',
+          features: features
+        });
+      } else {
+        // Create a new source if it doesn't exist
+        console.log(`Creating new source for map ${mapId} since it doesn't exist yet`);
+        
+        // Create a GeoJSON source
+        map.addSource('incidents', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: features
+          },
+          cluster: options.useClustering || false,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          maxzoom: 16,
+          generateId: true,
+          buffer: 128,
+          tolerance: 0.375
+        });
+        
+        // Define category colors
+        const typeColors = {
+          'violent': '239,68,68',    // Red - Attack, Boarding, Piracy, Kidnapping, etc.
+          'robbery': '34,197,94',    // Green - Robbery, Theft
+          'military': '139,92,246',  // Purple - Military, Navy, Firing Exercise
+          'suspicious': '249,115,22', // Orange - Suspicious, Advisory, Irregular, Sighting
+          'cyber': '6,182,212',      // Cyan - Cyber incidents
+          'smuggling': '168,85,247', // Purple-pink - Smuggling
+          'default': '107,114,128'   // Gray - Fallback for uncategorized
+        };
+      
+        // Add cluster layer if clustering is enabled
+        if (options.useClustering) {
+          // Add a layer for the clusters
+          map.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'incidents',
+            filter: ['has', 'point_count'],
+            minzoom: 0,
+            maxzoom: 16,
+            paint: {
+              // Use threat level colors that match our severity scale
+              'circle-color': [
+                'step',
+                ['get', 'point_count'],
+                '#3b82f6', // Low (1-2 incidents): Blue
+                3, '#f59e0b', // Moderate (3-6 incidents): Orange
+                7, '#ef4444'  // Substantial/Critical (7+ incidents): Red
+              ],
+              'circle-radius': [
+                'step',
+                ['get', 'point_count'],
+                18, // Small clusters
+                3, 25, // Medium clusters
+                7, 30  // Large clusters
+              ],
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#fff',
+              'circle-opacity': 0.9,
+              'circle-stroke-opacity': 1
+            }
+          });
+        
+          // Add cluster count layer
+          map.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'incidents',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': '{point_count_abbreviated}',
+              'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+              'text-size': 12
+            },
+            paint: {
+              'text-color': '#ffffff'
+            }
+          });
+        }
+        
+        // Add layers for incident types
+        Object.entries(typeColors).forEach(([type, color]) => {
+          // Parse the color components
+          const [r, g, b] = color.split(',').map(c => parseInt(c.trim()));
+          
+          // First add a larger "halo" circle for each point for better visibility
+          map.addLayer({
+            id: `incidents-${type}-halo`,
+            type: 'circle',
+            source: 'incidents',
+            // Only show unclustered points of this type
+            filter: ['all', 
+              ['!', ['has', 'point_count']],
+              ['==', ['get', 'type'], type]
+            ],
+            paint: {
+              // Outer halo
+              'circle-radius': 10,  // Larger radius for the halo
+              'circle-color': `rgba(${r}, ${g}, ${b}, 0.3)`,  // Transparent version of the main color
+              'circle-stroke-width': 0,
+              
+              // Make the halo stand out
+              'circle-opacity': 0.6,
+              'circle-blur': 0.5  // Slight blur for a glow effect
+            }
+          });
+          
+          // Then add the main circle on top
+          map.addLayer({
+            id: `incidents-${type}`,
+            type: 'circle',
+            source: 'incidents',
+            // Only show unclustered points of this type
+            filter: ['all', 
+              ['!', ['has', 'point_count']],
+              ['==', ['get', 'type'], type]
+            ],
+            paint: {
+              // Main circle
+              'circle-radius': 6,  // Slightly larger than before
+              'circle-color': `rgb(${r}, ${g}, ${b})`,
+              'circle-stroke-width': 2,  // Thicker border
+              'circle-stroke-color': '#ffffff',
+              
+              // Make the circle stand out
+              'circle-opacity': 0.9,
+              'circle-stroke-opacity': 1
+            }
+          });
+        });
+        
+        // Event handlers for map interaction
+        setupEventHandlers(map);
+      }
     }
     
     return true;
@@ -519,6 +673,98 @@ export const unmountMap = (mapId) => {
     console.error('Error unmounting map:', error);
     return false;
   }
+};
+
+/**
+ * Setup event handlers for map interaction
+ * @param {Object} map - The MapBox GL map instance
+ */
+const setupEventHandlers = (map) => {
+  // List of all incident layer IDs for event handling (main circles only, not halos)
+  const typeColors = {
+    'violent': '239,68,68',    // Red
+    'robbery': '34,197,94',    // Green
+    'military': '139,92,246',  // Purple
+    'suspicious': '249,115,22', // Orange
+    'cyber': '6,182,212',      // Cyan 
+    'smuggling': '168,85,247', // Purple-pink
+    'default': '107,114,128'   // Gray
+  };
+  
+  const allLayerIds = Object.keys(typeColors).map(type => `incidents-${type}`);
+  
+  // Cluster click handler - zoom in when a cluster is clicked
+  if (map.getLayer('clusters')) {
+    map.on('click', 'clusters', (e) => {
+      try {
+        const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+        if (!features || !features.length) return;
+        
+        const clusterId = features[0].properties.cluster_id;
+        
+        // Get the cluster expansion zoom
+        map.getSource('incidents').getClusterExpansionZoom(
+          clusterId,
+          (err, zoom) => {
+            if (err) return;
+            
+            // Zoom to the cluster
+            map.easeTo({
+              center: features[0].geometry.coordinates,
+              zoom: zoom
+            });
+          }
+        );
+      } catch (e) {
+        console.warn('Error handling cluster click:', e);
+      }
+    });
+    
+    // Change cursor on hover for clusters
+    map.on('mouseenter', 'clusters', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', 'clusters', () => {
+      map.getCanvas().style.cursor = '';
+    });
+  }
+  
+  // Add popups on click for individual incident types
+  allLayerIds.forEach(layerId => {
+    map.on('click', layerId, (e) => {
+      try {
+        if (!e.features || !e.features.length) return;
+        
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const { title, description, originalType } = e.features[0].properties;
+        
+        // Use the Popup constructor from the map instance's prototype chain
+        const Popup = map.constructor.Popup;
+        if (Popup) {
+          new Popup()
+            .setLngLat(coordinates)
+            .setHTML(`
+              <h3 class="font-bold">${title || 'Unknown'}</h3>
+              <p>${description || 'No description available'}</p>
+              <p class="text-xs text-gray-500 mt-2">Incident type: ${originalType || 'Unknown'}</p>
+            `)
+            .addTo(map);
+        }
+      } catch (err) {
+        console.warn('Error creating popup:', err);
+      }
+    });
+    
+    // Change cursor on hover
+    map.on('mouseenter', layerId, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', layerId, () => {
+      map.getCanvas().style.cursor = '';
+    });
+  });
 };
 
 export default { 
