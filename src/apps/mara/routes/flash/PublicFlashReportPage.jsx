@@ -188,10 +188,11 @@ function PublicFlashReportPage() {
             </p>
           </div>
           
-          {/* Incident Details - using the shared component */}
+          {/* Incident Details - using the shared component with interactive map */}
           <IncidentDetails 
             incident={formattedIncident} 
             showHistoricalContext={false}
+            useInteractiveMap={true} // Use the interactive MapboxGL map for Flash Reports
           />
           
           {/* Footer */}

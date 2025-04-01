@@ -3,6 +3,7 @@ import { MapPin, Ship, Users } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCoordinates, formatLocation } from '@shared/features/weekly-report';
 import StaticMap from '@shared/components/StaticMap';
+import MaritimeMap from '@shared/components/MaritimeMap';
 
 const areaIncidentData = [
   { month: 'May', incidents: 2 },
@@ -13,7 +14,14 @@ const areaIncidentData = [
   { month: 'Oct', incidents: 5 }
 ];
 
-const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext = true, startDate, endDate }) => {
+const IncidentDetails = ({ 
+  incident, 
+  isHistorical = false, 
+  showHistoricalContext = true, 
+  startDate, 
+  endDate,
+  useInteractiveMap = false // New prop to determine which map component to use
+}) => {
   if (!incident) return null;
 
   // Get fields from the nested structure
@@ -110,11 +118,21 @@ const IncidentDetails = ({ incident, isHistorical = false, showHistoricalContext
       {/* Incident Map */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-        <StaticMap 
-          incidents={mapIncidents}
-          center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
-          zoom={5}
-        />
+        {useInteractiveMap ? (
+          // Use interactive map when specified (for Flash Reports)
+          <MaritimeMap 
+            incidents={mapIncidents}
+            center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
+            zoom={5}
+          />
+        ) : (
+          // Use static map by default (for Weekly Reports to avoid WebGL context issues)
+          <StaticMap 
+            incidents={mapIncidents}
+            center={[parseFloat(fields.longitude), parseFloat(fields.latitude)]}
+            zoom={5}
+          />
+        )}
         <div className="mt-2 text-xs text-gray-500">
           <span className="flex items-center">
             <span className="w-2 h-2 rounded-full bg-red-500 mr-1"></span> 
