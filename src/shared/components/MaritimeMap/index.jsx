@@ -24,7 +24,11 @@ const MaritimeMap = ({
   const [mapWarning, setMapWarning] = useState(false);
 
   useLayoutEffect(() => {
-    if (mapInstance.current) return;
+    // Always clean up the previous map instance before creating a new one
+    if (mapInstance.current) {
+      mapInstance.current.remove();
+      mapInstance.current = null;
+    }
 
     // Get MapBox token from environment
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -340,7 +344,9 @@ const MaritimeMap = ({
         mapInstance.current = null;
       }
     };
-  }, []);
+  // Recreate the map if we have a large number of incidents (more than 20)
+  // This helps prevent the "too many WebGL contexts" error
+  }, [incidents.length > 20]);
 
   // Update markers when incidents change
   useEffect(() => {
@@ -414,6 +420,19 @@ const MaritimeMap = ({
     return (
       <div className="w-full h-[300px] rounded-lg bg-gray-100 flex items-center justify-center">
         <p className="text-gray-500">Unable to load map. Please check console for errors.</p>
+      </div>
+    );
+  }
+
+  // Display a special error message for large datasets
+  if (incidents.length > 50) {
+    return (
+      <div className="w-full h-[300px] rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4">
+        <p className="text-gray-700 font-medium mb-2">Large number of incidents detected</p>
+        <p className="text-gray-500 text-sm text-center">
+          There are {incidents.length} incidents to display, which may exceed browser capacity.
+          Please view incidents by region instead for optimal performance.
+        </p>
       </div>
     );
   }
