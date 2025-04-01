@@ -25,11 +25,12 @@ export { getFirstSentence } from "./utils/text";
 export { mockHistoricalTrends } from "./utils/mock-data";
 export { historicalTrends, regionalMonthlyData, regionalStats, refreshReportData } from "./utils/report-data";
 
-// Map manager exports
-export { 
-  MAP_IDS,
-  getMapInstance,
-  mountMap,
-  updateMap,
-  unmountMap
-} from "./utils/map-manager";
+// MAP_IDS constants
+export const MAP_IDS = {
+  GLOBAL: 'global',
+  WEST_AFRICA: 'west-africa',
+  SOUTHEAST_ASIA: 'southeast-asia',
+  INDIAN_OCEAN: 'indian-ocean',
+  AMERICAS: 'americas',
+  EUROPE: 'europe'
+};
