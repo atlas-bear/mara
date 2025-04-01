@@ -22,6 +22,7 @@ const StaticMap = ({
   const [mapUrl, setMapUrl] = useState('');
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [error, setError] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
   
   useEffect(() => {
     // Get Mapbox token from environment
@@ -33,35 +34,43 @@ const StaticMap = ({
     }
     
     try {
-      // Process incidents to create markers with custom styling
-      const markers = incidents.map(incident => {
-        // Get color based on incident type
-        const color = getMarkerColorByType(incident.type);
-        
-        // Create marker string - use circle markers instead of pins
-        // Use size-l for larger circles (similar to pulsing dots)
-        return `circle-xl+${color.replace('#', '')}(${incident.longitude},${incident.latitude})`;
-      }).join(',');
+      // Simple pin markers that are guaranteed to work with Mapbox Static API
+      let markers = '';
       
-      // Use the same custom map style as the interactive map
-      const mapStyle = 'mapbox/light-v11'; // Use standard mapbox style for more reliability
+      if (incidents && incidents.length > 0) {
+        // Add a pin for each incident
+        markers = incidents.map(incident => {
+          // Get color based on incident type
+          const color = getMarkerColorByType(incident.type);
+          
+          // Use pin marker syntax which is more reliable than circle
+          return `pin-l-circle+${color}(${incident.longitude},${incident.latitude})`;
+        }).join(',');
+      } else if (center && center.length === 2) {
+        // If no incidents, put a single marker at the center
+        markers = `pin-l-circle+f00(${center[0]},${center[1]})`;
+      }
+      
+      // Use the standard mapbox style (most reliable)
+      const mapStyle = 'mapbox/light-v10';
       
       // Generate the static map URL
       const url = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
-        markers || `circle-xl+EF4444(${center[0]},${center[1]})`
+        markers
       }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
       
       setMapUrl(url);
       
-      // Create fallback URL with default mapbox style
-      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/circle-xl+EF4444(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
+      // Create fallback URL with even more basic style
+      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-l+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
     } catch (err) {
       console.error('Error generating static map URL:', err);
       setError(true);
     }
   }, [incidents, center, zoom]);
   
-  if (error || !mapUrl) {
+  // Show loading or error state
+  if (error) {
     return (
       <div className={className} style={style}>
         <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -71,16 +80,31 @@ const StaticMap = ({
     );
   }
   
+  if (!mapUrl) {
+    return (
+      <div className={className} style={style}>
+        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+          <p className="text-gray-500 text-sm">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className={className} style={style}>
       <img
-        src={mapUrl}
+        src={useFallback ? fallbackUrl : mapUrl}
         alt="Map showing incident location"
         className="w-full h-full object-cover rounded-lg"
         loading="lazy"
         onError={(e) => {
           console.warn('Error loading static map, trying fallback');
-          e.target.src = fallbackUrl;
+          // If we're already using the fallback, show an error
+          if (useFallback) {
+            setError(true);
+          } else {
+            setUseFallback(true);
+          }
         }}
       />
     </div>
