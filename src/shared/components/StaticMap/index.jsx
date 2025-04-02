@@ -82,16 +82,16 @@ const StaticMap = ({
       // Generate the static map URL according to Mapbox docs with updated dimensions (850x300)
       const url = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
         markers
-      }/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&access_token=${mapboxToken}`;
+      }/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&logo=false&access_token=${mapboxToken}`;
       
       setMapUrl(url);
       
       // Create fallback URL with standard mapbox style and fallback marker
       if (cloudName) {
         const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png`;
-        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/url-${encodeURIComponent(cloudinaryUrl)}(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&access_token=${mapboxToken}`);
+        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/url-${encodeURIComponent(cloudinaryUrl)}(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&logo=false&access_token=${mapboxToken}`);
       } else {
-        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&access_token=${mapboxToken}`);
+        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?attribution=false&logo=false&access_token=${mapboxToken}`);
       }
     } catch (err) {
       console.error('Error generating static map URL:', err);
