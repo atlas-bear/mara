@@ -51,8 +51,9 @@ const StaticMap = ({
             const colorName = getMarkerColorNameByType(incident.type);
             
             // Format using custom marker functionality with Cloudinary PNG markers
-            // Format: url-https://res.cloudinary.com/cloud-name/image/upload/path/file({lon},{lat})
-            return `url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_${colorName}.png(${incident.longitude},${incident.latitude})`;
+            // Format: url-{encoded-url}({lon},{lat})
+            const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/markers/_${colorName}.png`;
+            return `url-${encodeURIComponent(cloudinaryUrl)}(${incident.longitude},${incident.latitude})`;
           }).join(',');
         } else {
           // Fallback to standard Mapbox markers if Cloudinary isn't configured
@@ -68,7 +69,8 @@ const StaticMap = ({
       } else if (center && center.length === 2) {
         // If no incidents, put a single marker at the center
         if (cloudName) {
-          markers = `url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png(${center[0]},${center[1]})`;
+          const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png`;
+          markers = `url-${encodeURIComponent(cloudinaryUrl)}(${center[0]},${center[1]})`;
         } else {
           markers = `pin-s-danger+f00(${center[0]},${center[1]})`;
         }
@@ -86,7 +88,8 @@ const StaticMap = ({
       
       // Create fallback URL with standard mapbox style and fallback marker
       if (cloudName) {
-        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`);
+        const cloudinaryUrl = `https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png`;
+        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/url-${encodeURIComponent(cloudinaryUrl)}(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`);
       } else {
         setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`);
       }
