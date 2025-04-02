@@ -183,7 +183,7 @@ const fetchIncidentDetails = async (incident, baseId, apiKey) => {
   }
 };
 
-const fetchLatestIncidentsByRegion = async (baseId, apiKey) => {
+const fetchLatestIncidentsByRegion = async (baseId, apiKey, endDate) => {
   const regions = [
     "West Africa",
     "Southeast Asia",
@@ -196,8 +196,8 @@ const fetchLatestIncidentsByRegion = async (baseId, apiKey) => {
   await Promise.all(
     regions.map(async (region) => {
       try {
-        // Fetch the most recent incident for this region
-        const formula = `AND({region}='${region}', NOT({date_time_utc}=''))`;
+        // Fetch the most recent incident for this region that occurred BEFORE or ON the end date
+        const formula = `AND({region}='${region}', NOT({date_time_utc}=''), {date_time_utc} <= '${endDate}')`;
         const response = await axios.get(
           `https://api.airtable.com/v0/${baseId}/incident?maxRecords=1&sort[0][field]=date_time_utc&sort[0][direction]=desc&filterByFormula=${encodeURIComponent(
             formula
@@ -284,10 +284,11 @@ export const handler = async (event) => {
       )
     );
 
-    // Fetch the most recent incident for each region
+    // Fetch the most recent incident for each region (up to the end date)
     const latestIncidents = await fetchLatestIncidentsByRegion(
       process.env.AT_BASE_ID_CSER,
-      process.env.AT_API_KEY
+      process.env.AT_API_KEY,
+      end
     );
 
     return {
