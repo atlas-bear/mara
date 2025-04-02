@@ -25,45 +25,71 @@ const StaticMap = ({
   const [useFallback, setUseFallback] = useState(false);
   
   useEffect(() => {
-    // Get Mapbox token from environment
-    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    // Get environment variables
+    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     
-    if (!token) {
+    if (!mapboxToken) {
+      console.error('Error: Missing Mapbox API token');
       setError(true);
       return;
     }
     
+    if (!cloudName) {
+      console.warn('Warning: Missing Cloudinary cloud name, falling back to Mapbox markers');
+    }
+    
     try {
-      // Simple pin markers that are guaranteed to work with Mapbox Static API
       let markers = '';
       
       if (incidents && incidents.length > 0) {
-        // Use small pins with danger Maki icon for all incidents
-        markers = incidents.map(incident => {
-          // Get color based on incident type
-          const color = getMarkerColorByType(incident.type);
-          
-          // Use small pins with danger Maki icon (skull and crossbones)
-          // Format: pin-s-{icon}+{color}({lon},{lat})
-          return `pin-s-danger+${color}(${incident.longitude},${incident.latitude})`;
-        }).join(',');
+        // Check if Cloudinary is configured
+        if (cloudName) {
+          // Use PNG markers from Cloudinary for all incidents
+          markers = incidents.map(incident => {
+            // Get color name based on incident type
+            const colorName = getMarkerColorNameByType(incident.type);
+            
+            // Format using custom marker functionality with Cloudinary PNG markers
+            // Format: url-https://res.cloudinary.com/cloud-name/image/upload/path/file({lon},{lat})
+            return `url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_${colorName}.png(${incident.longitude},${incident.latitude})`;
+          }).join(',');
+        } else {
+          // Fallback to standard Mapbox markers if Cloudinary isn't configured
+          markers = incidents.map(incident => {
+            // Get color based on incident type
+            const color = getMarkerColorByType(incident.type);
+            
+            // Use small pins with danger Maki icon (skull and crossbones)
+            // Format: pin-s-{icon}+{color}({lon},{lat})
+            return `pin-s-danger+${color}(${incident.longitude},${incident.latitude})`;
+          }).join(',');
+        }
       } else if (center && center.length === 2) {
         // If no incidents, put a single marker at the center
-        markers = `pin-s-danger+f00(${center[0]},${center[1]})`;
+        if (cloudName) {
+          markers = `url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png(${center[0]},${center[1]})`;
+        } else {
+          markers = `pin-s-danger+f00(${center[0]},${center[1]})`;
+        }
       }
       
       // Use the exact same custom map style as in MaritimeMap
       const mapStyle = 'mara-admin/clsbsqqvb011f01qqfwo95y4q';
       
-      // Generate the static map URL according to Mapbox docs
+      // Generate the static map URL according to Mapbox docs with updated dimensions (850x300)
       const url = `https://api.mapbox.com/styles/v1/${mapStyle}/static/${
         markers
-      }/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`;
+      }/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`;
       
       setMapUrl(url);
       
-      // Create fallback URL with standard mapbox style and danger icon
-      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${token}`);
+      // Create fallback URL with standard mapbox style and fallback marker
+      if (cloudName) {
+        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/url-https://res.cloudinary.com/${cloudName}/image/upload/markers/_red.png(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`);
+      } else {
+        setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${mapboxToken}`);
+      }
     } catch (err) {
       console.error('Error generating static map URL:', err);
       setError(true);
@@ -113,7 +139,8 @@ const StaticMap = ({
 };
 
 /**
- * Get an appropriate marker color based on incident type
+ * Get an appropriate marker color based on incident type (hex code)
+ * Used for the original Mapbox pin markers as a fallback
  */
 function getMarkerColorByType(type) {
   if (!type) return '6B7280'; // Default gray (remove # for Mapbox API)
@@ -135,6 +162,33 @@ function getMarkerColorByType(type) {
   };
   
   return typeColors[normalizedType] || typeColors.default;
+}
+
+/**
+ * Get the marker color name based on incident type (for use with Cloudinary PNG markers)
+ * Maps the normalized incident type to the corresponding color name in the Cloudinary markers folder
+ * Each file is named according to its color preceded by an underscore (i.e., _cyan.png, _green.png, _red.png, etc.)
+ */
+function getMarkerColorNameByType(type) {
+  if (!type) return 'gray'; // Default
+  
+  const lowerType = String(type).toLowerCase();
+  
+  // Normalize type using the same logic as in MaritimeMap
+  const normalizedType = normalizeIncidentType(lowerType);
+  
+  // Return color name based on normalized type - match filenames in Cloudinary markers folder
+  const typeColorNames = {
+    'violent': 'red',
+    'robbery': 'green',
+    'military': 'purple',
+    'suspicious': 'orange',
+    'cyber': 'cyan',
+    'smuggling': 'magenta',
+    'default': 'gray'
+  };
+  
+  return typeColorNames[normalizedType] || typeColorNames.default;
 }
 
 // Helper function to normalize incident types - this matches the logic in MaritimeMap
