@@ -63,7 +63,7 @@ const StaticMap = ({
       setMapUrl(url);
       
       // Create fallback URL with standard mapbox style and danger icon
-      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/600x300@2x?access_token=${token}`);
+      setFallbackUrl(`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-s-danger+f00(${center[0]},${center[1]})/${center[0]},${center[1]},${zoom},0/850x300@2x?access_token=${token}`);
     } catch (err) {
       console.error('Error generating static map URL:', err);
       setError(true);
