@@ -90,6 +90,8 @@ The `RegionalBrief` component provides region-specific analysis:
 />
 ```
 
+When no incidents occur in a region during the reporting period, the RegionalBrief will display the most recent historical incident from that region, clearly labeled as "Historical incident - Most recent in this region". The system only shows historical incidents that occurred on or before the end date of the reporting period.
+
 ### IncidentDetails
 
 The `IncidentDetails` component shows detailed information for a specific incident:

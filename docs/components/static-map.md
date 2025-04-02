@@ -9,8 +9,10 @@ The Static Map component provides a lightweight, non-WebGL alternative to the in
 The Static Map component offers:
 - Mapbox Static Images API integration for server-rendered maps
 - Consistent visual styling with the interactive MaritimeMap component
-- Small pins with danger Maki icons for incident markers
-- Color-coded markers based on incident type
+- Custom PNG marker images from Cloudinary based on incident type
+- Color-coded markers consistent with the interactive map
+- Optimized map dimensions (850x300) for better appearance
+- No attribution display to maximize usable map space
 - Fallback mechanisms for error handling
 - Zero WebGL context usage (important for browser performance)
 
@@ -24,11 +26,14 @@ The component is located at `/src/shared/components/StaticMap/index.jsx` and is 
 
 The Static Map implementation:
 1. Uses Mapbox Static Images API instead of WebGL-based maps
-2. Implements custom marker styling with small pins and danger icons
-3. Maintains consistent color scheme with the interactive map
-4. Provides fallback mechanisms for failed map loads
-5. Uses React hooks for state management and error handling
-6. Properly escapes and encodes URLs for the Mapbox API
+2. Implements custom marker styling with Cloudinary PNG images
+3. Uses color-coded circular markers (red, green, purple, orange, cyan, etc.)
+4. Maintains consistent color scheme with the interactive map
+5. Properly encodes Cloudinary URLs for Mapbox API compatibility
+6. Removes map attribution for cleaner appearance and more space
+7. Uses optimized dimensions (850x300) for better visualization
+8. Provides fallback mechanisms for failed map loads
+9. Uses React hooks for state management and error handling
 
 ## Usage
 
