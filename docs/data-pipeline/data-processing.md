@@ -43,14 +43,21 @@ A key feature of the processing system is the integration with Claude AI to enha
 
 1. **Context Assembly**: Builds a detailed prompt with incident information
 2. **API Integration**: Calls Claude with specialized instructions
-3. **Analysis Generation**: Creates insightful analysis of the maritime incident
-4. **Data Extraction**: Extracts structured data about weapons, attackers, stolen items, etc.
-5. **Title Generation**: Creates a concise but descriptive incident title
+3. **Description Enhancement**: Standardizes and improves incident descriptions with maritime terminology
+4. **Analysis Generation**: Creates insightful analysis of the maritime incident
+5. **Data Extraction**: Extracts structured data about weapons, attackers, stolen items, etc.
+6. **Title Generation**: Creates a concise but descriptive incident title
 
 The system uses a carefully designed prompt that instructs Claude to:
 
 - Create a concise incident title (max 10 words)
 - Extract location information if missing
+- Rephrase and standardize the incident description for clarity and consistency
+  - Apply proper nautical terminology (e.g., "aboard" instead of "on" a ship)
+  - Standardize abbreviations (e.g., "NM" for nautical miles)
+  - Use title case for vessel types (e.g., "Bulk Carrier", "Container Ship")
+  - Properly introduce acronyms on first use (e.g., "UK Maritime Trade Operations (UKMTO)")
+  - Improve text formatting with appropriate paragraph breaks
 - Identify weapons mentioned in the description
 - Provide insightful analysis (1-2 paragraphs)
 - Create actionable security recommendations (2-3 bullet points)
