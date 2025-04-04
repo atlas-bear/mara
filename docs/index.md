@@ -18,26 +18,38 @@ hero:
 features:
   - icon: 
       src: /icons/multi-source.svg
+      width: 24
+      height: 24
     title: Multi-Source Analysis
     details: Collects and analyzes data from multiple authoritative maritime security sources
   - icon: 
       src: /icons/deduplication.svg
+      width: 24
+      height: 24
     title: Cross-Source Deduplication
     details: Intelligently identifies and merges duplicate reports from different sources
   - icon:
       src: /icons/ai-analysis.svg
+      width: 24
+      height: 24
     title: AI-Enhanced Analysis
     details: Leverages Claude AI to provide enriched incident analysis and recommendations
   - icon:
       src: /icons/flash-reports.svg
+      width: 24
+      height: 24
     title: Flash Reports
     details: Delivers immediate incident notifications with detailed security analysis
   - icon:
       src: /icons/weekly-reports.svg
+      width: 24
+      height: 24
     title: Weekly Reports
     details: Provides comprehensive maritime security summaries with regional analysis
   - icon:
       src: /icons/secure-architecture.svg
+      width: 24
+      height: 24
     title: Secure Architecture
     details: Built with modern, secure technologies for reliable operation
 ---
