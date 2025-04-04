@@ -228,22 +228,31 @@ You are an expert maritime security analyst. Based on the maritime incident deta
 
 2. If location information is missing, extract the specific body of water or nearest point of reference from the description (e.g., "Singapore Strait", "Gulf of Guinea", "Takoradi Anchorage, Ghana", "North of Eyl, Somalia").
 
-3. Carefully identify any weapons mentioned in the description, even if described vaguely. Examples:
+3. Rephrase and standardize the incident description following these guidelines:
+   - Remain 100% faithful to the facts without inventing any information not present in the original
+   - Use proper nautical terminology (e.g., use "aboard" instead of "on" a ship)
+   - Abbreviate "nautical miles" to "NM" (e.g., "345NM")
+   - Use title case for vessel types (e.g., "Container Ship," "Tanker," "Bulk Carrier")
+   - Introduce acronyms properly on first use (e.g., "UK Maritime Trade Operations (UKMTO)", "anti-ship ballistic missile (ASBM)")
+   - Format the text professionally with proper paragraph breaks where appropriate
+   - Be concise while preserving all key details
+
+4. Carefully identify any weapons mentioned in the description, even if described vaguely. Examples:
    - "gun-like object" should be classified as "Firearms (unspecified)"
    - "hammers" or similar tools used as weapons should be listed as "Improvised weapons"
    - If no weapons are explicitly mentioned, but the incident involves force, include "Unknown weapons"
    - If clearly no weapons were used, indicate "None"
 
-4. Provide an insightful analysis of the incident (1-2 paragraphs). Focus on specific tactical details and operational significance, NOT on general statements about maritime chokepoints or well-known regional challenges. Your analysis should:
+5. Provide an insightful analysis of the incident (1-2 paragraphs). Focus on specific tactical details and operational significance, NOT on general statements about maritime chokepoints or well-known regional challenges. Your analysis should:
    - Skip obvious contextual statements (like "the Singapore Strait is a critical maritime chokepoint")
    - Analyze the attackers' tactics, techniques, or procedures
    - Note anything unusual or significant about this specific incident
    - Identify patterns if this incident follows a known trend of similar attacks
    - Discuss the effectiveness of any countermeasures employed
 
-5. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
+6. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
 
-6. Extract specific details in JSON format:
+7. Extract specific details in JSON format:
 
    - Weapons used (select all that apply, be thorough in identifying weapons from the description):
      * Firearms (unspecified)
@@ -319,6 +328,7 @@ Please respond in JSON format ONLY, like this:
 {
   "title": "Your concise title here",
   "location": "Extracted or provided location",
+  "description": "Your rephrased and standardized description here...",
   "analysis": "Your insightful analysis here...",
   "recommendations": ["Brief recommendation 1", "Brief recommendation 2", "Brief recommendation 3"],
   "weapons_used": ["Option1", "Option2"],
@@ -374,6 +384,7 @@ If you specify "Other" in any category, please include details in the correspond
               parsedData.location ||
               recordToProcess.fields.location ||
               extractedLocation,
+            description: parsedData.description || recordToProcess.fields.description,
             analysis: parsedData.analysis || enrichedData.analysis,
             recommendations:
               formattedRecommendations || enrichedData.recommendations,
@@ -394,6 +405,13 @@ If you specify "Other" in any category, please include details in the correspond
               ? parsedData.authorities_notified
               : [],
           };
+          
+          // Log the enhanced description
+          console.log("Enhanced incident description:", {
+            originalLength: recordToProcess.fields.description?.length || 0,
+            enhancedLength: enrichedData.description?.length || 0,
+            wasEnhanced: !!parsedData.description
+          });
 
           console.log(
             "Successfully processed Claude response with generated title"
@@ -513,6 +531,15 @@ If you specify "Other" in any category, please include details in the correspond
       // Prepare fields to update - only update fields that add information
       const updateFields = {};
       
+      // Check if we have an enhanced description that's worth using
+      if (enrichedData.description && 
+          (!existingIncident.fields.description || 
+           enrichedData.description.length > existingIncident.fields.description.length * 1.2)) {
+        // Only update if the description is missing or our enhanced version is significantly more detailed (20% longer)
+        updateFields.description = enrichedData.description;
+        console.log("Adding enhanced description to existing incident");
+      }
+      
       // Check if enriched data provides better analysis/recommendations
       if (!existingIncident.fields.analysis && enrichedData.analysis) {
         updateFields.analysis = enrichedData.analysis;
@@ -580,7 +607,7 @@ If you specify "Other" in any category, please include details in the correspond
       const incidentFields = {
         title: enrichedData.title, // Use the LLM-generated title
         description:
-          recordToProcess.fields.description || "No description available",
+          enrichedData.description || recordToProcess.fields.description || "No description available",
         date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
         latitude: recordToProcess.fields.latitude,
         longitude: recordToProcess.fields.longitude,
