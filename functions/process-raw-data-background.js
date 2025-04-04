@@ -987,29 +987,112 @@ async function findSimilarExistingIncident(date, latitude, longitude, vesselName
         
         // Calculate vessel similarity if vessel name is available
         let vesselScore = 0.5; // Default to neutral if we can't compare vessel names
+        let vesselMatch = false; // Track if vessels specifically match
         
         if (vesselName && incident.fields.title) {
           // Extract vessel name from the incident title as a fallback
           // Many incident titles contain the vessel name
           vesselScore = calculateVesselNameSimilarity(vesselName, incident.fields.title);
+          
+          // If vessel score is high, consider it a vessel match
+          vesselMatch = vesselScore > 0.8;
+        }
+        
+        // Check if incident types match (if we have that information)
+        let typeMatch = false;
+        let typeInfo = {};
+        
+        if (recordToProcess.fields.incident_type_name && incident.fields.incident_type_name) {
+          // Direct comparison of incident types (case-insensitive)
+          const newType = recordToProcess.fields.incident_type_name.toLowerCase();
+          const existingType = Array.isArray(incident.fields.incident_type_name) 
+            ? incident.fields.incident_type_name[0]?.toLowerCase() 
+            : incident.fields.incident_type_name.toLowerCase();
+          
+          typeMatch = newType === existingType;
+          
+          typeInfo = {
+            newType,
+            existingType,
+            match: typeMatch
+          };
+          
+          // If types match exactly, increase confidence
+          if (typeMatch) {
+            vesselScore = Math.max(vesselScore, 0.6); // Boost vessel score slightly if type matches
+          }
+        }
+        
+        // Check if this is likely the same incident
+        // For busy shipping areas like Singapore Strait, we need to be more careful
+        
+        // HIGH CONFIDENCE MATCH CRITERIA:
+        // 1. Very close in time (within 12 hours) AND very close in space (within 5km) AND same/similar vessel
+        // 2. Exact vessel match AND reasonably close in time and space
+        // 3. Perfect time/location match with exact same details
+        // 4. Types match exactly with good time/space correlation
+        let isSameIncident = false;
+        
+        // Case 1: Very close in time/space with vessel confirmation when available
+        if (timeScore > 0.75 && spatialScore > 0.9 && vesselScore >= 0.7) {
+          isSameIncident = true;
+        }
+        
+        // Case 2: Strong vessel match with reasonable time/space correlation
+        if (vesselMatch && timeScore > 0.5 && spatialScore > 0.7) {
+          isSameIncident = true;
+        }
+        
+        // Case 3: Perfect time/location match (exact same coordinates and timestamp)
+        // This happens when the same incident is reported by different sources with exactly the same details
+        if (timeScore > 0.95 && spatialScore > 0.95) {
+          isSameIncident = true;
+        }
+        
+        // Case 4: Type match with reasonable time/space correlation
+        // If incident types match exactly, with good time/space correlation, it's likely the same incident
+        if (typeMatch && timeScore > 0.6 && spatialScore > 0.7) {
+          isSameIncident = true;
+        }
+        
+        // SAFEGUARD: Check for potential separate incidents on the same vessel
+        // If vessel names match perfectly but time is too different (more than 5 days apart)
+        // and locations are very different, these are likely separate incidents
+        if (vesselMatch && timeScore < 0.2 && spatialScore < 0.3) {
+          log.info("Detected potentially separate incidents on the same vessel", {
+            vesselName,
+            timeScore,
+            spatialScore,
+            newDate: date,
+            existingDate: incident.fields.date_time_utc,
+            newLocation: `${latitude},${longitude}`,
+            existingLocation: `${incident.fields.latitude},${incident.fields.longitude}`
+          });
+          
+          // Override the same incident flag
+          isSameIncident = false;
         }
         
         // Calculate composite score with weights:
-        // - Time: 40%
-        // - Location: 40%
-        // - Vessel: 20%
-        const totalScore = timeScore * 0.4 + spatialScore * 0.4 + vesselScore * 0.2;
+        // - Time: 35%
+        // - Location: 35%
+        // - Vessel: 30% (increased importance)
+        const totalScore = timeScore * 0.35 + spatialScore * 0.35 + vesselScore * 0.3;
         
         log.info("Incident similarity calculation", {
           incidentId: incident.id,
           timeScore,
           spatialScore,
           vesselScore,
-          totalScore
+          totalScore,
+          isSameIncident,
+          typeMatch,
+          ...(Object.keys(typeInfo).length > 0 ? { typeInfo } : {})
         });
         
-        // Consider as a potential match if score is above threshold
-        if (totalScore >= 0.7 && totalScore > highestScore) {
+        // Consider as a potential match if it's the same incident or has a very high score
+        // Require a higher threshold (0.75) to avoid false positives
+        if ((isSameIncident || totalScore >= 0.75) && totalScore > highestScore) {
           highestScore = totalScore;
           bestMatch = incident;
         }
