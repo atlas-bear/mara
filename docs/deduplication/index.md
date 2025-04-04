@@ -1,6 +1,14 @@
-# Cross-Source Deduplication System
+# Deduplication System
 
-The MARA cross-source deduplication system identifies and merges duplicate maritime incident reports from different maritime reporting sources (RECAAP, UKMTO, MDAT, ICC). This system enhances data quality by combining complementary information from multiple sources into a single, comprehensive incident record.
+The MARA deduplication system operates at two levels to identify and merge duplicate maritime incident reports. This system enhances data quality, prevents duplicate alerts, and provides a comprehensive view of maritime incidents.
+
+## Two-Layer Deduplication Approach
+
+MARA implements a robust two-layer deduplication strategy:
+
+1. **Raw Data Level (Cross-Source)**: Identifies and merges duplicate reports from different maritime reporting sources (RECAAP, UKMTO, MDAT, ICC) in the raw data table.
+
+2. **Incident Level**: Prevents creating duplicate incidents when raw data deduplication didn't merge reports (for example, when reports come in at different times).
 
 ## Purpose
 
@@ -100,11 +108,22 @@ The deduplication system can be configured through environment variables and que
 
 ## Process Integration
 
-The deduplication system runs before incident processing:
+### Cross-Source Deduplication Workflow
+
+The raw data deduplication system runs before incident processing:
 
 1. `deduplicate-cross-source-background.js` processes raw data to identify and merge duplicates
 2. Upon completion, it triggers `process-raw-data-background.js` to create incident records
 3. This sequence ensures duplicates are merged before incident creation
+
+### Incident-Level Deduplication Workflow
+
+The incident-level deduplication occurs during record processing:
+
+1. When `process-raw-data-background.js` prepares to create a new incident, it first searches for similar existing incidents
+2. If a match is found, it updates the existing incident with any new information
+3. The raw data record is linked to the existing incident rather than creating a duplicate
+4. This prevents duplicate flash reports for the same incident, even when raw data comes from different sources at different times
 
 ## Manual Operation
 

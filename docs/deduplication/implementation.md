@@ -134,7 +134,7 @@ const vesselScore = vesselIMOScore === 1 ? 1 :
 
 ### Weight Distribution for Similarity
 
-The system prioritizes time and location data over vessel information:
+The raw data deduplication system prioritizes time and location data over vessel information:
 
 ```javascript
 // Weight distribution: 40% time, 40% location, 10% vessel, 10% incident type
@@ -143,6 +143,13 @@ const totalScore =
   spatialScore * 0.4 +
   vesselScore * 0.1 +
   incidentTypeScore * 0.1;
+```
+
+The incident-level deduplication uses a slightly different weight distribution with more emphasis on vessel matching:
+
+```javascript
+// Weight distribution: 35% time, 35% location, 30% vessel
+const totalScore = timeScore * 0.35 + spatialScore * 0.35 + vesselScore * 0.3;
 ```
 
 ### Function Triggering
@@ -174,6 +181,107 @@ The function is configured to run as a scheduled background function in `netlify
 schedule = "28 * * * *"  # Run at 28 minutes past every hour
 background = true
 ```
+
+## Incident-Level Deduplication
+
+In addition to the raw data deduplication system, MARA implements a second layer of deduplication at the incident table level to prevent creating duplicate incidents from different raw data sources that weren't merged during the initial deduplication step.
+
+### Overview
+
+When `process-raw-data-background.js` processes a raw data record to create an incident, it first checks if a similar incident already exists in the incident table. If a match is found, it updates the existing incident with any new information instead of creating a duplicate.
+
+```javascript
+// Before creating a new incident, check if a similar one already exists
+const existingIncident = await findSimilarExistingIncident(
+  recordToProcess.fields.date,
+  recordToProcess.fields.latitude,
+  recordToProcess.fields.longitude,
+  recordToProcess.fields.vessel_name,
+  headers
+);
+
+if (existingIncident) {
+  // Update existing incident with new information
+  // Link this raw_data record to the existing incident
+} else {
+  // Create a new incident
+}
+```
+
+### Similarity Calculation
+
+The incident similarity check uses multiple factors:
+
+1. **Time proximity**: Incidents within a 48-hour window receive a non-zero score
+2. **Spatial proximity**: Incidents within 50km receive a non-zero score
+3. **Vessel similarity**: Based on vessel name matching
+4. **Incident type**: Exact matching of incident types
+
+### Enhanced Match Criteria
+
+The system uses specific scenarios to determine if two incidents are the same:
+
+```javascript
+// HIGH CONFIDENCE MATCH CRITERIA:
+// 1. Very close in time (within 12 hours) AND very close in space (within 5km) AND same/similar vessel
+// 2. Exact vessel match AND reasonably close in time and space
+// 3. Perfect time/location match with exact same details
+// 4. Types match exactly with good time/space correlation
+let isSameIncident = false;
+
+// Case 1: Very close in time/space with vessel confirmation
+if (timeScore > 0.75 && spatialScore > 0.9 && vesselScore >= 0.7) {
+  isSameIncident = true;
+}
+
+// Case 2: Strong vessel match with reasonable time/space correlation
+if (vesselMatch && timeScore > 0.5 && spatialScore > 0.7) {
+  isSameIncident = true;
+}
+
+// Case 3: Perfect time/location match (exact same coordinates and timestamp)
+if (timeScore > 0.95 && spatialScore > 0.95) {
+  isSameIncident = true;
+}
+
+// Case 4: Type match with reasonable time/space correlation
+if (typeMatch && timeScore > 0.6 && spatialScore > 0.7) {
+  isSameIncident = true;
+}
+```
+
+### Safeguards for Multiple Incidents on the Same Vessel
+
+The system includes logic to identify when the same vessel has multiple legitimate incidents:
+
+```javascript
+// SAFEGUARD: Check for potential separate incidents on the same vessel
+// If vessel names match perfectly but time is too different (more than 5 days apart)
+// and locations are very different, these are likely separate incidents
+if (vesselMatch && timeScore < 0.2 && spatialScore < 0.3) {
+  log.info("Detected potentially separate incidents on the same vessel", {
+    vesselName,
+    timeScore,
+    spatialScore,
+    newDate: date,
+    existingDate: incident.fields.date_time_utc,
+    newLocation: `${latitude},${longitude}`,
+    existingLocation: `${incident.fields.latitude},${incident.fields.longitude}`
+  });
+  
+  // Override the same incident flag
+  isSameIncident = false;
+}
+```
+
+### Benefits
+
+This multi-stage deduplication approach:
+
+1. Prevents duplicate flash reports for the same incident
+2. Ensures all sources of information about an incident are combined 
+3. Maintains separate incidents when appropriate (e.g., multiple attacks on the same vessel)
+4. Reduces alert fatigue for users
 
 ## Extending the System
 
