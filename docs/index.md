@@ -17,7 +17,7 @@ hero:
 
 features:
   - icon: 
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="3" width="5" height="5" rx="1"></rect>
           <rect x="9" y="3" width="5" height="5" rx="1"></rect>
@@ -29,7 +29,7 @@ features:
     title: Multi-Source Analysis
     details: Collects and analyzes data from multiple authoritative maritime security sources
   - icon: 
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="7" cy="9" r="2"></circle>
           <circle cx="17" cy="9" r="2"></circle>
@@ -42,7 +42,7 @@ features:
     title: Cross-Source Deduplication
     details: Intelligently identifies and merges duplicate reports from different sources
   - icon:
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2a8 8 0 0 0-8 8v12l6-3 6 3V10a8 8 0 0 0-6-8Z"></path>
           <path d="M15 9.35a4 4 0 0 0 0 6.5"></path>
@@ -51,7 +51,7 @@ features:
     title: AI-Enhanced Analysis
     details: Leverages Claude AI to provide enriched incident analysis and recommendations
   - icon:
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
           <path d="M13 2v7h7"></path>
@@ -63,7 +63,7 @@ features:
     title: Flash Reports
     details: Delivers immediate incident notifications with detailed security analysis
   - icon:
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
           <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -79,7 +79,7 @@ features:
     title: Weekly Reports
     details: Provides comprehensive maritime security summaries with regional analysis
   - icon:
-      src: >-
+      custom: >-
         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
