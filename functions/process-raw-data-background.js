@@ -216,217 +216,68 @@ export default async (req, context) => {
         "Calling Claude API for incident analysis and title generation"
       );
 
-      // Create the prompt
-      const prompt = `
-You are an expert maritime security analyst. Based on the maritime incident details below, please:
+      // Import the centralized LLM service
+      const { callClaudeWithPrompt } = await import("./utils/llm-service.js");
 
-1. Create a concise but descriptive title for this incident (max 10 words). The title should clearly convey the incident type, location, and any distinctive characteristics. Examples of good titles:
-   - "Armed Boarding of Bulk Carrier off Indonesia"
-   - "Missile Attack on Commercial Vessel in Red Sea" 
-   - "Pirate Kidnapping of Crew Near Nigeria"
-   - "Drone Strike on Russian Naval Base in Sevastopol"
+      // Prepare the data for the prompt
+      const promptData = {
+        recordFields: recordToProcess.fields
+      };
 
-2. If location information is missing, extract the specific body of water or nearest point of reference from the description (e.g., "Singapore Strait", "Gulf of Guinea", "Takoradi Anchorage, Ghana", "North of Eyl, Somalia").
+      // Call Claude using the centralized service
+      console.log("Using centralized prompts system with descriptionEnhancement prompt");
+      const enhancedResult = await callClaudeWithPrompt("descriptionEnhancement", promptData);
+      
+      // Log the success
+      console.log("Successfully called Claude using centralized prompt system");
+      
+      // Use the response from the centralized system directly
+      // The response is already parsed and formatted by the LLM processor
+      
+      // Log the raw weapons data from Claude
+      console.log("Claude identified weapons:", enhancedResult.weapons_used);
 
-3. Rephrase and standardize the incident description following these guidelines:
-   - Remain 100% faithful to the facts without inventing any information not present in the original
-   - Use proper nautical terminology (e.g., use "aboard" instead of "on" a ship)
-   - Abbreviate "nautical miles" to "NM" (e.g., "345NM")
-   - Use title case for vessel types (e.g., "Container Ship," "Tanker," "Bulk Carrier")
-   - Introduce acronyms properly on first use (e.g., "UK Maritime Trade Operations (UKMTO)", "anti-ship ballistic missile (ASBM)")
-   - Format the text professionally with proper paragraph breaks where appropriate
-   - Be concise while preserving all key details
+      // Update our enriched data with the processed results
+      enrichedData = {
+        title: enhancedResult.title || enrichedData.title,
+        location:
+          enhancedResult.location ||
+          recordToProcess.fields.location ||
+          extractedLocation,
+        description: enhancedResult.description || recordToProcess.fields.description,
+        analysis: enhancedResult.analysis || enrichedData.analysis,
+        recommendations: enhancedResult.recommendations || enrichedData.recommendations,
+        weapons_used: Array.isArray(enhancedResult.weapons_used)
+          ? enhancedResult.weapons_used
+          : [],
+        number_of_attackers: enhancedResult.number_of_attackers || null,
+        items_stolen: Array.isArray(enhancedResult.items_stolen)
+          ? enhancedResult.items_stolen
+          : [],
+        response_type: Array.isArray(enhancedResult.response_type)
+          ? enhancedResult.response_type
+          : [],
+        authorities_notified: Array.isArray(enhancedResult.authorities_notified)
+          ? enhancedResult.authorities_notified
+          : [],
+      };
+      
+      // Log the enhanced description
+      console.log("Enhanced incident description:", {
+        originalLength: recordToProcess.fields.description?.length || 0,
+        enhancedLength: enrichedData.description?.length || 0,
+        wasEnhanced: !!enhancedResult.description
+      });
 
-4. Carefully identify any weapons mentioned in the description, even if described vaguely. Examples:
-   - "gun-like object" should be classified as "Firearms (unspecified)"
-   - "hammers" or similar tools used as weapons should be listed as "Improvised weapons"
-   - If no weapons are explicitly mentioned, but the incident involves force, include "Unknown weapons"
-   - If clearly no weapons were used, indicate "None"
-
-5. Provide an insightful analysis of the incident (1-2 paragraphs). Focus on specific tactical details and operational significance, NOT on general statements about maritime chokepoints or well-known regional challenges. Your analysis should:
-   - Skip obvious contextual statements (like "the Singapore Strait is a critical maritime chokepoint")
-   - Analyze the attackers' tactics, techniques, or procedures
-   - Note anything unusual or significant about this specific incident
-   - Identify patterns if this incident follows a known trend of similar attacks
-   - Discuss the effectiveness of any countermeasures employed
-
-6. Provide brief, actionable recommendations for vessels in similar situations (2-3 concise bullet points).
-
-7. Extract specific details in JSON format:
-
-   - Weapons used (select all that apply, be thorough in identifying weapons from the description):
-     * Firearms (unspecified)
-     * Knives
-     * Armed individuals (type unspecified)
-     * Parangs
-     * AK-47s
-     * Machine Guns
-     * Handguns
-     * Improvised weapons
-     * Missiles
-     * UAVs
-     * USVs
-     * Limpet mines
-     * None
-     * Other weapons (specify)
-
-   - Number of attackers (numeric value, null if unknown)
-
-   - Items stolen (select all that apply):
-     * None
-     * Engine Spare Parts
-     * None reported
-     * Engine spares
-     * Vessel under pirate control
-     * Vessel equipment
-     * Crew valuables
-     * Funds from crew accounts
-     * Other items (specify)
-
-   - Response type (select all that apply):
-     * Naval
-     * Coalition Forces
-     * Coast Guard
-     * Security incident reported
-     * Military response and monitoring
-     * Military incident
-     * Evasive maneuvers
-     * Other response (specify)
-     * No response mentioned
-
-   - Authorities notified (select all that apply):
-     * UKMTO
-     * Coalition Forces
-     * Flag State
-     * VTIS West
-     * Singapore Navy
-     * Police Coast Guard
-     * Singapore VTIS
-     * EUNAVFOR
-     * Puntland Maritime Police Force
-     * Somali Authorities
-     * Chinese Authorities
-     * EU Delegation to Somalia
-     * Russian Naval Command
-     * Russian Military Authorities
-     * Mexican Maritime Authorities
-     * Other authorities (specify)
-     * None mentioned
-
-INCIDENT DETAILS:
-Original Title: ${recordToProcess.fields.title || "No title available"}
-Date: ${recordToProcess.fields.date || "No date available"}
-Location: ${recordToProcess.fields.location || "Not specified in record"}
-Coordinates: (${recordToProcess.fields.latitude || "?"}, ${recordToProcess.fields.longitude || "?"})
-Description: ${recordToProcess.fields.description || "No description available"}
-Updates: ${recordToProcess.fields.update || "None"}
-Incident Type: ${recordToProcess.fields.incident_type_name || "Unknown type"}
-Vessel: ${recordToProcess.fields.vessel_name ? `${recordToProcess.fields.vessel_name} (${recordToProcess.fields.vessel_type || "Unknown type"})` : "Unknown vessel"}
-Source: ${recordToProcess.fields.source || "Unknown source"}
-
-Please respond in JSON format ONLY, like this:
-{
-  "title": "Your concise title here",
-  "location": "Extracted or provided location",
-  "description": "Your rephrased and standardized description here...",
-  "analysis": "Your insightful analysis here...",
-  "recommendations": ["Brief recommendation 1", "Brief recommendation 2", "Brief recommendation 3"],
-  "weapons_used": ["Option1", "Option2"],
-  "number_of_attackers": 5,
-  "items_stolen": ["Option1", "Option2"],
-  "response_type": ["Option1", "Option2"],
-  "authorities_notified": ["Option1", "Option2"]
-}
-
-If you specify "Other" in any category, please include details in the corresponding field.
-      `;
-
-      // Call Claude API with updated model
-      const claudeResponse = await axios.post(
-        "https://api.anthropic.com/v1/messages",
-        {
-          model: "claude-3-5-sonnet-20240620", // Updated model
-          max_tokens: 1500,
-          temperature: 0.2,
-          messages: [{ role: "user", content: prompt }],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": process.env.ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-          },
-        }
+      console.log(
+        "Successfully processed Claude response with generated title"
       );
-
-      // Extract and parse Claude's response
-      const responseText = claudeResponse.data.content[0].text;
-
-      try {
-        // Extract JSON from response
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsedData = JSON.parse(jsonMatch[0]);
-
-          // Log the raw weapons data from Claude
-          console.log("Claude identified weapons:", parsedData.weapons_used);
-
-          // Format recommendations as bullet points
-          const formattedRecommendations = Array.isArray(
-            parsedData.recommendations
-          )
-            ? parsedData.recommendations.map((rec) => `• ${rec}`).join("\n")
-            : parsedData.recommendations;
-
-          enrichedData = {
-            title: parsedData.title || enrichedData.title,
-            location:
-              parsedData.location ||
-              recordToProcess.fields.location ||
-              extractedLocation,
-            description: parsedData.description || recordToProcess.fields.description,
-            analysis: parsedData.analysis || enrichedData.analysis,
-            recommendations:
-              formattedRecommendations || enrichedData.recommendations,
-            weapons_used: Array.isArray(parsedData.weapons_used)
-              ? parsedData.weapons_used
-              : [],
-            number_of_attackers:
-              typeof parsedData.number_of_attackers === "number"
-                ? parsedData.number_of_attackers
-                : null,
-            items_stolen: Array.isArray(parsedData.items_stolen)
-              ? parsedData.items_stolen
-              : [],
-            response_type: Array.isArray(parsedData.response_type)
-              ? parsedData.response_type
-              : [],
-            authorities_notified: Array.isArray(parsedData.authorities_notified)
-              ? parsedData.authorities_notified
-              : [],
-          };
-          
-          // Log the enhanced description
-          console.log("Enhanced incident description:", {
-            originalLength: recordToProcess.fields.description?.length || 0,
-            enhancedLength: enrichedData.description?.length || 0,
-            wasEnhanced: !!parsedData.description
-          });
-
-          console.log(
-            "Successfully processed Claude response with generated title"
-          );
-          console.log("Generated title:", enrichedData.title);
-          console.log("Extracted location:", enrichedData.location);
-          console.log("Identified weapons:", enrichedData.weapons_used);
-        } else {
-          console.error("Could not extract JSON from Claude response");
-        }
-      } catch (parseError) {
-        console.error("Error parsing Claude response:", parseError.message);
-      }
+      console.log("Generated title:", enrichedData.title);
+      console.log("Extracted location:", enrichedData.location);
+      console.log("Identified weapons:", enrichedData.weapons_used);
     } catch (claudeError) {
-      console.error("Error calling Claude API:", claudeError.message);
+      console.error("Error calling Claude API through centralized prompt system:", claudeError.message);
+      console.error("This may be due to API issues or problems with the prompt configuration");
     }
 
     // If weapons array is empty but description mentions weapons, try to extract them

@@ -51,6 +51,7 @@ export default defineConfig({
       { text: 'Components', link: '/components/' },
       { text: 'Data Pipeline', link: '/data-pipeline/' },
       { text: 'Deduplication', link: '/deduplication/' },
+      { text: 'AI Integration', link: '/ai-integration/' },
       { text: 'Flash Reports', link: '/flash-report/' },
       { text: 'Weekly Reports', link: '/weekly-report/' },
       { text: 'API', link: '/api/' }
@@ -124,6 +125,15 @@ export default defineConfig({
             { text: 'Data Flow', link: '/weekly-report/data-flow' },
             { text: 'API Reference', link: '/weekly-report/api-reference' },
             { text: 'Email Notifications', link: '/weekly-report/email-notifications' }
+          ]
+        }
+      ],
+      '/ai-integration/': [
+        {
+          text: 'AI Integration',
+          items: [
+            { text: 'Overview', link: '/ai-integration/' },
+            { text: 'Prompts System', link: '/ai-integration/prompts-system' }
           ]
         }
       ],

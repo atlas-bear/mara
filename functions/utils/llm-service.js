@@ -3,7 +3,8 @@ import { log } from "./logger.js";
 import { getPrompt } from "../prompts/index.js";
 import { 
   processIncidentAnalysisResponse,
-  processWeeklyReportResponse
+  processWeeklyReportResponse,
+  processDescriptionEnhancementResponse
 } from "./llm-processors.js";
 
 /**
@@ -18,11 +19,25 @@ export const callClaudeWithPrompt = async (promptType, data) => {
     const { createPrompt, config } = getPrompt(promptType);
 
     // Create the prompt with the provided data (different prompt types may have different parameters)
-    const promptContent = promptType === "incidentAnalysis" 
-      ? createPrompt(data.incidentData, data.recordFields)
-      : createPrompt(...Object.values(data));
+    let promptContent;
+    
+    // Determine how to call the prompt creation function based on the prompt type
+    switch (promptType) {
+      case "incidentAnalysis":
+        promptContent = createPrompt(data.incidentData, data.recordFields);
+        break;
+      case "descriptionEnhancement":
+        promptContent = createPrompt(data.recordFields || data);
+        break;
+      case "weeklyReport":
+        promptContent = createPrompt(...Object.values(data));
+        break;
+      default:
+        // Generic fallback method for other prompt types
+        promptContent = createPrompt(...Object.values(data));
+    }
 
-    log.info(`Calling Claude API with ${promptType} prompt`);
+    log.info(`Calling Claude API with ${promptType} prompt using model: ${config.model}`);
 
     // Call Claude API
     const response = await axios.post(
@@ -46,14 +61,18 @@ export const callClaudeWithPrompt = async (promptType, data) => {
     const responseText = response.data.content[0].text;
 
     // Process the response based on prompt type
-    if (promptType === "incidentAnalysis") {
-      return processIncidentAnalysisResponse(responseText);
-    } else if (promptType === "weeklyReport") {
-      return processWeeklyReportResponse(responseText);
+    switch (promptType) {
+      case "incidentAnalysis":
+        return processIncidentAnalysisResponse(responseText);
+      case "weeklyReport":
+        return processWeeklyReportResponse(responseText);
+      case "descriptionEnhancement":
+        return processDescriptionEnhancementResponse(responseText);
+      default:
+        // Default fallback (shouldn't reach here if all prompt types are handled)
+        log.warn(`No specific processor for prompt type: ${promptType}, returning raw response`);
+        return { raw: responseText };
     }
-
-    // Default fallback (shouldn't reach here if all prompt types are handled)
-    return { raw: responseText };
   } catch (error) {
     log.error(`Error in LLM service for prompt type ${promptType}`, error);
     throw error;

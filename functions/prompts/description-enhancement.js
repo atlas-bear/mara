@@ -1,52 +1,38 @@
 /**
- * Maritime incident analysis prompt
- * Version: 2.0.0
+ * Maritime incident description enhancement prompt
+ * Version: 1.0.0
  * Last updated: 2025-04-04
  *
  * This prompt instructs Claude to:
  * 1. Create a concise title for the incident
- * 2. Extract/enhance location information
- * 3. Standardize and enhance the incident description
- * 4. Provide a focused analysis paragraph 
- * 5. Create 2-3 bullet point recommendations
- * 6. Extract specific structured data from incident description
+ * 2. Extract location information if missing
+ * 3. Standardize the incident description following nautical terminology
+ * 4. Process and standardize various metadata fields
  *
- * Expected response format:
- * {
- *   "title": "String - concise title (max 10 words)",
- *   "location": "String - extracted or provided location",
- *   "description": "String - enhanced standardized description",
- *   "analysis": "String - focused analysis paragraph",
- *   "recommendations": ["String - bullet point 1", "String - bullet point 2"],
- *   "weapons_used": ["String - weapon type(s)"],
- *   "number_of_attackers": Number or null,
- *   "items_stolen": ["String - item type(s)"],
- *   "response_type": ["String - response type(s)"],
- *   "authorities_notified": ["String - authority type(s)"]
- * }
+ * This is used by process-raw-data-background.js to enhance raw incident data
+ * before creating structured incident records.
  */
 
 import { MODELS, CONFIGS } from "./config.js";
 import { WEAPONS, ITEMS_STOLEN, RESPONSE_TYPES, AUTHORITIES } from "./reference-data.js";
 
 /**
- * Create a prompt for maritime incident analysis and enhancement
- * @param {Object} incidentData - The raw incident data object
+ * Create a prompt for maritime incident description enhancement
  * @param {Object} recordFields - Processed record fields from Airtable
  * @returns {String} - Formatted prompt for Claude
  */
-export const createIncidentAnalysisPrompt = (incidentData, recordFields) => {
+export const createDescriptionEnhancementPrompt = (recordFields) => {
   // Create weapon options list from reference data
-  const weaponOptions = WEAPONS.map(weapon => `       * ${weapon}`).join("\n");
+  const weaponOptions = WEAPONS.map(weapon => `     * ${weapon}`).join("\n");
   
   // Create items stolen options list from reference data
-  const itemOptions = ITEMS_STOLEN.map(item => `       * ${item}`).join("\n");
+  const itemOptions = ITEMS_STOLEN.map(item => `     * ${item}`).join("\n");
   
   // Create response type options list from reference data
-  const responseOptions = RESPONSE_TYPES.map(response => `       * ${response}`).join("\n");
+  const responseOptions = RESPONSE_TYPES.map(response => `     * ${response}`).join("\n");
   
   // Create authorities notified options list from reference data
-  const authorityOptions = AUTHORITIES.map(authority => `       * ${authority}`).join("\n");
+  const authorityOptions = AUTHORITIES.map(authority => `     * ${authority}`).join("\n");
 
   return `
 You are an expert maritime security analyst. Based on the maritime incident details below, please:
@@ -100,7 +86,7 @@ ${responseOptions}
 ${authorityOptions}
 
 INCIDENT DETAILS:
-Title: ${recordFields.title || "No title available"}
+Original Title: ${recordFields.title || "No title available"}
 Date: ${recordFields.date || "No date available"}
 Location: ${recordFields.location || "Not specified in record"}
 Coordinates: (${recordFields.latitude || "?"}, ${recordFields.longitude || "?"})
@@ -109,8 +95,6 @@ Updates: ${recordFields.update || "None"}
 Incident Type: ${recordFields.incident_type_name || "Unknown type"}
 Vessel: ${recordFields.vessel_name ? `${recordFields.vessel_name} (${recordFields.vessel_type || "Unknown type"})` : "Unknown vessel"}
 Source: ${recordFields.source || "Unknown source"}
-
-Raw Data: ${JSON.stringify(incidentData, null, 2)}
 
 Please respond in JSON format ONLY, like this:
 {
@@ -125,6 +109,8 @@ Please respond in JSON format ONLY, like this:
   "response_type": ["Option1", "Option2"],
   "authorities_notified": ["Option1", "Option2"]
 }
+
+If you specify "Other" in any category, please include details in the corresponding field.
 `;
 };
 

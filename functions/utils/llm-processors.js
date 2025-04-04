@@ -118,3 +118,63 @@ export const processWeeklyReportResponse = (responseText) => {
     };
   }
 };
+
+/**
+ * Process Claude response for description enhancement
+ * @param {string} responseText - Raw text response from Claude
+ * @returns {Object} - Structured data with enhanced description and metadata
+ */
+export const processDescriptionEnhancementResponse = (responseText) => {
+  try {
+    // Extract JSON from response (in case there's any extra text)
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not extract JSON from Claude response");
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+    
+    // Format recommendations as bullet points
+    const formattedRecommendations = Array.isArray(parsedData.recommendations)
+      ? parsedData.recommendations.map((rec) => `• ${rec}`).join("\n")
+      : parsedData.recommendations;
+    
+    // Process arrays for Airtable compatibility
+    const processField = (field) => {
+      if (!Array.isArray(parsedData[field])) {
+        return [];
+      }
+      return parsedData[field];
+    };
+    
+    return {
+      title: parsedData.title || null,
+      location: parsedData.location || null,
+      description: parsedData.description || null,
+      analysis: parsedData.analysis || null,
+      recommendations: formattedRecommendations,
+      weapons_used: processField("weapons_used"),
+      number_of_attackers: 
+        typeof parsedData.number_of_attackers === "number"
+          ? parsedData.number_of_attackers
+          : null,
+      items_stolen: processField("items_stolen"),
+      response_type: processField("response_type"),
+      authorities_notified: processField("authorities_notified"),
+    };
+  } catch (error) {
+    log.error("Error parsing description enhancement response", error, { responseText });
+    return {
+      title: "Error processing enhanced description",
+      location: null,
+      description: null,
+      analysis: "Error processing LLM response. Manual review required.",
+      recommendations: null,
+      weapons_used: [],
+      number_of_attackers: null,
+      items_stolen: [],
+      response_type: [],
+      authorities_notified: [],
+    };
+  }
+};

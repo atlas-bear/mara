@@ -1,3 +1,11 @@
+/**
+ * Centralized prompt registry
+ * 
+ * This module serves as the central access point for all prompts in the system.
+ * It exports a standardized interface for accessing prompt templates and their
+ * configurations, ensuring consistency across the application.
+ */
+
 import {
   createIncidentAnalysisPrompt,
   promptConfig as incidentAnalysisConfig,
@@ -8,6 +16,14 @@ import {
   promptConfig as weeklyReportConfig,
 } from "./weekly-report-analysis.js";
 
+import {
+  createDescriptionEnhancementPrompt,
+  promptConfig as descriptionEnhancementConfig,
+} from "./description-enhancement.js";
+
+/**
+ * Registered prompts with their creation functions and configurations
+ */
 export const prompts = {
   incidentAnalysis: {
     createPrompt: createIncidentAnalysisPrompt,
@@ -16,6 +32,10 @@ export const prompts = {
   weeklyReport: {
     createPrompt: createWeeklyReportPrompt,
     config: weeklyReportConfig,
+  },
+  descriptionEnhancement: {
+    createPrompt: createDescriptionEnhancementPrompt,
+    config: descriptionEnhancementConfig,
   },
   // Add other prompt types here as your system grows
 };

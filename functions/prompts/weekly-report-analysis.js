@@ -1,13 +1,16 @@
 /**
  * Weekly maritime report analysis prompt
- * Version: 1.0.0
- * Last updated: 2025-03-24
+ * Version: 2.0.0
+ * Last updated: 2025-04-04
  *
  * This prompt instructs Claude to:
  * 1. Generate "Key Developments" for the Executive Brief
  * 2. Create a "7-Day Forecast" for each maritime region
  * 3. Structure the response for easy integration into the weekly report
  */
+
+import { MODELS, CONFIGS } from "./config.js";
+import { REGIONS } from "./reference-data.js";
 
 /**
  * Create a prompt for weekly maritime report analysis
@@ -113,8 +116,4 @@ export const createWeeklyReportPrompt = (incidents, regionalData, startDate, end
 /**
  * Model configuration for the prompt
  */
-export const promptConfig = {
-  model: "claude-3-sonnet-20240229",  // Using a more capable model for higher quality analysis
-  max_tokens: 2000,                   // Increased to allow for more detailed forecasts
-  temperature: 0.2,                   // Lower temperature for more factual, consistent responses
-};
+export const promptConfig = CONFIGS.WEEKLY_REPORT;
