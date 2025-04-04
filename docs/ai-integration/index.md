@@ -14,7 +14,7 @@ MARA leverages advanced AI capabilities to enhance maritime security data proces
 
 The AI integration is built around a centralized prompts system that standardizes interactions with large language models (LLMs). This architecture ensures consistency, maintainability, and flexibility across all AI-powered features.
 
-![AI System Architecture](/images/ai-architecture.png)
+![AI System Architecture](/images/ai-architecture.svg)
 
 ## Components
 
