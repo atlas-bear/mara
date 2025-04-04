@@ -1,4 +1,7 @@
 import axios from "axios";
+import { calculateTimeProximityScore, calculateSpatialProximityScore } from "./utils/spatial-utils.js";
+import { calculateVesselNameSimilarity } from "./utils/similarity-utils.js";
+import { log } from "./utils/logger.js";
 
 export default async (req, context) => {
   console.log("Background function triggered", {
@@ -479,52 +482,150 @@ If you specify "Other" in any category, please include details in the correspond
       "authorities_notified"
     );
 
-    // Create incident record with LLM-generated title and enriched data
-    const incidentFields = {
-      title: enrichedData.title, // Use the LLM-generated title
-      description:
-        recordToProcess.fields.description || "No description available",
-      date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
-      latitude: recordToProcess.fields.latitude,
-      longitude: recordToProcess.fields.longitude,
-      status: "Active",
-      region: formatRegion(recordToProcess.fields.region),
-      location_name: enrichedData.location, // Use extracted or provided location
-
-      // LLM-enriched fields
-      analysis: enrichedData.analysis,
-      recommendations: enrichedData.recommendations,
-      number_of_attackers: enrichedData.number_of_attackers,
-
-      // Linked fields with IDs - never set to undefined
-      weapons_used: weaponsUsedIds.length > 0 ? weaponsUsedIds : null,
-      items_stolen: itemsStolenIds.length > 0 ? itemsStolenIds : null,
-      response_type: responseTypeIds.length > 0 ? responseTypeIds : null,
-      authorities_notified:
-        authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : null,
-    };
-
-    // Add incident_type_name reference if available
-    if (incidentTypeId) {
-      incidentFields.incident_type_name = [incidentTypeId];
-    }
-
-    console.log("Creating incident with fields:", {
-      ...incidentFields,
-      weapons_used: incidentFields.weapons_used, // Explicitly log weapons field
-    });
-
-    // Create the incident record
-    const incidentUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`;
-    const incidentResponse = await axios.post(
-      incidentUrl,
-      { fields: incidentFields },
-      { headers }
+    // Before creating a new incident, check if a similar one already exists
+    const existingIncident = await findSimilarExistingIncident(
+      recordToProcess.fields.date,
+      recordToProcess.fields.latitude,
+      recordToProcess.fields.longitude,
+      recordToProcess.fields.vessel_name,
+      headers
     );
 
-    console.log("Created incident record:", {
-      incidentId: incidentResponse.data.id,
+    log.info("Similar incident check result", {
+      foundSimilarIncident: !!existingIncident,
+      similarIncidentId: existingIncident ? existingIncident.id : null,
     });
+    console.log("Similar incident check result:", {
+      foundSimilarIncident: !!existingIncident,
+      similarIncidentId: existingIncident ? existingIncident.id : null,
+    });
+
+    let incidentId = null;
+
+    if (existingIncident) {
+      // Update the existing incident with any new information
+      log.info("Found similar existing incident", {
+        incidentId: existingIncident.id,
+        title: existingIncident.fields.title
+      });
+      console.log("Found similar existing incident:", existingIncident.id);
+
+      // Prepare fields to update - only update fields that add information
+      const updateFields = {};
+      
+      // Check if enriched data provides better analysis/recommendations
+      if (!existingIncident.fields.analysis && enrichedData.analysis) {
+        updateFields.analysis = enrichedData.analysis;
+      }
+      
+      if (!existingIncident.fields.recommendations && enrichedData.recommendations) {
+        updateFields.recommendations = enrichedData.recommendations;
+      }
+      
+      // Update number_of_attackers if we have that info and existing doesn't
+      if (!existingIncident.fields.number_of_attackers && enrichedData.number_of_attackers) {
+        updateFields.number_of_attackers = enrichedData.number_of_attackers;
+      }
+
+      // Add weapons_used if existing incident doesn't have any
+      if ((!existingIncident.fields.weapons_used || existingIncident.fields.weapons_used.length === 0) && 
+          weaponsUsedIds.length > 0) {
+        updateFields.weapons_used = weaponsUsedIds;
+      }
+
+      // Add items_stolen if existing incident doesn't have any
+      if ((!existingIncident.fields.items_stolen || existingIncident.fields.items_stolen.length === 0) && 
+          itemsStolenIds.length > 0) {
+        updateFields.items_stolen = itemsStolenIds;
+      }
+
+      // Add response_type if existing incident doesn't have any
+      if ((!existingIncident.fields.response_type || existingIncident.fields.response_type.length === 0) && 
+          responseTypeIds.length > 0) {
+        updateFields.response_type = responseTypeIds;
+      }
+
+      // Add authorities_notified if existing incident doesn't have any
+      if ((!existingIncident.fields.authorities_notified || existingIncident.fields.authorities_notified.length === 0) && 
+          authoritiesNotifiedIds.length > 0) {
+        updateFields.authorities_notified = authoritiesNotifiedIds;
+      }
+
+      // Update incident_type_name if needed
+      if ((!existingIncident.fields.incident_type_name || existingIncident.fields.incident_type_name.length === 0) && 
+          incidentTypeId) {
+        updateFields.incident_type_name = [incidentTypeId];
+      }
+
+      // Only update if we have new information to add
+      if (Object.keys(updateFields).length > 0) {
+        console.log("Updating existing incident with additional information:", updateFields);
+        
+        // Update the incident record
+        await axios.patch(
+          `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident/${existingIncident.id}`,
+          { fields: updateFields },
+          { headers }
+        );
+        
+        console.log("Updated existing incident record with new information");
+      } else {
+        console.log("No new information to add to existing incident");
+      }
+      
+      // Store the incident ID for linking
+      incidentId = existingIncident.id;
+    } else {
+      // Create a new incident if no similar one exists
+      const incidentFields = {
+        title: enrichedData.title, // Use the LLM-generated title
+        description:
+          recordToProcess.fields.description || "No description available",
+        date_time_utc: recordToProcess.fields.date || new Date().toISOString(),
+        latitude: recordToProcess.fields.latitude,
+        longitude: recordToProcess.fields.longitude,
+        status: "Active",
+        region: formatRegion(recordToProcess.fields.region),
+        location_name: enrichedData.location, // Use extracted or provided location
+
+        // LLM-enriched fields
+        analysis: enrichedData.analysis,
+        recommendations: enrichedData.recommendations,
+        number_of_attackers: enrichedData.number_of_attackers,
+
+        // Linked fields with IDs - never set to undefined
+        weapons_used: weaponsUsedIds.length > 0 ? weaponsUsedIds : null,
+        items_stolen: itemsStolenIds.length > 0 ? itemsStolenIds : null,
+        response_type: responseTypeIds.length > 0 ? responseTypeIds : null,
+        authorities_notified:
+          authoritiesNotifiedIds.length > 0 ? authoritiesNotifiedIds : null,
+      };
+
+      // Add incident_type_name reference if available
+      if (incidentTypeId) {
+        incidentFields.incident_type_name = [incidentTypeId];
+      }
+
+      console.log("Creating new incident with fields:", {
+        ...incidentFields,
+        weapons_used: incidentFields.weapons_used, // Explicitly log weapons field
+      });
+
+      // Create the incident record
+      const incidentUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`;
+      const incidentResponse = await axios.post(
+        incidentUrl,
+        { fields: incidentFields },
+        { headers }
+      );
+
+      console.log("Created new incident record:", {
+        incidentId: incidentResponse.data.id,
+      });
+      
+      // Store the incident ID for linking
+      incidentId = incidentResponse.data.id;
+    }
 
     // Create vessel record if vessel data exists
     let vesselId = null;
@@ -735,15 +836,23 @@ If you specify "Other" in any category, please include details in the correspond
         fields: {
           has_incident: true,
           processing_status: "Complete",
-          processing_notes: `Successfully processed at ${new Date().toISOString()}`,
-          linked_incident: [incidentResponse.data.id],
+          processing_notes: `Successfully processed at ${new Date().toISOString()}${existingIncident ? ' (linked to existing incident)' : ' (created new incident)'}`,
+          linked_incident: [incidentId],
         },
       },
       { headers }
     );
 
-    console.log("Marked record as processed");
+    console.log(`Marked record as processed and linked to ${existingIncident ? 'existing' : 'new'} incident ${incidentId}`);
+    log.info(`Raw data record processed and linked to incident`, {
+      rawDataId: recordToProcess.id,
+      incidentId,
+      isExistingIncident: !!existingIncident
+    });
     console.log("Background processing completed successfully");
+    log.info("Background processing completed successfully", {
+      linkedToExistingIncident: !!existingIncident
+    });
 
     // Check if more records exist to process
     const moreRecords = await checkMoreRecordsExist(rawDataUrl, headers);
@@ -777,6 +886,153 @@ If you specify "Other" in any category, please include details in the correspond
     }
   }
 };
+
+/**
+ * Find similar existing incidents based on time, location, and vessel information
+ * @param {string} date The date/time of the incident
+ * @param {string|number} latitude The latitude of the incident
+ * @param {string|number} longitude The longitude of the incident
+ * @param {string|null} vesselName The name of the vessel (if available)
+ * @param {Object} headers HTTP headers for Airtable API requests
+ * @returns {Object|null} The similar incident if found, null otherwise
+ */
+async function findSimilarExistingIncident(date, latitude, longitude, vesselName, headers) {
+  if (!date || !latitude || !longitude) {
+    log.info("Cannot search for similar incidents: Missing required fields", {
+      hasDate: !!date,
+      hasLatitude: !!latitude,
+      hasLongitude: !!longitude
+    });
+    return null;
+  }
+
+  try {
+    log.info("Searching for similar existing incidents", {
+      date,
+      latitude,
+      longitude,
+      vesselName: vesselName || "Not available"
+    });
+
+    // First get recent incidents within a wider time range (5 days before and after)
+    // This limits the number of records we need to analyze in detail
+    const incidentDate = new Date(date);
+    
+    // Create date range for preliminary filter (5 days before and after)
+    const startDate = new Date(incidentDate);
+    startDate.setDate(startDate.getDate() - 5);
+    
+    const endDate = new Date(incidentDate);
+    endDate.setDate(endDate.getDate() + 5);
+    
+    const dateFilter = `AND(
+      {date_time_utc} >= '${startDate.toISOString()}',
+      {date_time_utc} <= '${endDate.toISOString()}'
+    )`;
+    
+    // Fetch recent incidents within the time range
+    const response = await axios.get(
+      `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`,
+      {
+        headers,
+        params: {
+          filterByFormula: dateFilter,
+          sort: [{ field: "date_time_utc", direction: "desc" }]
+        }
+      }
+    );
+    
+    if (!response.data.records || response.data.records.length === 0) {
+      log.info("No incidents found within the time range", {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      return null;
+    }
+    
+    log.info(`Found ${response.data.records.length} incidents within the preliminary time range`);
+    
+    // Now analyze each incident for similarity
+    const incidents = response.data.records;
+    let bestMatch = null;
+    let highestScore = 0;
+    
+    for (const incident of incidents) {
+      try {
+        // First check essential fields are present
+        if (!incident.fields.date_time_utc || !incident.fields.latitude || !incident.fields.longitude) {
+          continue;
+        }
+        
+        // Calculate time proximity score (1.0 = same time, 0.0 = 48+ hours apart)
+        const timeScore = calculateTimeProximityScore(date, incident.fields.date_time_utc);
+        
+        // Skip if the time difference is too large
+        if (timeScore === 0) {
+          continue;
+        }
+        
+        // Calculate spatial proximity score (1.0 = same location, 0.0 = 50+ km apart)
+        const spatialScore = calculateSpatialProximityScore(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          parseFloat(incident.fields.latitude),
+          parseFloat(incident.fields.longitude)
+        );
+        
+        // Skip if the spatial difference is too large
+        if (spatialScore === 0) {
+          continue;
+        }
+        
+        // Calculate vessel similarity if vessel name is available
+        let vesselScore = 0.5; // Default to neutral if we can't compare vessel names
+        
+        if (vesselName && incident.fields.title) {
+          // Extract vessel name from the incident title as a fallback
+          // Many incident titles contain the vessel name
+          vesselScore = calculateVesselNameSimilarity(vesselName, incident.fields.title);
+        }
+        
+        // Calculate composite score with weights:
+        // - Time: 40%
+        // - Location: 40%
+        // - Vessel: 20%
+        const totalScore = timeScore * 0.4 + spatialScore * 0.4 + vesselScore * 0.2;
+        
+        log.info("Incident similarity calculation", {
+          incidentId: incident.id,
+          timeScore,
+          spatialScore,
+          vesselScore,
+          totalScore
+        });
+        
+        // Consider as a potential match if score is above threshold
+        if (totalScore >= 0.7 && totalScore > highestScore) {
+          highestScore = totalScore;
+          bestMatch = incident;
+        }
+      } catch (error) {
+        log.error(`Error analyzing incident ${incident.id}`, error);
+      }
+    }
+    
+    if (bestMatch) {
+      log.info("Found similar existing incident", {
+        incidentId: bestMatch.id,
+        similarityScore: highestScore
+      });
+      return bestMatch;
+    }
+    
+    log.info("No similar incidents found");
+    return null;
+  } catch (error) {
+    log.error("Error finding similar incidents", error);
+    return null;
+  }
+}
 
 // Helper function to check if more records exist to process
 async function checkMoreRecordsExist(rawDataUrl, headers) {
