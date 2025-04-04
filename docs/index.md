@@ -33,7 +33,7 @@ features:
       width: 24
       height: 24
     title: AI-Enhanced Analysis
-    details: Leverages Claude AI to provide enriched incident analysis and recommendations
+    details: Leverages modern AI models to enrich data and streamline analysis processes
   - icon:
       src: /icons/flash-reports.svg
       width: 24
