@@ -10,6 +10,9 @@ export default async (req, context) => {
 
   try {
     console.log("Background processing started");
+    
+    // First, check for and reset any stuck records that have been in processing state for too long
+    await resetStuckProcessingRecords();
 
     // Check environment variables
     console.log("Environment check:", {
@@ -57,6 +60,7 @@ export default async (req, context) => {
         fields: {
           processing_status: "Processing",
           processing_notes: `Started processing at ${new Date().toISOString()}`,
+          last_processed: new Date().toISOString(),
         },
       },
       { headers }
@@ -546,7 +550,7 @@ export default async (req, context) => {
     }
 
     // Create incident_vessel linking record if both records exist
-    if (incidentResponse.data.id && vesselId) {
+    if (incidentId && vesselId) {
       try {
         // Determine vessel status based on raw_data or description
         let vesselStatus = "Underway"; // Default value
@@ -708,18 +712,39 @@ export default async (req, context) => {
     }
 
     // Mark the raw data record as processed with link to the incident
-    await axios.patch(
-      `${rawDataUrl}/${recordToProcess.id}`,
-      {
-        fields: {
-          has_incident: true,
-          processing_status: "Complete",
-          processing_notes: `Successfully processed at ${new Date().toISOString()}${existingIncident ? ' (linked to existing incident)' : ' (created new incident)'}`,
-          linked_incident: [incidentId],
+    try {
+      await axios.patch(
+        `${rawDataUrl}/${recordToProcess.id}`,
+        {
+          fields: {
+            has_incident: true,
+            processing_status: "Complete",
+            processing_notes: `Successfully processed at ${new Date().toISOString()}${existingIncident ? ' (linked to existing incident)' : ' (created new incident)'}`,
+            linked_incident: [incidentId],
+            last_processed: new Date().toISOString(),
+          },
         },
-      },
-      { headers }
-    );
+        { headers }
+      );
+    } catch (updateError) {
+      console.error("Failed to update raw_data record status:", updateError.message);
+      
+      // Try to reset the processing status on error
+      try {
+        await axios.patch(
+          `${rawDataUrl}/${recordToProcess.id}`,
+          {
+            fields: {
+              processing_status: "pending",
+              processing_notes: `Processing error at ${new Date().toISOString()}: ${updateError.message}`,
+            },
+          },
+          { headers }
+        );
+      } catch (resetError) {
+        console.error("Failed to reset processing status:", resetError.message);
+      }
+    }
 
     console.log(`Marked record as processed and linked to ${existingIncident ? 'existing' : 'new'} incident ${incidentId}`);
     log.info(`Raw data record processed and linked to incident`, {
@@ -761,6 +786,36 @@ export default async (req, context) => {
         JSON.stringify(error.response.data, null, 2)
       );
       console.error("Error response status:", error.response.status);
+    }
+    
+    // If we were processing a specific record when the error occurred, reset its status
+    if (recordToProcess && recordToProcess.id) {
+      try {
+        console.log(`Attempting to reset record ${recordToProcess.id} due to processing error`);
+        
+        const headers = {
+          Authorization: `Bearer ${process.env.AT_API_KEY}`,
+          "Content-Type": "application/json",
+        };
+        
+        const rawDataUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`;
+        
+        await axios.patch(
+          `${rawDataUrl}/${recordToProcess.id}`,
+          {
+            fields: {
+              processing_status: "pending",
+              processing_notes: `Processing error at ${new Date().toISOString()}: ${error.message}`,
+              last_processed: new Date().toISOString(),
+            },
+          },
+          { headers }
+        );
+        
+        console.log(`Successfully reset record ${recordToProcess.id} to pending state`);
+      } catch (resetError) {
+        console.error(`Failed to reset record ${recordToProcess.id}:`, resetError.message);
+      }
     }
   }
 };
@@ -1014,5 +1069,67 @@ async function checkMoreRecordsExist(rawDataUrl, headers) {
   } catch (error) {
     console.error("Error checking for more records", error.message);
     return false;
+  }
+}
+
+// Helper function to reset records that have been stuck in "Processing" state for too long
+async function resetStuckProcessingRecords() {
+  try {
+    console.log("Checking for stuck records in 'Processing' state...");
+    
+    const headers = {
+      Authorization: `Bearer ${process.env.AT_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+    
+    const rawDataUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data`;
+    
+    // Look for records that have been in "Processing" state for more than 30 minutes
+    const thirtyMinutesAgo = new Date();
+    thirtyMinutesAgo.setMinutes(thirtyMinutesAgo.getMinutes() - 30);
+    
+    const stuckRecordsResponse = await axios({
+      method: "get",
+      url: rawDataUrl,
+      headers,
+      params: {
+        filterByFormula: `AND({processing_status} = 'Processing', IS_BEFORE({last_processed}, '${thirtyMinutesAgo.toISOString()}'))`,
+        maxRecords: 10, // Limit to 10 records at a time to avoid overloading
+      },
+    });
+    
+    const stuckRecords = stuckRecordsResponse.data.records;
+    
+    if (stuckRecords.length === 0) {
+      console.log("No stuck records found.");
+      return;
+    }
+    
+    console.log(`Found ${stuckRecords.length} records stuck in 'Processing' state.`);
+    
+    // Reset each stuck record to "pending" state
+    for (const record of stuckRecords) {
+      try {
+        await axios.patch(
+          `${rawDataUrl}/${record.id}`,
+          {
+            fields: {
+              processing_status: "pending",
+              processing_notes: `Reset from 'Processing' state at ${new Date().toISOString()} (was stuck for >30 minutes)`,
+            },
+          },
+          { headers }
+        );
+        
+        console.log(`Reset stuck record ${record.id} to 'pending' state.`);
+      } catch (error) {
+        console.error(`Failed to reset stuck record ${record.id}:`, error.message);
+      }
+    }
+    
+    return stuckRecords.length;
+  } catch (error) {
+    console.error("Error resetting stuck records:", error.message);
+    return 0;
   }
 }

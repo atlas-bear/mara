@@ -165,12 +165,43 @@ export function validateIncident(incident, source) {
 
   // Validate region if present
   if (incident.region) {
-    const normalizedRegion = incident.region.toLowerCase().trim();
+    // Convert to standard format with underscores
+    let normalizedRegion = incident.region.toLowerCase().trim();
+    
+    // Replace spaces with underscores if they exist
+    if (normalizedRegion.includes(" ")) {
+      normalizedRegion = normalizedRegion.replace(/\s+/g, "_");
+    }
+    
+    // Map common region variations to standard formats
+    const regionMap = {
+      "indian": "indian_ocean",
+      "west": "west_africa",
+      "southeast": "southeast_asia",
+      "south_east": "southeast_asia",
+      "africa": "west_africa",
+      "asia": "southeast_asia",
+      "america": "americas",
+      "central_america": "americas",
+      "south_america": "americas",
+      "north_america": "americas",
+      "european": "europe",
+      "mediterranean": "europe"
+    };
+    
+    // Check if we need to map this region
+    for (const [key, value] of Object.entries(regionMap)) {
+      if (normalizedRegion.includes(key)) {
+        normalizedRegion = value;
+        break;
+      }
+    }
+    
     if (!HIGH_LEVEL_REGIONS.includes(normalizedRegion)) {
-      normalized.region = "other";
       log.info(
-        `Non-standard region detected: ${incident.region}, defaulting to 'other'`
+        `Non-standard region detected: ${incident.region} (normalized to ${normalizedRegion}), defaulting to 'other'`
       );
+      normalized.region = "other";
     } else {
       normalized.region = normalizedRegion;
     }
