@@ -28,7 +28,15 @@ const PreviewMode = ({ incident }) => {
           <div className="text-right">
             <p className="text-sm text-gray-500">Reported</p>
             <p className="text-lg font-semibold text-gray-900">
-              {new Date(incident.date).toLocaleString()}
+              {new Date(incident.date).toLocaleString('en-US', {
+                timeZone: 'UTC',
+                hour12: false,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })} UTC
             </p>
           </div>
         </div>

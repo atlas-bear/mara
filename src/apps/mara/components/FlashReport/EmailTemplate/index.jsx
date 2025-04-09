@@ -64,7 +64,15 @@ const EmailTemplate = ({ incident, branding }) => {
           <div style={styles.dateContainer}>
             <p style={styles.dateLabel}>Reported</p>
             <p style={styles.dateValue}>
-              {new Date(incidentData.date_time_utc || incidentData.date).toLocaleString()}
+              {new Date(incidentData.date_time_utc || incidentData.date).toLocaleString('en-US', {
+                timeZone: 'UTC',
+                hour12: false,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })} UTC
             </p>
           </div>
         </div>
