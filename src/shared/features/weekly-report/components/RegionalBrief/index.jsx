@@ -373,7 +373,7 @@ const RegionalBrief = ({ incidents = [], latestIncidents = {}, currentRegion, st
                       {vesselName}
                     </h3>
                     <span className="text-sm text-gray-500">
-                      {new Date(fields.date_time_utc).toLocaleDateString()}
+                      {new Date(fields.date_time_utc).toLocaleDateString('en-GB')}
                     </span>
                   </div>
                   <p className="text-sm text-gray-700 mb-2">{getFirstSentence(fields.description)}</p>

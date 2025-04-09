@@ -254,9 +254,9 @@ function formatDateRange(start, end) {
     day: "numeric",
   };
   return `${start.toLocaleDateString(
-    "en-US",
+    "en-GB",
     options
-  )} - ${end.toLocaleDateString("en-US", options)}`;
+  )} - ${end.toLocaleDateString("en-GB", options)}`;
 }
 
 /**
