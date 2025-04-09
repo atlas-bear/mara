@@ -303,6 +303,24 @@ export function mergeComplementaryData(primary, secondary) {
   if (!primaryFields.location && secondaryFields.location) {
     mergedFields.location = secondaryFields.location;
   }
+  
+  // Handle incident linkage (will be overridden by explicit calls if needed)
+  // We prioritize keeping any existing incident link from either record
+  if (primaryFields.linked_incident && primaryFields.linked_incident.length > 0) {
+    // Primary record has an incident link - keep it
+    mergedFields.linked_incident = primaryFields.linked_incident;
+    mergedFields.has_incident = true;
+    log.info("Preserved incident link from primary record", {
+      incidentId: primaryFields.linked_incident[0]
+    });
+  } else if (secondaryFields.linked_incident && secondaryFields.linked_incident.length > 0) {
+    // Secondary record has an incident link - use it
+    mergedFields.linked_incident = secondaryFields.linked_incident;
+    mergedFields.has_incident = true;
+    log.info("Transferred incident link from secondary record", {
+      incidentId: secondaryFields.linked_incident[0]
+    });
+  }
 
   // Create relationship record - we'll handle the related_raw_data relationship field
   // by using the Airtable link field format (array of record IDs)

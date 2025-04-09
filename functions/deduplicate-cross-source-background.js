@@ -321,20 +321,50 @@ export default async (req, context) => {
         const hasProcessingStatus2 = match.record2.fields.processing_status === "Processing" || 
                                     match.record2.fields.processing_status === "Complete";
                                     
-        // If both records are already processed, check if they're linked to the same incident
-        if (hasProcessingStatus1 && hasProcessingStatus2 && 
-            match.record1.fields.linked_incident && match.record2.fields.linked_incident) {
-            
+        // Check for incident linkage in one or both records
+        const hasIncident1 = match.record1.fields.linked_incident && match.record1.fields.linked_incident.length > 0;
+        const hasIncident2 = match.record2.fields.linked_incident && match.record2.fields.linked_incident.length > 0;
+        
+        // If both records have incident links
+        if (hasIncident1 && hasIncident2) {
           log.info("Both records already linked to incidents, checking if same incident", {
-            record1Incident: match.record1.fields.linked_incident,
-            record2Incident: match.record2.fields.linked_incident
+            record1Incident: match.record1.fields.linked_incident[0],
+            record2Incident: match.record2.fields.linked_incident[0]
           });
           
           // If they're linked to the same incident, no need to merge
           if (match.record1.fields.linked_incident[0] === match.record2.fields.linked_incident[0]) {
             log.info("Records already linked to the same incident, skipping merge");
             skipMerge = true;
+          } else {
+            // They're linked to different incidents - this is a complex case
+            // We'll still process them but log a warning as this requires manual review
+            log.warn("Records linked to DIFFERENT incidents - potential duplicate incidents detected", {
+              record1: {
+                id: match.record1.id,
+                source: match.record1.fields.source,
+                incidentId: match.record1.fields.linked_incident[0]
+              },
+              record2: {
+                id: match.record2.id,
+                source: match.record2.fields.source,
+                incidentId: match.record2.fields.linked_incident[0]
+              },
+              similarityScore: match.score.total
+            });
+            // We'll continue processing to merge the records, and our special handling
+            // in the merge section will ensure we preserve an incident link
           }
+        } else if (hasIncident1 || hasIncident2) {
+          // One record has an incident link, the other doesn't
+          // This is normal and we'll handle it in the merge section
+          log.info("One record has incident link, will preserve during merge", {
+            record1HasLink: hasIncident1,
+            record2HasLink: hasIncident2,
+            incidentId: hasIncident1 
+              ? match.record1.fields.linked_incident[0] 
+              : match.record2.fields.linked_incident[0]
+          });
         }
         
         if (skipMerge) {
@@ -377,8 +407,27 @@ export default async (req, context) => {
           record2Effective
         );
 
+        // Special handling for existing incident links - ensure we preserve any incident linkage
+        let linkedIncidentId = null;
+
+        // Check if either record is already linked to an incident
+        if (primary.fields.linked_incident && primary.fields.linked_incident.length > 0) {
+          linkedIncidentId = primary.fields.linked_incident[0];
+          log.info(`Primary record already linked to incident: ${linkedIncidentId}`);
+        } else if (secondary.fields.linked_incident && secondary.fields.linked_incident.length > 0) {
+          linkedIncidentId = secondary.fields.linked_incident[0];
+          log.info(`Secondary record already linked to incident: ${linkedIncidentId}, will link primary to same incident`);
+        }
+
         // Merge complementary data
         const mergedFields = mergeComplementaryData(primary, secondary);
+        
+        // If we found an incident link, make sure it's preserved in the merge
+        if (linkedIncidentId) {
+          mergedFields.linked_incident = [linkedIncidentId];
+          mergedFields.has_incident = true;
+          log.info(`Preserved incident link to ${linkedIncidentId} in merged record`);
+        }
 
         try {
           // Update primary record with merged data
