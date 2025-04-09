@@ -39,6 +39,9 @@ schedule = "15,45 * * * *"
 [functions."collect-icc"]
 schedule = "20,50 * * * *"
 
+[functions."collect-cwd"]
+schedule = "10,40 * * * *"
+
 [functions."process-incidents"]
 schedule = "25,55 * * * *"
 

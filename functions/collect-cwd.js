@@ -59,9 +59,13 @@ export const handler = async (event, context) => {
     const rawIncidents = parseCwdHtmlContent(htmlContent, log);
 
     // Standardize incidents for downstream processing
-    const standardizedIncidents = rawIncidents.map((incident) =>
-      standardizeIncident(incident, "Clearwater Dynamics", SOURCE_URL)
-    );
+    const standardizedIncidents = rawIncidents.map((incident) => {
+      // Normalize region to use underscores instead of spaces, like other collectors
+      if (incident.region && incident.region.includes(" ")) {
+        incident.region = incident.region.toLowerCase().replace(/\s+/g, "_");
+      }
+      return standardizeIncident(incident, "Clearwater Dynamics", SOURCE_URL);
+    });
 
     // Serialize only relevant fields for hashing
     const hashableIncidents = standardizedIncidents.map(
