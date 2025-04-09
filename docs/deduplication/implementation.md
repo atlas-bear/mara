@@ -121,15 +121,59 @@ When records are merged, the following data is recorded:
 
 ## Technical Considerations
 
-### Handling Missing Data
+### Handling Missing Data and Merge Chains
 
-The system is designed to handle missing data gracefully:
+The system is designed to handle missing data gracefully and respect existing merge relationships:
 
 ```javascript
 // Special handling for missing vessel data
 const bothMissingVesselInfo = (!fields1.vessel_name && !fields2.vessel_name);
 const vesselScore = vesselIMOScore === 1 ? 1 : 
                    bothMissingVesselInfo ? 0.7 : vesselNameScore;
+```
+
+The system also tracks and follows merge chains to maintain data integrity:
+
+```javascript
+// Helper function to find the ultimate primary record in a merge chain
+async function findPrimaryRecord(recordId, headers) {
+  // Start with the given record
+  let currentId = recordId;
+  let depth = 0;
+  const maxDepth = 5; // Prevent infinite loops
+  
+  try {
+    while (depth < maxDepth) {
+      // Get the record
+      const response = await axios.get(
+        `https://api.airtable.com/v0/${airtableBaseId}/raw_data/${currentId}`,
+        { headers }
+      );
+      
+      const record = response.data;
+      
+      // If this record is merged into another, follow the chain
+      if (record.fields.merge_status === "merged_into" && 
+          record.fields.merged_into && 
+          record.fields.merged_into.length > 0) {
+        
+        // Move to the next record in the chain
+        currentId = record.fields.merged_into[0];
+        depth++;
+        log.info(`Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`);
+      } else {
+        // We've found the end of the chain
+        return record;
+      }
+    }
+    
+    log.warn(`Merge chain too deep for record ${recordId}`);
+    return null;
+  } catch (error) {
+    log.error(`Error finding primary record for ${recordId}`);
+    return null;
+  }
+}
 ```
 
 ### Weight Distribution for Similarity
@@ -191,7 +235,23 @@ In addition to the raw data deduplication system, MARA implements a second layer
 When `process-raw-data-background.js` processes a raw data record to create an incident, it first checks if a similar incident already exists in the incident table. If a match is found, it updates the existing incident with any new information instead of creating a duplicate.
 
 ```javascript
-// Before creating a new incident, check if a similar one already exists
+// Check if this record is part of a merge chain
+let mergedWithRecord = null;
+
+if (recordToProcess.fields.merge_status === "merged_into" && 
+    recordToProcess.fields.merged_into && 
+    recordToProcess.fields.merged_into.length > 0) {
+    
+  log.info("This record has been merged into another record", {
+    mergedInto: recordToProcess.fields.merged_into[0]
+  });
+  
+  // Find the record it was merged into and check if it's linked to an incident
+  // If so, link this record to the same incident
+  // [code to follow merge chain and link to the same incident]
+}
+
+// If not part of a merge chain, check if a similar incident already exists
 const existingIncident = await findSimilarExistingIncident(
   recordToProcess.fields.date,
   recordToProcess.fields.latitude,
@@ -216,6 +276,9 @@ The incident similarity check uses multiple factors:
 2. **Spatial proximity**: Incidents within 50km receive a non-zero score
 3. **Vessel similarity**: Based on vessel name matching
 4. **Incident type**: Exact matching of incident types
+5. **Location name**: Matching location names (like "Singapore Strait") 
+6. **Stolen items**: Matching specific items mentioned in descriptions
+7. **Vessel information**: Flag, type, and other available details
 
 ### Enhanced Match Criteria
 
@@ -227,26 +290,55 @@ The system uses specific scenarios to determine if two incidents are the same:
 // 2. Exact vessel match AND reasonably close in time and space
 // 3. Perfect time/location match with exact same details
 // 4. Types match exactly with good time/space correlation
+// 5. Very strong spatial match (within 2km) with reasonable time
+// 6. Same location name with good time/space correlation
+// 7. Matching stolen items or incident details
 let isSameIncident = false;
 
 // Case 1: Very close in time/space with vessel confirmation
 if (timeScore > 0.75 && spatialScore > 0.9 && vesselScore >= 0.7) {
   isSameIncident = true;
+  log.info("Match case 1: Close time/space with vessel confirmation", {
+    timeScore, spatialScore, vesselScore
+  });
 }
 
 // Case 2: Strong vessel match with reasonable time/space correlation
 if (vesselMatch && timeScore > 0.5 && spatialScore > 0.7) {
   isSameIncident = true;
+  log.info("Match case 2: Strong vessel match with good time/space", {
+    timeScore, spatialScore, vesselMatch
+  });
 }
 
 // Case 3: Perfect time/location match (exact same coordinates and timestamp)
 if (timeScore > 0.95 && spatialScore > 0.95) {
   isSameIncident = true;
+  log.info("Match case 3: Perfect time/location match");
 }
 
 // Case 4: Type match with reasonable time/space correlation
 if (typeMatch && timeScore > 0.6 && spatialScore > 0.7) {
   isSameIncident = true;
+  log.info("Match case 4: Type match with good time/space");
+}
+
+// Case 5: Very strong spatial match with reasonable time
+if (spatialScore > 0.95 && timeScore > 0.6) {
+  isSameIncident = true;
+  log.info("Match case 5: Very strong location match with good time");
+}
+
+// Case 6: Location name matching
+if (locationNameMatch && timeScore > 0.7 && spatialScore > 0.6) {
+  isSameIncident = true;
+  log.info("Match case 6: Location name match with good time/space");
+}
+
+// Case 7: Matching stolen items with reasonable proximity
+if (stolenItemsMatch && timeScore > 0.5 && spatialScore > 0.5) {
+  isSameIncident = true;
+  log.info("Match case 7: Matching stolen items with reasonable time/space");
 }
 ```
 

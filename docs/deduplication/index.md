@@ -21,8 +21,9 @@ Maritime incidents are often reported by multiple organizations, with each sourc
 
 ## Key Features
 
-- **Multi-dimensional matching**: Uses time, location, vessel details, and incident type for similarity scoring
+- **Multi-dimensional matching**: Uses time, location, vessel details, incident type, location names, and incident details for similarity scoring
 - **Source-aware processing**: Accounts for differences in data completeness across reporting sources
+- **Merge chain tracking**: Follows chains of merged records to prevent incorrect re-merging
 - **Configurable confidence thresholds**: Adjustable scoring system to control merge aggressiveness
 - **Complementary data merging**: Intelligently combines information from multiple sources
 - **Source attribution preservation**: Maintains references to original sources
@@ -43,16 +44,19 @@ The deduplication system consists of:
 
 1. **Record Selection**: Fetches recent raw_data records (last 30 days)
 2. **Source Grouping**: Groups records by source to ensure cross-source comparisons only
-3. **Similarity Analysis**: 
+3. **Merge Chain Verification**: Checks existing merge relationships to respect prior decisions
+4. **Similarity Analysis**: 
    - Calculates time proximity (hours between incidents)
    - Calculates spatial proximity (kilometers between coordinates)
    - Compares vessel details when available
    - Analyzes incident type similarities
-4. **Match Identification**: Identifies potential matches above configurable threshold
-5. **Primary Record Selection**: Determines most complete/authoritative record
-6. **Data Merging**: Combines complementary information from matched records
-7. **Record Updating**: Updates Airtable records with merged data and relationship links
-8. **Processing Trigger**: Triggers the incident processing system after completion
+   - Checks location name matches
+   - Identifies matching stolen items and incident details
+5. **Match Identification**: Identifies potential matches above configurable threshold
+6. **Primary Record Selection**: Determines most complete/authoritative record
+7. **Data Merging**: Combines complementary information from matched records
+8. **Record Updating**: Updates Airtable records with merged data and relationship links
+9. **Processing Trigger**: Triggers the incident processing system after completion
 
 ## Similarity Scoring
 
@@ -120,10 +124,17 @@ The raw data deduplication system runs before incident processing:
 
 The incident-level deduplication occurs during record processing:
 
-1. When `process-raw-data-background.js` prepares to create a new incident, it first searches for similar existing incidents
-2. If a match is found, it updates the existing incident with any new information
-3. The raw data record is linked to the existing incident rather than creating a duplicate
-4. This prevents duplicate flash reports for the same incident, even when raw data comes from different sources at different times
+1. When `process-raw-data-background.js` processes a record, it first checks if the record is part of a merge chain
+2. If it's part of a chain, it follows the chain to find the primary record and checks if it's linked to an incident
+3. If no chain exists, it searches for similar existing incidents using enhanced similarity criteria:
+   - Time and location proximity
+   - Vessel details matching
+   - Incident type comparison
+   - Location name matching
+   - Stolen items/details comparison
+4. If a match is found, it updates the existing incident with any new information
+5. The raw data record is linked to the existing incident rather than creating a duplicate
+6. This prevents duplicate flash reports for the same incident, even when raw data comes from different sources at different times
 
 ## Manual Operation
 

@@ -12,6 +12,7 @@ If the deduplication system isn't finding matches that you expect it to identify
 2. **Review similarity scores**: Examine the detailed component scores to see where potential matches are falling short
 3. **Test with lower threshold**: Run the function with a lower confidence threshold (e.g., `?confidenceThreshold=0.6`)
 4. **Check data consistency**: Ensure time and location data is correctly formatted in raw_data records
+5. **Examine match criteria**: Check the logs for "Match case" info messages to see which match criteria are being evaluated
 
 ### Incorrect Matches
 
@@ -20,6 +21,14 @@ If the system is incorrectly matching records that aren't related:
 1. **Increase confidence threshold**: Raise the threshold to require more evidence (e.g., `?confidenceThreshold=0.8`)
 2. **Examine similarity components**: Review the logs to see which factors are driving the high similarity score
 3. **Adjust weights**: Consider updating the weight distribution in `calculateSimilarityScore`
+
+### Records Being Re-merged Incorrectly
+
+If records that were already merged are being incorrectly re-merged with different records:
+
+1. **Check merge chains**: Verify that the system is properly tracking merge relationships with the logs showing "Following merge chain" messages
+2. **Validate merge status fields**: Ensure records have the correct `merge_status` and `merged_into` fields set
+3. **Look for timing issues**: Check if the incident processing is happening before deduplication has completed
 
 ### Process-raw-data Not Running After Deduplication
 
