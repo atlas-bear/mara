@@ -154,6 +154,13 @@ export default async (req, context) => {
               record2.fields.merge_status === "merged" ||
               record2.fields.merge_status === "merged_into"
             ) {
+              // Instead of just skipping, if one record is merged_into, find its primary record
+              // and consider transitivity
+              if (record1.fields.merge_status === "merged_into" && record1.fields.merged_into) {
+                log.info(`Record ${record1.id} already merged into ${record1.fields.merged_into}. Skipping direct comparison.`);
+              } else if (record2.fields.merge_status === "merged_into" && record2.fields.merged_into) {
+                log.info(`Record ${record2.id} already merged into ${record2.fields.merged_into}. Skipping direct comparison.`);
+              }
               continue;
             }
 
@@ -198,8 +205,93 @@ export default async (req, context) => {
     // Sort potential matches by confidence score (highest first)
     potentialMatches.sort((a, b) => b.score.total - a.score.total);
 
+    // Helper function to find the ultimate primary record in a merge chain
+    async function findPrimaryRecord(recordId, headers) {
+      // Start with the given record
+      let currentId = recordId;
+      let depth = 0;
+      const maxDepth = 5; // Prevent infinite loops
+      
+      try {
+        while (depth < maxDepth) {
+          // Get the record
+          const response = await axios.get(
+            `https://api.airtable.com/v0/${airtableBaseId}/raw_data/${currentId}`,
+            { headers }
+          );
+          
+          const record = response.data;
+          
+          // If this record is merged into another, follow the chain
+          if (record.fields.merge_status === "merged_into" && 
+              record.fields.merged_into && 
+              record.fields.merged_into.length > 0) {
+            
+            // Move to the next record in the chain
+            currentId = record.fields.merged_into[0];
+            depth++;
+            log.info(`Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`);
+          } else {
+            // We've found the end of the chain
+            return record;
+          }
+        }
+        
+        log.warn(`Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`);
+        return null;
+      } catch (error) {
+        log.error(`Error finding primary record for ${recordId}`, {
+          error: error.message,
+        });
+        return null;
+      }
+    }
+    
+    // Helper function to find the ultimate primary record in a merge chain
+    async function findPrimaryRecord(recordId, headers) {
+      // Start with the given record
+      let currentId = recordId;
+      let depth = 0;
+      const maxDepth = 5; // Prevent infinite loops
+      
+      try {
+        while (depth < maxDepth) {
+          // Get the record
+          const response = await axios.get(
+            `https://api.airtable.com/v0/${airtableBaseId}/raw_data/${currentId}`,
+            { headers }
+          );
+          
+          const record = response.data;
+          
+          // If this record is merged into another, follow the chain
+          if (record.fields.merge_status === "merged_into" && 
+              record.fields.merged_into && 
+              record.fields.merged_into.length > 0) {
+            
+            // Move to the next record in the chain
+            currentId = record.fields.merged_into[0];
+            depth++;
+            log.info(`Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`);
+          } else {
+            // We've found the end of the chain
+            return record;
+          }
+        }
+        
+        log.warn(`Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`);
+        return null;
+      } catch (error) {
+        log.error(`Error finding primary record for ${recordId}`, {
+          error: error.message,
+        });
+        return null;
+      }
+    }
+    
     // Process potential matches and merge records
     const processedRecords = new Set(); // Keep track of already processed records
+    const mergeChain = new Map(); // Track merge chains - key: recordId, value: ultimate primary record
     const mergeResults = [];
 
     for (const match of potentialMatches) {
@@ -219,10 +311,70 @@ export default async (req, context) => {
           record2: `${match.record2.fields.source} - ${match.record2.id}`,
         });
 
-        // Determine primary and secondary records
+        // Check for existing merge relationships and processing status
+        let record1Effective = match.record1;
+        let skipMerge = false;
+        
+        // First check if either record has been marked with processing status
+        const hasProcessingStatus1 = match.record1.fields.processing_status === "Processing" || 
+                                    match.record1.fields.processing_status === "Complete";
+        const hasProcessingStatus2 = match.record2.fields.processing_status === "Processing" || 
+                                    match.record2.fields.processing_status === "Complete";
+                                    
+        // If both records are already processed, check if they're linked to the same incident
+        if (hasProcessingStatus1 && hasProcessingStatus2 && 
+            match.record1.fields.linked_incident && match.record2.fields.linked_incident) {
+            
+          log.info("Both records already linked to incidents, checking if same incident", {
+            record1Incident: match.record1.fields.linked_incident,
+            record2Incident: match.record2.fields.linked_incident
+          });
+          
+          // If they're linked to the same incident, no need to merge
+          if (match.record1.fields.linked_incident[0] === match.record2.fields.linked_incident[0]) {
+            log.info("Records already linked to the same incident, skipping merge");
+            skipMerge = true;
+          }
+        }
+        
+        if (skipMerge) {
+          log.info("Skipping merge due to existing incident relationships");
+          processedRecords.add(match.record1.id);
+          processedRecords.add(match.record2.id);
+          continue;
+        }
+        
+        // Check if either record is involved in an existing merge chain
+        let record1Effective = match.record1;
+        let record2Effective = match.record2;
+        
+        // Check for merge chains - find the "root" record if part of a chain
+        if (match.record1.fields.merge_status === "merged") {
+          log.info(`Record1 (${match.record1.id}) is already a primary merged record`);
+        } else if (match.record1.fields.merge_status === "merged_into" && match.record1.fields.merged_into) {
+          // Find the primary record for this chain
+          const primaryRecord = await findPrimaryRecord(match.record1.id, headers);
+          if (primaryRecord) {
+            log.info(`Record1 (${match.record1.id}) is part of merge chain, using primary: ${primaryRecord.id}`);
+            record1Effective = primaryRecord;
+          }
+        }
+        
+        if (match.record2.fields.merge_status === "merged") {
+          log.info(`Record2 (${match.record2.id}) is already a primary merged record`);
+        } else if (match.record2.fields.merge_status === "merged_into" && match.record2.fields.merged_into) {
+          // Find the primary record for this chain
+          const primaryRecord = await findPrimaryRecord(match.record2.id, headers);
+          if (primaryRecord) {
+            log.info(`Record2 (${match.record2.id}) is part of merge chain, using primary: ${primaryRecord.id}`);
+            record2Effective = primaryRecord;
+          }
+        }
+
+        // Determine primary and secondary records (using the effective records)
         const { primary, secondary } = determinePrimaryRecord(
-          match.record1,
-          match.record2
+          record1Effective,
+          record2Effective
         );
 
         // Merge complementary data

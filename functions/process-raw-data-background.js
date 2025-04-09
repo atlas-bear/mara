@@ -355,6 +355,78 @@ export default async (req, context) => {
       "authorities_notified"
     );
 
+    // Check if this record is part of a merge chain
+    let mergedWithRecord = null;
+    
+    if (recordToProcess.fields.merge_status === "merged_into" && 
+        recordToProcess.fields.merged_into && 
+        recordToProcess.fields.merged_into.length > 0) {
+        
+      log.info("This record has been merged into another record", {
+        mergedInto: recordToProcess.fields.merged_into[0]
+      });
+      
+      try {
+        // Find the record it was merged into
+        const mergedResponse = await axios({
+          method: "get",
+          url: `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/raw_data/${recordToProcess.fields.merged_into[0]}`,
+          headers,
+        });
+        
+        if (mergedResponse.data) {
+          mergedWithRecord = mergedResponse.data;
+          log.info("Found the record this was merged into", {
+            mergedWithId: mergedWithRecord.id,
+            mergedWithSource: mergedWithRecord.fields.source,
+            mergedWithHasIncident: !!mergedWithRecord.fields.has_incident,
+            mergedWithLinkedIncident: mergedWithRecord.fields.linked_incident || "none"
+          });
+          
+          // If the merged record already has an incident, use that
+          if (mergedWithRecord.fields.has_incident && 
+              mergedWithRecord.fields.linked_incident && 
+              mergedWithRecord.fields.linked_incident.length > 0) {
+                
+            // Get the incident from the merged record
+            const incidentResponse = await axios({
+              method: "get",
+              url: `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident/${mergedWithRecord.fields.linked_incident[0]}`,
+              headers,
+            });
+            
+            if (incidentResponse.data) {
+              log.info("Found existing incident via merge chain", {
+                incidentId: incidentResponse.data.id,
+                title: incidentResponse.data.fields.title
+              });
+              
+              // Link this record to the same incident
+              await axios.patch(
+                `${rawDataUrl}/${recordToProcess.id}`,
+                {
+                  fields: {
+                    has_incident: true,
+                    processing_status: "Complete",
+                    processing_notes: `Linked to existing incident via merge chain at ${new Date().toISOString()}`,
+                    linked_incident: [incidentResponse.data.id],
+                    last_processed: new Date().toISOString(),
+                  },
+                },
+                { headers }
+              );
+              
+              log.info("Successfully linked to incident via merge chain");
+              console.log("Successfully linked to incident via merge chain");
+              return; // Exit early, we're done
+            }
+          }
+        }
+      } catch (error) {
+        log.error("Error checking merge chain", { error: error.message });
+      }
+    }
+
     // Before creating a new incident, check if a similar one already exists
     const existingIncident = await findSimilarExistingIncident(
       recordToProcess.fields.date,
@@ -964,28 +1036,107 @@ async function findSimilarExistingIncident(date, latitude, longitude, vesselName
         // 2. Exact vessel match AND reasonably close in time and space
         // 3. Perfect time/location match with exact same details
         // 4. Types match exactly with good time/space correlation
+        // 5. Very strong spatial match (within 2km) with reasonable time
+        // 6. Same location name with good time/space correlation
+        // 7. Matching stolen items or incident details
         let isSameIncident = false;
         
         // Case 1: Very close in time/space with vessel confirmation when available
         if (timeScore > 0.75 && spatialScore > 0.9 && vesselScore >= 0.7) {
           isSameIncident = true;
+          log.info("Match case 1: Close time/space with vessel confirmation", {
+            timeScore, spatialScore, vesselScore
+          });
         }
         
         // Case 2: Strong vessel match with reasonable time/space correlation
         if (vesselMatch && timeScore > 0.5 && spatialScore > 0.7) {
           isSameIncident = true;
+          log.info("Match case 2: Strong vessel match with good time/space", {
+            timeScore, spatialScore, vesselMatch
+          });
         }
         
         // Case 3: Perfect time/location match (exact same coordinates and timestamp)
         // This happens when the same incident is reported by different sources with exactly the same details
         if (timeScore > 0.95 && spatialScore > 0.95) {
           isSameIncident = true;
+          log.info("Match case 3: Perfect time/location match", {
+            timeScore, spatialScore
+          });
         }
         
         // Case 4: Type match with reasonable time/space correlation
         // If incident types match exactly, with good time/space correlation, it's likely the same incident
         if (typeMatch && timeScore > 0.6 && spatialScore > 0.7) {
           isSameIncident = true;
+          log.info("Match case 4: Type match with good time/space", {
+            timeScore, spatialScore, typeMatch
+          });
+        }
+        
+        // Case 5: Very strong spatial match (within 2km) and reasonable time match (within 24 hours)
+        // This is a more lenient version of Case 3 that doesn't require perfect matches
+        if (spatialScore > 0.95 && timeScore > 0.6) {
+          isSameIncident = true;
+          log.info("Match case 5: Very strong location match with good time", {
+            timeScore, spatialScore
+          });
+        }
+        
+        // Case 6: Same location name, similar time, and in Singapore Strait (common area with many incidents)
+        let locationNameMatch = false;
+        if (recordToProcess.fields.location && incident.fields.location_name) {
+          // Normalize location names for comparison
+          const loc1 = recordToProcess.fields.location.toLowerCase().replace(/\s+/g, ' ').trim();
+          const loc2 = incident.fields.location_name.toLowerCase().replace(/\s+/g, ' ').trim();
+          
+          // Check for substring match or direct match
+          if (loc1.includes(loc2) || loc2.includes(loc1) || 
+              loc1 === loc2 || 
+              // Handle common variations
+              (loc1.includes('singapore') && loc2.includes('singapore'))) {
+            locationNameMatch = true;
+          }
+        }
+        
+        if (locationNameMatch && timeScore > 0.7 && spatialScore > 0.6) {
+          isSameIncident = true;
+          log.info("Match case 6: Location name match with good time/space", {
+            timeScore, spatialScore, locationNameMatch
+          });
+        }
+        
+        // Case 7: Check for mention of specific stolen items (like air compressor, padlocks)
+        let stolenItemsMatch = false;
+        if (recordToProcess.fields.description && incident.fields.description) {
+          const recordDesc = recordToProcess.fields.description.toLowerCase();
+          const incidentDesc = incident.fields.description.toLowerCase();
+          
+          // Common stolen items/equipment in maritime incidents
+          const stolenItemPatterns = [
+            /air\s*compressor/i,
+            /breathing\s*apparatus/i, 
+            /padlocks?/i,
+            /engine\s*spares/i,
+            /ship'?s\s*equipment/i
+          ];
+          
+          // Check if both descriptions mention the same stolen item
+          for (const pattern of stolenItemPatterns) {
+            if (pattern.test(recordDesc) && pattern.test(incidentDesc)) {
+              stolenItemsMatch = true;
+              log.info("Found matching stolen items in descriptions", { pattern: pattern.toString() });
+              break;
+            }
+          }
+        }
+        
+        if (stolenItemsMatch && timeScore > 0.5 && spatialScore > 0.5) {
+          isSameIncident = true;
+          log.info("Match case 7: Matching stolen items with reasonable time/space", {
+            timeScore, spatialScore, stolenItemsMatch
+          });
         }
         
         // SAFEGUARD: Check for potential separate incidents on the same vessel
