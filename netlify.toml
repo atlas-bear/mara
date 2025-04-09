@@ -45,9 +45,7 @@ schedule = "10,40 * * * *"
 [functions."process-incidents"]
 schedule = "25,55 * * * *"
 
-# PDF generation function scheduled to run weekly
-[functions."scheduled-pdf-generation"]
-schedule = "@weekly"
+# PDF generation is now handled on-demand via API endpoints
 
 # Weekly report content generation scheduled to run every Monday at 21:00 UTC
 [functions."get-weekly-report-content-background"]
