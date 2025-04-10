@@ -24,6 +24,7 @@ Maritime incidents are often reported by multiple organizations, with each sourc
 - **Multi-dimensional matching**: Uses time, location, vessel details, incident type, location names, and incident details for similarity scoring
 - **Source-aware processing**: Accounts for differences in data completeness across reporting sources
 - **Merge chain tracking**: Follows chains of merged records to prevent incorrect re-merging
+- **Incident link preservation**: Maintains relationships to incidents in the incident table when merging records
 - **Configurable confidence thresholds**: Adjustable scoring system to control merge aggressiveness
 - **Complementary data merging**: Intelligently combines information from multiple sources
 - **Source attribution preservation**: Maintains references to original sources

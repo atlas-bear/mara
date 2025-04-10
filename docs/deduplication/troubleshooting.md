@@ -30,6 +30,14 @@ If records that were already merged are being incorrectly re-merged with differe
 2. **Validate merge status fields**: Ensure records have the correct `merge_status` and `merged_into` fields set
 3. **Look for timing issues**: Check if the incident processing is happening before deduplication has completed
 
+### Incident Links Being Lost
+
+If incident links are not being preserved during merges:
+
+1. **Check the logs**: Look for messages like "Preserved incident link from primary record" or "Transferred incident link from secondary record"
+2. **Verify incident link fields**: Ensure the `linked_incident` and `has_incident` fields are being properly maintained
+3. **Check for incidents linked to different incidents**: Look for warning logs showing "Records linked to DIFFERENT incidents"
+
 ### Process-raw-data Not Running After Deduplication
 
 If the incident processing isn't being triggered after deduplication:

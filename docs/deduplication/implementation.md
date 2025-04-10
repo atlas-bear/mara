@@ -107,6 +107,8 @@ When records are merged, the following data is recorded:
   merge_status: "merged",
   merge_score: "{"primarySource":"RECAAP","secondarySource":"ICC","mergeDate":"2025-03-24T16:15:42.513Z"}",
   related_raw_data: ["recXXXXXXXXXXXXXX"],  // Array of secondary record IDs
+  linked_incident: ["recZZZZZZZZZZZZZZ"],   // Preserved or transferred incident link (if applicable)
+  has_incident: true,                       // Set if linked to an incident
   processing_notes: "Merged with complementary data from ICC (recXXXXXXXXXXXXXX) at 2025-03-24T16:15:42.513Z"
 }
 
@@ -118,6 +120,8 @@ When records are merged, the following data is recorded:
   processing_notes: "Merged into recYYYYYYYYYYYYYY (RECAAP) at 2025-03-24T16:15:42.513Z"
 }
 ```
+
+The system preserves any existing incident links when merging records, ensuring that relationships to incidents in the incident table are maintained.
 
 ## Technical Considerations
 
@@ -132,7 +136,7 @@ const vesselScore = vesselIMOScore === 1 ? 1 :
                    bothMissingVesselInfo ? 0.7 : vesselNameScore;
 ```
 
-The system also tracks and follows merge chains to maintain data integrity:
+The system tracks and follows merge chains to maintain data integrity:
 
 ```javascript
 // Helper function to find the ultimate primary record in a merge chain
@@ -173,6 +177,23 @@ async function findPrimaryRecord(recordId, headers) {
     log.error(`Error finding primary record for ${recordId}`);
     return null;
   }
+}
+```
+
+The system also includes special handling for incident links:
+
+```javascript
+// Handle incident linkage
+if (primaryFields.linked_incident && primaryFields.linked_incident.length > 0) {
+  // Primary record has an incident link - keep it
+  mergedFields.linked_incident = primaryFields.linked_incident;
+  mergedFields.has_incident = true;
+  log.info("Preserved incident link from primary record");
+} else if (secondaryFields.linked_incident && secondaryFields.linked_incident.length > 0) {
+  // Secondary record has an incident link - use it
+  mergedFields.linked_incident = secondaryFields.linked_incident;
+  mergedFields.has_incident = true;
+  log.info("Transferred incident link from secondary record");
 }
 ```
 
