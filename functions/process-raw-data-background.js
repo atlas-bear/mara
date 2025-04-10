@@ -100,7 +100,15 @@ export default async (req, context) => {
     async function findOrCreateReferenceItem(itemName, tableName) {
       if (!itemName) return null;
 
-      const formattedName = toTitleCase(itemName);
+      // Remove only the "(specify)" suffix while preserving the rest of the item name
+      let cleanedName = itemName.replace(/\s*\(specify\)\s*$/i, "");
+      
+      // Log if we made a change to help track the fix
+      if (cleanedName !== itemName) {
+        console.log(`Removed "(specify)" suffix from "${itemName}" → "${cleanedName}"`);
+      }
+      
+      const formattedName = toTitleCase(cleanedName);
       const tableUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/${tableName}`;
 
       try {
