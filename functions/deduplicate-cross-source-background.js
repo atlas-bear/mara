@@ -53,7 +53,9 @@ export default async (req, context) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoString = thirtyDaysAgo.toISOString();
 
-    log.info("Fetching recent raw_data records", { since: thirtyDaysAgoString });
+    log.info("Fetching recent raw_data records", {
+      since: thirtyDaysAgoString,
+    });
 
     // Use pagination to handle large datasets
     let rawDataRecords = [];
@@ -156,10 +158,20 @@ export default async (req, context) => {
             ) {
               // Instead of just skipping, if one record is merged_into, find its primary record
               // and consider transitivity
-              if (record1.fields.merge_status === "merged_into" && record1.fields.merged_into) {
-                log.info(`Record ${record1.id} already merged into ${record1.fields.merged_into}. Skipping direct comparison.`);
-              } else if (record2.fields.merge_status === "merged_into" && record2.fields.merged_into) {
-                log.info(`Record ${record2.id} already merged into ${record2.fields.merged_into}. Skipping direct comparison.`);
+              if (
+                record1.fields.merge_status === "merged_into" &&
+                record1.fields.merged_into
+              ) {
+                log.info(
+                  `Record ${record1.id} already merged into ${record1.fields.merged_into}. Skipping direct comparison.`
+                );
+              } else if (
+                record2.fields.merge_status === "merged_into" &&
+                record2.fields.merged_into
+              ) {
+                log.info(
+                  `Record ${record2.id} already merged into ${record2.fields.merged_into}. Skipping direct comparison.`
+                );
               }
               continue;
             }
@@ -211,7 +223,7 @@ export default async (req, context) => {
       let currentId = recordId;
       let depth = 0;
       const maxDepth = 5; // Prevent infinite loops
-      
+
       try {
         while (depth < maxDepth) {
           // Get the record
@@ -219,25 +231,30 @@ export default async (req, context) => {
             `https://api.airtable.com/v0/${airtableBaseId}/raw_data/${currentId}`,
             { headers }
           );
-          
+
           const record = response.data;
-          
+
           // If this record is merged into another, follow the chain
-          if (record.fields.merge_status === "merged_into" && 
-              record.fields.merged_into && 
-              record.fields.merged_into.length > 0) {
-            
+          if (
+            record.fields.merge_status === "merged_into" &&
+            record.fields.merged_into &&
+            record.fields.merged_into.length > 0
+          ) {
             // Move to the next record in the chain
             currentId = record.fields.merged_into[0];
             depth++;
-            log.info(`Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`);
+            log.info(
+              `Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`
+            );
           } else {
             // We've found the end of the chain
             return record;
           }
         }
-        
-        log.warn(`Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`);
+
+        log.warn(
+          `Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`
+        );
         return null;
       } catch (error) {
         log.error(`Error finding primary record for ${recordId}`, {
@@ -246,14 +263,14 @@ export default async (req, context) => {
         return null;
       }
     }
-    
+
     // Helper function to find the ultimate primary record in a merge chain
     async function findPrimaryRecord(recordId, headers) {
       // Start with the given record
       let currentId = recordId;
       let depth = 0;
       const maxDepth = 5; // Prevent infinite loops
-      
+
       try {
         while (depth < maxDepth) {
           // Get the record
@@ -261,25 +278,30 @@ export default async (req, context) => {
             `https://api.airtable.com/v0/${airtableBaseId}/raw_data/${currentId}`,
             { headers }
           );
-          
+
           const record = response.data;
-          
+
           // If this record is merged into another, follow the chain
-          if (record.fields.merge_status === "merged_into" && 
-              record.fields.merged_into && 
-              record.fields.merged_into.length > 0) {
-            
+          if (
+            record.fields.merge_status === "merged_into" &&
+            record.fields.merged_into &&
+            record.fields.merged_into.length > 0
+          ) {
             // Move to the next record in the chain
             currentId = record.fields.merged_into[0];
             depth++;
-            log.info(`Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`);
+            log.info(
+              `Following merge chain: ${recordId} -> ${currentId} (depth: ${depth})`
+            );
           } else {
             // We've found the end of the chain
             return record;
           }
         }
-        
-        log.warn(`Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`);
+
+        log.warn(
+          `Merge chain too deep for record ${recordId}, reached max depth ${maxDepth}`
+        );
         return null;
       } catch (error) {
         log.error(`Error finding primary record for ${recordId}`, {
@@ -288,7 +310,7 @@ export default async (req, context) => {
         return null;
       }
     }
-    
+
     // Process potential matches and merge records
     const processedRecords = new Set(); // Keep track of already processed records
     const mergeChain = new Map(); // Track merge chains - key: recordId, value: ultimate primary record
@@ -314,44 +336,61 @@ export default async (req, context) => {
         // Check for existing merge relationships and processing status
         let record1Effective = match.record1;
         let skipMerge = false;
-        
+
         // First check if either record has been marked with processing status
-        const hasProcessingStatus1 = match.record1.fields.processing_status === "Processing" || 
-                                    match.record1.fields.processing_status === "Complete";
-        const hasProcessingStatus2 = match.record2.fields.processing_status === "Processing" || 
-                                    match.record2.fields.processing_status === "Complete";
-                                    
+        const hasProcessingStatus1 =
+          match.record1.fields.processing_status === "Processing" ||
+          match.record1.fields.processing_status === "Complete";
+        const hasProcessingStatus2 =
+          match.record2.fields.processing_status === "Processing" ||
+          match.record2.fields.processing_status === "Complete";
+
         // Check for incident linkage in one or both records
-        const hasIncident1 = match.record1.fields.linked_incident && match.record1.fields.linked_incident.length > 0;
-        const hasIncident2 = match.record2.fields.linked_incident && match.record2.fields.linked_incident.length > 0;
-        
+        const hasIncident1 =
+          match.record1.fields.linked_incident &&
+          match.record1.fields.linked_incident.length > 0;
+        const hasIncident2 =
+          match.record2.fields.linked_incident &&
+          match.record2.fields.linked_incident.length > 0;
+
         // If both records have incident links
         if (hasIncident1 && hasIncident2) {
-          log.info("Both records already linked to incidents, checking if same incident", {
-            record1Incident: match.record1.fields.linked_incident[0],
-            record2Incident: match.record2.fields.linked_incident[0]
-          });
-          
+          log.info(
+            "Both records already linked to incidents, checking if same incident",
+            {
+              record1Incident: match.record1.fields.linked_incident[0],
+              record2Incident: match.record2.fields.linked_incident[0],
+            }
+          );
+
           // If they're linked to the same incident, no need to merge
-          if (match.record1.fields.linked_incident[0] === match.record2.fields.linked_incident[0]) {
-            log.info("Records already linked to the same incident, skipping merge");
+          if (
+            match.record1.fields.linked_incident[0] ===
+            match.record2.fields.linked_incident[0]
+          ) {
+            log.info(
+              "Records already linked to the same incident, skipping merge"
+            );
             skipMerge = true;
           } else {
             // They're linked to different incidents - this is a complex case
             // We'll still process them but log a warning as this requires manual review
-            log.warn("Records linked to DIFFERENT incidents - potential duplicate incidents detected", {
-              record1: {
-                id: match.record1.id,
-                source: match.record1.fields.source,
-                incidentId: match.record1.fields.linked_incident[0]
-              },
-              record2: {
-                id: match.record2.id,
-                source: match.record2.fields.source,
-                incidentId: match.record2.fields.linked_incident[0]
-              },
-              similarityScore: match.score.total
-            });
+            log.warn(
+              "Records linked to DIFFERENT incidents - potential duplicate incidents detected",
+              {
+                record1: {
+                  id: match.record1.id,
+                  source: match.record1.fields.source,
+                  incidentId: match.record1.fields.linked_incident[0],
+                },
+                record2: {
+                  id: match.record2.id,
+                  source: match.record2.fields.source,
+                  incidentId: match.record2.fields.linked_incident[0],
+                },
+                similarityScore: match.score.total,
+              }
+            );
             // We'll continue processing to merge the records, and our special handling
             // in the merge section will ensure we preserve an incident link
           }
@@ -361,42 +400,63 @@ export default async (req, context) => {
           log.info("One record has incident link, will preserve during merge", {
             record1HasLink: hasIncident1,
             record2HasLink: hasIncident2,
-            incidentId: hasIncident1 
-              ? match.record1.fields.linked_incident[0] 
-              : match.record2.fields.linked_incident[0]
+            incidentId: hasIncident1
+              ? match.record1.fields.linked_incident[0]
+              : match.record2.fields.linked_incident[0],
           });
         }
-        
+
         if (skipMerge) {
           log.info("Skipping merge due to existing incident relationships");
           processedRecords.add(match.record1.id);
           processedRecords.add(match.record2.id);
           continue;
         }
-        
+
         // Check if either record is involved in an existing merge chain
-        let record1Effective = match.record1;
+        // let record1Effective = match.record1; // Removed duplicate declaration
         let record2Effective = match.record2;
-        
+
         // Check for merge chains - find the "root" record if part of a chain
+        // Use the 'record1Effective' declared earlier in this scope
         if (match.record1.fields.merge_status === "merged") {
-          log.info(`Record1 (${match.record1.id}) is already a primary merged record`);
-        } else if (match.record1.fields.merge_status === "merged_into" && match.record1.fields.merged_into) {
+          log.info(
+            `Record1 (${match.record1.id}) is already a primary merged record`
+          );
+        } else if (
+          match.record1.fields.merge_status === "merged_into" &&
+          match.record1.fields.merged_into
+        ) {
           // Find the primary record for this chain
-          const primaryRecord = await findPrimaryRecord(match.record1.id, headers);
+          const primaryRecord = await findPrimaryRecord(
+            match.record1.id,
+            headers
+          );
           if (primaryRecord) {
-            log.info(`Record1 (${match.record1.id}) is part of merge chain, using primary: ${primaryRecord.id}`);
+            log.info(
+              `Record1 (${match.record1.id}) is part of merge chain, using primary: ${primaryRecord.id}`
+            );
             record1Effective = primaryRecord;
           }
         }
-        
+
         if (match.record2.fields.merge_status === "merged") {
-          log.info(`Record2 (${match.record2.id}) is already a primary merged record`);
-        } else if (match.record2.fields.merge_status === "merged_into" && match.record2.fields.merged_into) {
+          log.info(
+            `Record2 (${match.record2.id}) is already a primary merged record`
+          );
+        } else if (
+          match.record2.fields.merge_status === "merged_into" &&
+          match.record2.fields.merged_into
+        ) {
           // Find the primary record for this chain
-          const primaryRecord = await findPrimaryRecord(match.record2.id, headers);
+          const primaryRecord = await findPrimaryRecord(
+            match.record2.id,
+            headers
+          );
           if (primaryRecord) {
-            log.info(`Record2 (${match.record2.id}) is part of merge chain, using primary: ${primaryRecord.id}`);
+            log.info(
+              `Record2 (${match.record2.id}) is part of merge chain, using primary: ${primaryRecord.id}`
+            );
             record2Effective = primaryRecord;
           }
         }
@@ -411,22 +471,34 @@ export default async (req, context) => {
         let linkedIncidentId = null;
 
         // Check if either record is already linked to an incident
-        if (primary.fields.linked_incident && primary.fields.linked_incident.length > 0) {
+        if (
+          primary.fields.linked_incident &&
+          primary.fields.linked_incident.length > 0
+        ) {
           linkedIncidentId = primary.fields.linked_incident[0];
-          log.info(`Primary record already linked to incident: ${linkedIncidentId}`);
-        } else if (secondary.fields.linked_incident && secondary.fields.linked_incident.length > 0) {
+          log.info(
+            `Primary record already linked to incident: ${linkedIncidentId}`
+          );
+        } else if (
+          secondary.fields.linked_incident &&
+          secondary.fields.linked_incident.length > 0
+        ) {
           linkedIncidentId = secondary.fields.linked_incident[0];
-          log.info(`Secondary record already linked to incident: ${linkedIncidentId}, will link primary to same incident`);
+          log.info(
+            `Secondary record already linked to incident: ${linkedIncidentId}, will link primary to same incident`
+          );
         }
 
         // Merge complementary data
         const mergedFields = mergeComplementaryData(primary, secondary);
-        
+
         // If we found an incident link, make sure it's preserved in the merge
         if (linkedIncidentId) {
           mergedFields.linked_incident = [linkedIncidentId];
           mergedFields.has_incident = true;
-          log.info(`Preserved incident link to ${linkedIncidentId} in merged record`);
+          log.info(
+            `Preserved incident link to ${linkedIncidentId} in merged record`
+          );
         }
 
         try {
@@ -509,21 +581,23 @@ export default async (req, context) => {
     };
 
     log.info("Cross-Source Deduplication complete", summary);
-    
+
     // Trigger the process-raw-data-background function
-    try {
-      const siteUrl = process.env.PUBLIC_URL;
-      if (!siteUrl) {
-        log.error("PUBLIC_URL environment variable not set, cannot trigger process-raw-data-background");
-      } else {
-        await axios.post(`${siteUrl}/.netlify/functions/process-raw-data-background`);
-        log.info("Triggered process-raw-data-background function");
-      }
-    } catch (triggerError) {
-      log.error("Failed to trigger process-raw-data-background", {
-        error: triggerError.message
-      });
-      // Continue with function execution despite trigger failure
+    // Removed try...catch block to ensure trigger failures are not silent
+    const siteUrl = process.env.PUBLIC_URL;
+    if (!siteUrl) {
+      // If PUBLIC_URL is critical and missing, the function should ideally fail explicitly.
+      // Throwing an error here would make the failure clear.
+      log.error(
+        "PUBLIC_URL environment variable not set, cannot trigger process-raw-data-background. Function will likely fail."
+      );
+      // Consider adding: throw new Error("PUBLIC_URL environment variable not set");
+    } else {
+      // If axios.post fails, the error will now propagate and cause the function to fail
+      await axios.post(
+        `${siteUrl}/.netlify/functions/process-raw-data-background`
+      );
+      log.info("Triggered process-raw-data-background function");
     }
 
     // Return using Netlify's newer Response format
@@ -536,8 +610,8 @@ export default async (req, context) => {
       {
         status: 200,
         headers: {
-          'Content-Type': 'application/json'
-        }
+          "Content-Type": "application/json",
+        },
       }
     );
   } catch (error) {
@@ -555,8 +629,8 @@ export default async (req, context) => {
       {
         status: 500,
         headers: {
-          'Content-Type': 'application/json'
-        }
+          "Content-Type": "application/json",
+        },
       }
     );
   }
