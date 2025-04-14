@@ -22,11 +22,12 @@ export const parseCwdHtmlContent = (html, log) => {
 
       if (cells.length === 6 && !$(cells.first()).attr("colspan")) {
         incident.date = processDate($(cells[0]).text().trim());
-        incident.reference = processText($(cells[1]).text().trim(), true);
-        incident.region = processText($(cells[2]).text().trim());
-        incident.category = processText($(cells[3]).text().trim());
-        incident.aggressors = processText($(cells[4]).text().trim());
-        incident.source = processText($(cells[5]).text().trim());
+        // Removed undefined processText call, using trimmed text directly
+        incident.reference = $(cells[1]).text().trim();
+        incident.region = $(cells[2]).text().trim();
+        incident.category = $(cells[3]).text().trim();
+        incident.aggressors = $(cells[4]).text().trim();
+        incident.source = $(cells[5]).text().trim();
       }
 
       if (cells.length === 1 && $(cells).attr("colspan") === "6") {
