@@ -9,3 +9,6 @@ data/
 .netlify
 .turbo/
 src/apps/client/dist/
+
+# Supabase migration script credentials
+scripts/migration/.env
