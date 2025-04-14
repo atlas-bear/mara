@@ -15,7 +15,8 @@ import {
 /**
  * Main deduplication function that runs as a Netlify serverless function
  */
-export default async (req, context) => {
+// Changed from 'export default' to named 'handler' export to match Netlify docs example
+export const handler = async (req, context) => {
   log.info("Cross-Source Deduplication Background Function started", {
     time: new Date().toISOString(),
   });
