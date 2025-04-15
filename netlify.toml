@@ -18,8 +18,8 @@ status = 200
 [functions]
 directory = "functions"
 node_bundler = "esbuild"
-# Add axios here - Netlify will make it available in the runtime instead of bundling it
-external_node_modules = ["chrome-aws-lambda", "puppeteer-core", "axios"]
+# Reverted: axios removed from external_node_modules as it's no longer imported by logger.js
+external_node_modules = ["chrome-aws-lambda", "puppeteer-core"]
 
 # API redirects for PDF functions
 [[redirects]]
