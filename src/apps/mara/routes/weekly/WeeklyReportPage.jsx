@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { 
@@ -8,7 +8,11 @@ import {
   IncidentDetails,
   getReportingWeek,
   formatDateRange,
-  fetchWeeklyIncidents
+  fetchWeeklyIncidents,
+  fetchWeeklyReportContent,
+  exportWeeklyReport,
+  getSubscriptionPreferences,
+  updateSubscriptionPreferences
 } from '@shared/features/weekly-report';
 
 // Define regions with their display properties
@@ -66,13 +70,29 @@ const REGION_ORDER = [
 
 function WeeklyReportPage() {
   const { yearWeek } = useParams();
+  const navigate = useNavigate();
   const [incidents, setIncidents] = useState([]);
   const [latestIncidents, setLatestIncidents] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [reportContent, setReportContent] = useState(null);
 
   useEffect(() => {
     document.title = 'MARA Weekly Report';
+    
+    // Load subscription preferences
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getSubscriptionPreferences();
+        setSubscribed(prefs.weekly_report_email || false);
+      } catch (err) {
+        console.error('Error loading preferences:', err);
+      }
+    };
+    
+    loadPreferences();
   }, []);
 
   // For testing, use week 6 of 2025
@@ -80,10 +100,29 @@ function WeeklyReportPage() {
   const activeYearWeek = yearWeek || testYearWeek;
 
   // Memoize date calculations
-  const { start, end } = useMemo(() => {
+  const { start, end, previousWeek, nextWeek } = useMemo(() => {
     if (!activeYearWeek) return {};
     const [year, week] = activeYearWeek.split('-').map(n => parseInt(n, 10));
-    return getReportingWeek(year, week);
+    const dates = getReportingWeek(year, week);
+    
+    // Calculate previous week
+    const prevDate = new Date(dates.start);
+    prevDate.setDate(prevDate.getDate() - 7);
+    const prevYearWeek = `${prevDate.getFullYear()}-${String(Math.ceil(prevDate.getDate() / 7)).padStart(2, '0')}`;
+    
+    // Calculate next week (only if not current week)
+    const now = new Date();
+    const nextDate = new Date(dates.end);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextYearWeek = nextDate <= now ? 
+      `${nextDate.getFullYear()}-${String(Math.ceil(nextDate.getDate() / 7)).padStart(2, '0')}` : 
+      null;
+
+    return {
+      ...dates,
+      previousWeek: prevYearWeek,
+      nextWeek: nextYearWeek
+    };
   }, [activeYearWeek]);
 
   useEffect(() => {
@@ -93,24 +132,28 @@ function WeeklyReportPage() {
     
     const fetchData = async () => {
       try {
-        console.log('Fetching data for:', { start, end });
-        const response = await fetchWeeklyIncidents(start, end);
+        setLoading(true);
         
-        console.log('API Response:', response);
+        // Fetch incidents and report content in parallel
+        const [incidentsResponse, contentResponse] = await Promise.all([
+          fetchWeeklyIncidents(start, end),
+          fetchWeeklyReportContent(start, end)
+        ]);
+        
+        if (!mounted) return;
 
-        if (!response || !response.incidents) {
+        if (!incidentsResponse || !incidentsResponse.incidents) {
           throw new Error('No incidents data in response');
         }
 
-        if (mounted) {
-          setIncidents(response.incidents);
-          if (response.latestIncidents) {
-            setLatestIncidents(response.latestIncidents);
-          }
-          setLoading(false);
+        setIncidents(incidentsResponse.incidents);
+        if (incidentsResponse.latestIncidents) {
+          setLatestIncidents(incidentsResponse.latestIncidents);
         }
+        setReportContent(contentResponse);
+        setLoading(false);
       } catch (err) {
-        console.error('Error fetching incidents:', err);
+        console.error('Error fetching data:', err);
         if (mounted) {
           setError(err.message);
           setLoading(false);
@@ -121,6 +164,40 @@ function WeeklyReportPage() {
     fetchData();
     return () => { mounted = false; };
   }, [start, end]);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const pdfBlob = await exportWeeklyReport(activeYearWeek);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `MARA-Weekly-Report-${activeYearWeek}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      setError('Failed to export report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleSubscriptionToggle = async () => {
+    try {
+      const newPrefs = await updateSubscriptionPreferences({
+        weekly_report_email: !subscribed
+      });
+      setSubscribed(newPrefs.weekly_report_email);
+    } catch (err) {
+      console.error('Error updating subscription:', err);
+      setError('Failed to update subscription. Please try again.');
+    }
+  };
 
   if (!yearWeek) {
     return <Navigate to={`/weekly-report/${testYearWeek}`} replace />;
@@ -160,7 +237,27 @@ function WeeklyReportPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 py-8">
-        <div className="max-w-4xl mx-auto text-red-600">Error: {error}</div>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading report</h3>
+                <p className="mt-2 text-sm text-red-700">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 bg-red-100 text-red-800 px-4 py-2 rounded-md text-sm hover:bg-red-200"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -175,58 +272,101 @@ function WeeklyReportPage() {
     incidentsByRegion[region].push(incident);
   });
 
-  console.log('Incidents by region:', incidentsByRegion);
-
   return (
     <div className="min-h-screen bg-gray-100 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Navigation and Controls */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex space-x-4">
+            {previousWeek && (
+              <button
+                onClick={() => navigate(`/weekly-report/${previousWeek}`)}
+                className="bg-white px-4 py-2 rounded-md shadow hover:bg-gray-50"
+              >
+                ← Previous Week
+              </button>
+            )}
+            {nextWeek && (
+              <button
+                onClick={() => navigate(`/weekly-report/${nextWeek}`)}
+                className="bg-white px-4 py-2 rounded-md shadow hover:bg-gray-50"
+              >
+                Next Week →
+              </button>
+            )}
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleSubscriptionToggle}
+              className={`px-4 py-2 rounded-md shadow ${
+                subscribed 
+                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                  : 'bg-white hover:bg-gray-50'
+              }`}
+            >
+              {subscribed ? 'Subscribed ✓' : 'Subscribe to Updates'}
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md shadow hover:bg-blue-700 disabled:opacity-50"
+            >
+              {exporting ? 'Exporting...' : 'Export PDF'}
+            </button>
+          </div>
+        </div>
         
         <ExecutiveBrief 
           incidents={incidents} 
           start={start} 
           end={end}
-          yearWeek={activeYearWeek} // Pass the year-week from URL
+          yearWeek={activeYearWeek}
+          reportContent={reportContent}
         />
 
-      {/* Display each region in order */}
-      {REGION_ORDER.map(region => {
-        const regionIncidents = incidentsByRegion[region] || [];
-        const latestRegionIncident = latestIncidents[region];
+        {/* Display each region in order */}
+        {REGION_ORDER.map(region => {
+          const regionIncidents = incidentsByRegion[region] || [];
+          const latestRegionIncident = latestIncidents[region];
 
-        return (
-          <div key={region}>
-            {/* Regional Brief Section */}
-            <RegionalBrief 
-              incidents={regionIncidents}
-              latestIncidents={{ [region]: latestRegionIncident }}
-              currentRegion={region}
-              start={start} 
-              end={end}
-            />
-
-            {/* Display incidents for this region */}
-            {regionIncidents.map(incident => (
-              <IncidentDetails 
-                key={incident.incident.id}
-                incident={incident}
-                showHistoricalContext={false}
-                startDate={start}
-                endDate={end}
+          return (
+            <div key={region} className="mb-8">
+              {/* Regional Brief Section */}
+              <RegionalBrief 
+                incidents={regionIncidents}
+                latestIncidents={{ [region]: latestRegionIncident }}
+                currentRegion={region}
+                start={start} 
+                end={end}
               />
-            ))}
 
-            {/* Show latest incident if no current incidents */}
-            {regionIncidents.length === 0 && latestRegionIncident && (
-              <IncidentDetails 
-                incident={latestRegionIncident}
-                isHistorical={true}
-                showHistoricalContext={false}
-                startDate={start}
-                endDate={end}
-              />
-            )}
-          </div>
-        );
-      })}
+              {/* Display incidents for this region */}
+              <div className="space-y-4">
+                {regionIncidents.map(incident => (
+                  <IncidentDetails 
+                    key={incident.incident.id}
+                    incident={incident}
+                    showHistoricalContext={false}
+                    startDate={start}
+                    endDate={end}
+                  />
+                ))}
+
+                {/* Show latest incident if no current incidents */}
+                {regionIncidents.length === 0 && latestRegionIncident && (
+                  <IncidentDetails 
+                    incident={latestRegionIncident}
+                    isHistorical={true}
+                    showHistoricalContext={false}
+                    startDate={start}
+                    endDate={end}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
