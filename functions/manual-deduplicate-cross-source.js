@@ -65,19 +65,50 @@ export const handler = async (req, context) => {
     let offset = null;
 
     do {
+      // Construct filter formula
+      const filterFormula = `AND(
+      IS_AFTER({date}, '${thirtyDaysAgoString}'),
+      OR(
+        NOT({merge_status}),
+        {merge_status} = ''
+      )
+    )`;
+
+      log.info("Querying Airtable with filter:", {
+        filterFormula,
+        thirtyDaysAgo: thirtyDaysAgoString,
+      });
+
       const params = {
-        filterByFormula: `AND(
-          IS_AFTER({date}, '${thirtyDaysAgoString}'),
-          OR(
-            NOT({merge_status}),
-            {merge_status} = ''
-          )
-        )`,
+        filterByFormula: filterFormula,
         sort: [{ field: "date", direction: "desc" }],
         maxRecords: maxRecords,
         ...(offset ? { offset } : {}),
       };
 
+      // First check what records exist without any filter
+      const checkResponse = await axios.get(
+        `https://api.airtable.com/v0/${airtableBaseId}/raw_data`,
+        {
+          headers,
+          params: {
+            maxRecords: 10,
+            sort: [{ field: "date", direction: "desc" }],
+          },
+        }
+      );
+
+      log.info("Sample of recent records:", {
+        count: checkResponse.data.records.length,
+        records: checkResponse.data.records.map((r) => ({
+          id: r.id,
+          date: r.fields.date,
+          merge_status: r.fields.merge_status || "not set",
+          has_incident: r.fields.has_incident || false,
+        })),
+      });
+
+      // Now get records with our filter
       const response = await axios.get(
         `https://api.airtable.com/v0/${airtableBaseId}/raw_data`,
         { headers, params }
@@ -536,22 +567,39 @@ export const handler = async (req, context) => {
 
     log.info("Cross-Source Deduplication complete", summary);
 
-    // Trigger the process-raw-data-background function
-    // Removed try...catch block to ensure trigger failures are not silent
-    const siteUrl = process.env.PUBLIC_URL;
-    if (!siteUrl) {
-      // If PUBLIC_URL is critical and missing, the function should ideally fail explicitly.
-      // Throwing an error here would make the failure clear.
-      log.error(
-        "PUBLIC_URL environment variable not set, cannot trigger process-raw-data-background. Function will likely fail."
+    // Refresh the Process view in Airtable
+    try {
+      log.info("Refreshing Process view in Airtable...");
+
+      // Make a request to the view to trigger a refresh
+      await axios.get(
+        `https://api.airtable.com/v0/${airtableBaseId}/raw_data`,
+        {
+          headers,
+          params: {
+            view: "Process",
+            maxRecords: 1,
+          },
+        }
       );
-      // Consider adding: throw new Error("PUBLIC_URL environment variable not set");
-    } else {
-      // If axios.post fails, the error will now propagate and cause the function to fail
+
+      log.info("Process view refreshed");
+
+      // Now trigger the process-raw-data-background function
+      const siteUrl = process.env.PUBLIC_URL;
+      if (!siteUrl) {
+        throw new Error("PUBLIC_URL environment variable not set");
+      }
+
       await axios.post(
         `${siteUrl}/.netlify/functions/process-raw-data-background`
       );
       log.info("Triggered process-raw-data-background function");
+    } catch (error) {
+      log.error("Error refreshing view or triggering background function:", {
+        error: error.message,
+      });
+      throw error; // Re-throw to ensure the function fails visibly
     }
 
     // Return HTTP response (different format from background function)
