@@ -1,5 +1,6 @@
 node_modules/
 
+# Ignore all files in the data directory
 data/
 
 # Local env files
@@ -12,3 +13,6 @@ src/apps/client/dist/
 
 # Supabase migration script credentials
 scripts/migration/.env
+
+# Anthropic-related files
+CLAUDE.md
