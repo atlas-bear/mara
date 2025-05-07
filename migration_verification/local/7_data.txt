@@ -1,0 +1,4 @@
+flash-report	Flash Reports	immediate	both
+marketing	Marketing Communications	never	html
+platform-updates	Platform Updates	immediate	html
+weekly-report	Weekly Reports	weekly	both

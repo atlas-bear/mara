@@ -1,0 +1,418 @@
+cser	generate_incident_reference_id	CREATE OR REPLACE FUNCTION cser.generate_incident_reference_id()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    loc_abbr text;
+BEGIN
+   -- Extract first 3 alphanumeric chars from location_name, uppercase. Handle NULL/empty.
+   loc_abbr := UPPER(LEFT(regexp_replace(COALESCE(NEW.location_name, 'UNK'), '[^A-Za-z0-9]', '', 'g'), 3));
+   IF length(loc_abbr) = 0 THEN
+       loc_abbr := 'UNK'; -- Fallback if location is purely non-alphanumeric or empty after regex
+   END IF;
+
+   -- Format date and time (UTC) and set the reference_id
+   NEW.reference_id := to_char(NEW.date_time_utc AT TIME ZONE 'UTC', 'YYYYMMDD') || '-' || to_char(NEW.date_time_utc AT TIME ZONE 'UTC', 'HH24MI') || '-' || loc_abbr;
+   RETURN NEW;
+END;
+$function$
+
+cser	get_edge_function_url	CREATE OR REPLACE FUNCTION cser.get_edge_function_url()
+ RETURNS text
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN current_setting('SUPABASE_URL') || '/functions/v1';
+END;
+$function$
+
+cser	handle_map_generation	CREATE OR REPLACE FUNCTION cser.handle_map_generation()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    -- Check if we have coordinates but no map image
+    IF (NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL AND NEW.map_image_url IS NULL) THEN
+        -- Invoke edge function via pg_net (requires pg_net extension)
+        PERFORM net.http_post(
+            url := cser.get_edge_function_url() || '/generate-map',
+            headers := jsonb_build_object(
+                'Content-Type', 'application/json',
+                'Authorization', 'Bearer ' || current_setting('SUPABASE_SERVICE_ROLE_KEY')
+            ),
+            body := jsonb_build_object(
+                'incident_id', NEW.id,
+                'latitude', NEW.latitude,
+                'longitude', NEW.longitude,
+                'reference_id', NEW.reference_id
+            )
+        );
+    END IF;
+    RETURN NEW;
+END;
+$function$
+
+cser	invoke_edge_function	CREATE OR REPLACE FUNCTION cser.invoke_edge_function(function_name text, payload jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+declare
+  edge_function_base_url text;
+  service_role_key text;
+begin
+  -- Get edge function base URL from environment variable
+  edge_function_base_url := current_setting('SUPABASE_URL') || '/functions';
+
+  -- Get service role key from environment variable
+  service_role_key := current_setting('SUPABASE_SERVICE_KEY');
+
+  -- Validate URL format
+  if edge_function_base_url is null or edge_function_base_url !~ '^https?://.+' then
+    raise exception 'Invalid edge function base URL: %', coalesce(edge_function_base_url, 'not set');
+  end if;
+
+  -- Validate service role key format (basic check)
+  if service_role_key is null or length(service_role_key) < 32 then
+    raise exception 'Invalid service role key format';
+  end if;
+
+  -- Validate function name
+  if function_name !~ '^[a-z0-9-]+$' then
+    raise exception 'Invalid function name format: %', function_name;
+  end if;
+
+  -- Make HTTP call to edge function with retries
+  declare
+    max_retries constant int := 3;
+    retry_count int := 0;
+    success boolean := false;
+  begin
+    while retry_count < max_retries and not success loop
+      begin
+        perform net.http_post(
+          url := edge_function_base_url || '/' || function_name,
+          headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || service_role_key
+          ),
+          body := payload
+        );
+        success := true;
+      exception
+        when others then
+          retry_count := retry_count + 1;
+          if retry_count = max_retries then
+            raise warning 'Failed to invoke edge function % after % attempts: %', 
+              function_name, max_retries, sqlerrm;
+          else
+            -- Wait briefly before retry (exponential backoff)
+            perform pg_sleep(power(2, retry_count)::int);
+          end if;
+      end;
+    end loop;
+  end;
+end;
+$function$
+
+cser	tg_incident_flash_report	CREATE OR REPLACE FUNCTION cser.tg_incident_flash_report()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+declare
+  incident_date timestamp;
+  days_threshold integer := 9; -- Configure flash report window
+begin
+  -- Get the incident date
+  incident_date := new.date_time_utc;
+  
+  -- Check if incident is within flash report window
+  if incident_date >= (current_timestamp - (days_threshold || ' days')::interval) then
+    -- Invoke flash-report edge function
+    perform cser.invoke_edge_function(
+      'send-flash-report',
+      jsonb_build_object(
+        'incident_id', new.id,
+        'is_update', TG_OP = 'UPDATE'
+      )
+    );
+  end if;
+  return new;
+end;
+$function$
+
+cser	tg_raw_data_deduplicate	CREATE OR REPLACE FUNCTION cser.tg_raw_data_deduplicate()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+begin
+  -- Only deduplicate if status is 'new'
+  if new.processing_status = 'new' then
+    -- Update status to deduplicating
+    update cser.raw_data 
+    set processing_status = 'deduplicating',
+        last_processed = current_timestamp,
+        processing_notes = 'Started deduplication'
+    where id = new.id;
+
+    -- Invoke deduplicate-cross-source edge function
+    perform cser.invoke_edge_function(
+      'deduplicate-cross-source',
+      jsonb_build_object('id', new.id)
+    );
+  end if;
+  return new;
+end;
+$function$
+
+cser	tg_raw_data_process	CREATE OR REPLACE FUNCTION cser.tg_raw_data_process()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+begin
+  -- Process if status is 'ready' (after deduplication)
+  if new.processing_status = 'ready' then
+    -- Update status to processing
+    update cser.raw_data 
+    set processing_status = 'processing',
+        last_processed = current_timestamp,
+        processing_notes = coalesce(
+          case 
+            when merge_status = 'merged_into' then 'Processing merged record to update incident'
+            else 'Processing new record'
+          end,
+          'Processing record'
+        )
+    where id = new.id;
+
+    -- Invoke process-raw-data edge function
+    perform cser.invoke_edge_function(
+      'process-raw-data',
+      jsonb_build_object(
+        'id', new.id,
+        'is_merged', new.merge_status = 'merged_into'
+      )
+    );
+  end if;
+  return new;
+end;
+$function$
+
+public	cleanup_expired_cache	CREATE OR REPLACE FUNCTION public.cleanup_expired_cache(p_older_than timestamp with time zone DEFAULT now())
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_count INT;
+BEGIN
+    DELETE FROM public.cache_metadata
+    WHERE expires_at < p_older_than;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$function$
+
+public	drop_email_service_tables	CREATE OR REPLACE FUNCTION public.drop_email_service_tables()
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    DROP TABLE IF EXISTS email_tracking;
+    DROP TABLE IF EXISTS email_templates;
+    DROP FUNCTION IF EXISTS update_updated_at_column();
+END;
+$function$
+
+public	get_cached_data	CREATE OR REPLACE FUNCTION public.get_cached_data(p_cache_type cache_type, p_cache_key text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_data JSONB;
+BEGIN
+    -- Get data if not expired
+    SELECT d.data INTO v_data
+    FROM public.cache_metadata m
+    JOIN public.cache_data d ON d.metadata_id = m.id
+    WHERE m.cache_type = p_cache_type
+    AND m.cache_key = p_cache_key
+    AND m.expires_at > now();
+
+    -- Clean up expired cache entries in the background
+    -- This won't block the current transaction
+    PERFORM pg_notify(
+        'cache_cleanup',
+        json_build_object(
+            'cache_type', p_cache_type,
+            'older_than', now()
+        )::text
+    );
+
+    RETURN v_data;
+END;
+$function$
+
+public	handle_new_user	CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    PERFORM initialize_user_email_preferences(NEW.id);
+    RETURN NEW;
+END;
+$function$
+
+public	initialize_user_email_preferences	CREATE OR REPLACE FUNCTION public.initialize_user_email_preferences(user_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    INSERT INTO public.user_email_preferences (user_id, category_id, frequency, format)
+    SELECT 
+        user_id,
+        id as category_id,
+        default_frequency as frequency,
+        default_format as format
+    FROM public.email_categories
+    ON CONFLICT (user_id, category_id) DO NOTHING;
+END;
+$function$
+
+public	invalidate_cache	CREATE OR REPLACE FUNCTION public.invalidate_cache(p_cache_type cache_type, p_cache_key text DEFAULT NULL::text)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_count INT;
+BEGIN
+    IF p_cache_key IS NULL THEN
+        -- Invalidate all entries of the specified type
+        DELETE FROM public.cache_metadata
+        WHERE cache_type = p_cache_type;
+    ELSE
+        -- Invalidate specific cache entry
+        DELETE FROM public.cache_metadata
+        WHERE cache_type = p_cache_type
+        AND cache_key = p_cache_key;
+    END IF;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$function$
+
+public	should_send_email	CREATE OR REPLACE FUNCTION public.should_send_email(p_user_id uuid, p_category_id text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_preference RECORD;
+BEGIN
+    -- Get user's preference for this category
+    SELECT * INTO v_preference
+    FROM public.user_email_preferences
+    WHERE user_id = p_user_id
+    AND category_id = p_category_id;
+
+    -- If no preference found, get category defaults
+    IF NOT FOUND THEN
+        SELECT 
+            default_frequency as frequency,
+            default_format as format,
+            true as enabled
+        INTO v_preference
+        FROM public.email_categories
+        WHERE id = p_category_id;
+    END IF;
+
+    -- Check if user should receive email
+    RETURN v_preference.enabled 
+        AND v_preference.frequency != 'never';
+END;
+$function$
+
+public	store_cached_data	CREATE OR REPLACE FUNCTION public.store_cached_data(p_cache_type cache_type, p_cache_key text, p_data jsonb, p_parameters jsonb, p_ttl interval, p_version text DEFAULT NULL::text, p_metadata jsonb DEFAULT '{}'::jsonb)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_metadata_id UUID;
+    v_expires_at TIMESTAMPTZ;
+BEGIN
+    -- Calculate expiry
+    v_expires_at := now() + p_ttl;
+
+    -- Insert or update metadata
+    INSERT INTO public.cache_metadata (
+        cache_type,
+        cache_key,
+        parameters,
+        expires_at,
+        version,
+        metadata
+    )
+    VALUES (
+        p_cache_type,
+        p_cache_key,
+        p_parameters,
+        v_expires_at,
+        p_version,
+        p_metadata
+    )
+    ON CONFLICT (cache_type, cache_key) DO UPDATE
+    SET
+        parameters = EXCLUDED.parameters,
+        expires_at = EXCLUDED.expires_at,
+        version = EXCLUDED.version,
+        metadata = EXCLUDED.metadata,
+        updated_at = now()
+    RETURNING id INTO v_metadata_id;
+
+    -- Store the actual data
+    INSERT INTO public.cache_data (
+        metadata_id,
+        data
+    )
+    VALUES (
+        v_metadata_id,
+        p_data
+    )
+    ON CONFLICT (metadata_id) DO UPDATE
+    SET data = EXCLUDED.data;
+
+    RETURN v_metadata_id;
+END;
+$function$
+
+public	update_modified_column	CREATE OR REPLACE FUNCTION public.update_modified_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+   NEW.modified_at = now();
+   RETURN NEW;
+END;
+$function$
+
+public	update_updated_at_column	CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW.updated_at = TIMEZONE('utc', NOW());
+    RETURN NEW;
+END;
+$function$
+

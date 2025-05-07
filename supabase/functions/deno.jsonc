@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.unstable"], // Include Deno-specific APIs
+    "strict": true // Enforce stricter type checking
+  },
+  "lint": {
+    "files": {
+      "include": ["./"], // Lint all files within the functions directory
+      "exclude": ["./_shared/"] // Optionally exclude shared if needed, but usually good to lint
+    },
+    "rules": {
+      "tags": ["recommended"],
+      "include": [],
+      "exclude": []
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": ["./"], // Format all files within the functions directory
+      "exclude": []
+    },
+    "options": {
+      "useTabs": false,
+      "lineWidth": 80,
+      "indentWidth": 2,
+      "singleQuote": true // Use single quotes for consistency (adjust if needed)
+    }
+  },
+  // Define an import map (even if empty initially)
+  // This tells Deno where to look for module specifiers.
+  // We might add mappings later if needed for local shared modules
+  // or specific versions of remote modules.
+  "importMap": "./import_map.json"
+}

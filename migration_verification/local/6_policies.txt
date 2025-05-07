@@ -1,0 +1,14 @@
+public	cache_data	Cache data is readable by authenticated users	true		SELECT
+public	cache_data	Service role has full access to cache data	true	true	ALL
+public	cache_metadata	Cache metadata is readable by authenticated users	true		SELECT
+public	cache_metadata	Service role has full access to cache metadata	true	true	ALL
+public	email_categories	Email categories are readable by authenticated users	true		SELECT
+public	email_categories	Service role has full access to email categories	true	true	ALL
+public	email_templates	Allow authenticated read access to email templates	true		SELECT
+public	email_templates	Allow service role full access to email templates	true	true	ALL
+public	email_tracking	Allow authenticated read access to email tracking	true		SELECT
+public	email_tracking	Allow service role full access to email tracking	true	true	ALL
+public	user_email_preferences	Service role has full access to user preferences	true	true	ALL
+public	user_email_preferences	Users can insert their own preferences		(auth.uid() = user_id)	INSERT
+public	user_email_preferences	Users can read their own preferences	(auth.uid() = user_id)		SELECT
+public	user_email_preferences	Users can update their own preferences	(auth.uid() = user_id)	(auth.uid() = user_id)	UPDATE

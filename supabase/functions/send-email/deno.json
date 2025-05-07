@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "http/server": "https://deno.land/std@0.168.0/http/server.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "deno/": "https://deno.land/std@0.168.0/",
+    "_shared/": "../_shared/"
+  },
+  "tasks": {
+    "start": "deno run --allow-net --allow-env index.ts"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "strict": true
+  }
+}

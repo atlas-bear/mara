@@ -1,0 +1,26 @@
+-- Rollback migration for pipeline triggers
+
+-- Reset any in-progress raw data records
+update cser.raw_data
+set processing_status = 'New',
+    processing_notes = 'Reset by rollback',
+    last_processed = null
+where processing_status = 'Processing';
+
+-- Drop triggers first
+drop trigger if exists tg_raw_data_process on cser.raw_data;
+drop trigger if exists tg_incident_flash_report on cser.incident;
+
+-- Drop trigger functions
+drop function if exists cser.tg_raw_data_process();
+drop function if exists cser.tg_incident_flash_report();
+drop function if exists cser.invoke_edge_function(text, jsonb);
+
+-- Note: We don't drop the pg_net extension as it might be used by other functions
+-- Note: We don't remove config entries as they might be used by other components
+
+-- Log rollback completion
+do $$
+begin
+    raise notice 'Pipeline triggers and functions rolled back successfully';
+end $$;
