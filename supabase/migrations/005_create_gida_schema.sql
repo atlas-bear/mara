@@ -1,5 +1,8 @@
 -- Migration script to create the gida schema and initial reference tables
 
+-- Enable required extensions
+create extension if not exists moddatetime with schema extensions;
+
 -- 1. Create the gida schema
 create schema if not exists gida;
 
@@ -10,12 +13,6 @@ grant select on all tables in schema gida to anon, authenticated, service_role;
 
 -- Alter default privileges for future tables in gida schema
 alter default privileges in schema gida grant select on tables to anon, authenticated, service_role;
-
--- Drop existing triggers and tables
-drop trigger if exists handle_updated_at on gida.maritime_region;
-drop trigger if exists handle_updated_at on gida.vessel_type;
-drop table if exists gida.maritime_region cascade;
-drop table if exists gida.vessel_type cascade;
 
 -- 2. Create gida.maritime_region table
 create table gida.maritime_region (
@@ -44,12 +41,6 @@ comment on column gida.maritime_region.lat_max is 'Maximum latitude for the boun
 comment on column gida.maritime_region.lng_min is 'Minimum longitude for the bounding box.';
 comment on column gida.maritime_region.lng_max is 'Maximum longitude for the bounding box.';
 
--- Trigger to update 'updated_at' timestamp
--- Ensure the moddatetime extension is enabled in your Supabase project
--- (Can be enabled via SQL: create extension if not exists moddatetime with schema extensions;)
-create trigger handle_updated_at before update on gida.maritime_region
-  for each row execute procedure extensions.moddatetime(updated_at);
-
 -- 3. Create gida.vessel_type table
 create table gida.vessel_type (
     id uuid primary key default gen_random_uuid(),
@@ -70,7 +61,14 @@ comment on column gida.vessel_type.description is 'Description of the vessel typ
 comment on column gida.vessel_type.typical_size is 'Typical size range or classification.';
 comment on column gida.vessel_type.primary_use is 'Primary purpose or use of the vessel type.';
 
--- Trigger to update 'updated_at' timestamp
+-- Drop existing triggers if they exist
+drop trigger if exists handle_updated_at on gida.maritime_region;
+drop trigger if exists handle_updated_at on gida.vessel_type;
+
+-- Create triggers to update 'updated_at' timestamp
+create trigger handle_updated_at before update on gida.maritime_region
+  for each row execute procedure extensions.moddatetime(updated_at);
+
 create trigger handle_updated_at before update on gida.vessel_type
   for each row execute procedure extensions.moddatetime(updated_at);
 

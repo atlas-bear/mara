@@ -3,7 +3,8 @@
     "http/server": "https://deno.land/std@0.177.0/http/server.ts",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.38.4",
     "deno/": "https://deno.land/std@0.177.0/",
-    "_shared/": "../_shared/"
+    "_shared/": "../_shared/",
+    "./": "./"
   },
   "tasks": {
     "start": "deno run --allow-net --allow-env index.ts"
