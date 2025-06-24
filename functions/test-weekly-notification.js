@@ -30,18 +30,18 @@ export async function handler(event) {
     }
 
     // Parse test parameters from the request body
-    let testEmail = null;
+    let userIds = [];
     let includeClientExample = false;
     let sendClientVersion = false;
 
     if (event.body) {
       try {
         const payload = JSON.parse(event.body);
-        testEmail = payload.testEmail;
+        userIds = payload.userIds || [];
         includeClientExample = payload.includeClientExample === true;
         sendClientVersion = payload.sendClientVersion === true;
 
-        console.log(`Test email: ${testEmail || "None specified"}`);
+        console.log(`User IDs: ${userIds.join(", ") || "None specified"}`);
         console.log(
           `Include client example: ${includeClientExample ? "YES" : "NO"}`
         );
@@ -53,15 +53,17 @@ export async function handler(event) {
       }
     }
 
-    if (!testEmail) {
+    if (!userIds.length) {
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: "testEmail is required" }),
+        body: JSON.stringify({ error: "userIds array is required" }),
       };
     }
 
-    console.log(`Weekly report notification test triggered for ${testEmail}`);
+    console.log(
+      `Weekly report notification test triggered for users: ${userIds.join(", ")}`
+    );
 
     // Initialize SendGrid client
     const apiKey = getEnv("SENDGRID_API_KEY");
@@ -87,14 +89,20 @@ export async function handler(event) {
     // Get from email from environment variables
     const fromEmail = getEnv("SENDGRID_FROM_EMAIL", "mara@atlasbear.co");
 
-    // Set up recipients for the test
-    let recipients = [
-      {
-        email: testEmail,
-        name: "Test User",
-        metadata: { userId: "test", preferences: {} },
-      },
-    ];
+    // Get recipients from Supabase based on user IDs
+    const recipients = await getWeeklyReportRecipients(userIds);
+
+    if (!recipients || recipients.length === 0) {
+      console.log("No recipients found for the specified user IDs");
+      return {
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: "No recipients found",
+          message: "Could not find any users with the specified IDs",
+        }),
+      };
+    }
 
     let skippedRecipients = [];
 
@@ -241,7 +249,7 @@ export async function handler(event) {
           );
 
           // Create subject line for standard version
-          const subject = `[TEST] Weekly Maritime Security Report - ${dateRange}`;
+          const subject = `Weekly Maritime Security Report - ${dateRange}`;
 
           // Send standard version email
           const emailMessage = {
@@ -392,6 +400,50 @@ export async function handler(event) {
 }
 
 /**
+ * Fetch specific recipients for weekly report from Supabase
+ * Gets users by their IDs
+ * @param {Array<string>} userIds - Array of user IDs to fetch
+ * @returns {Promise<Array>} Array of recipient objects with email
+ */
+async function getWeeklyReportRecipients(userIds) {
+  const supabase = getSupabaseClient();
+
+  try {
+    console.log("Fetching specific weekly report recipients from Supabase");
+
+    // Query users by their IDs
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, email, first_name, last_name, preferences")
+      .in("id", userIds);
+
+    if (error) {
+      console.error("Error fetching weekly report recipients:", error);
+      throw error;
+    }
+
+    console.log(`Found ${data?.length || 0} recipients`);
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Format recipients
+    return data.map((user) => ({
+      email: user.email,
+      name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+      metadata: {
+        userId: user.id,
+        preferences: user.preferences || {},
+      },
+    }));
+  } catch (error) {
+    console.error("Error in getWeeklyReportRecipients:", error);
+    throw error;
+  }
+}
+
+/**
  * Format a date range for display
  * @param {Date} start - Start date
  * @param {Date} end - End date
@@ -481,13 +533,6 @@ function generateWeeklyReportEmailHtml(data, branding) {
             </p>
           </div>
         </div>
-      </div>
-
-      <!-- Test Banner -->
-      <div style="background-color: #FEF2F2; padding: 16px; text-align: center; border-bottom: 1px solid #FEE2E2;">
-        <p style="margin: 0; font-size: 14px; color: #B91C1C; font-weight: bold;">
-          THIS IS A TEST EMAIL - No action required
-        </p>
       </div>
 
       <!-- Notification Message -->
