@@ -1,0 +1,57 @@
+# Supabase Configuration File
+# See https://supabase.com/docs/reference/cli/config
+
+# Project settings
+
+[api]
+port = 54321
+schemas = ["public", "storage", "cser"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+file_size_limit = "50MiB"
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = false
+
+[functions]
+[functions.collect-recaap]
+verify_jwt = false
+[functions.collect-ukmto]
+verify_jwt = false
+[functions.collect-mdat]
+verify_jwt = false
+[functions.collect-icc]
+verify_jwt = false
+[functions.collect-cwd]
+verify_jwt = false
+[functions.deduplicate-cross-source]
+verify_jwt = false
+[functions.process-raw-data]
+verify_jwt = false
+[functions.send-flash-report]
+verify_jwt = false
+
+# Note: Function schedules are managed in the Supabase dashboard
+# collect-recaap: "0,30 * * * *"
+# collect-ukmto: "5,35 * * * *"
+# collect-mdat: "15,45 * * * *"
+# collect-icc: "20,50 * * * *"
+# collect-cwd: "10 * * * *"
+# deduplicate-cross-source: "28 * * * *"

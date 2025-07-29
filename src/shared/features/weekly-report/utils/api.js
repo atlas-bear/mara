@@ -1,6 +1,21 @@
-/** API base URL - empty string means same-origin, or use VITE_MARA_API_URL env var */
-const API_BASE_URL = import.meta.env?.VITE_MARA_API_URL || '';
+import { createClient } from "@supabase/supabase-js";
 
+/** Supabase client initialization */
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("Missing Supabase configuration");
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * Fetches weekly incidents from Supabase Edge Function
+ * @param {Date} start - Start date of the reporting period
+ * @param {Date} end - End date of the reporting period
+ * @returns {Promise<Object>} Object containing incidents array and latestIncidents
+ */
 export async function fetchWeeklyIncidents(start, end) {
   try {
     console.log(
@@ -19,25 +34,21 @@ export async function fetchWeeklyIncidents(start, end) {
 
     console.log("Fetching weekly incidents with dates:", { start, end });
 
-    const url = `${API_BASE_URL}/.netlify/functions/get-weekly-incidents?start=${start.toISOString()}&end=${end.toISOString()}`;
-    console.log("Final API URL:", url);
+    const { data, error } = await supabase.functions.invoke(
+      "generate-weekly-report",
+      {
+        body: {
+          start: start.toISOString(),
+          end: end.toISOString(),
+        },
+      }
+    );
 
-    const response = await fetch(url);
-
-    console.log("Response status:", response.status);
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      const text = await response.text();
-      console.error("Non-JSON response:", text);
-      throw new Error("Expected JSON but got something else");
+    if (error) {
+      console.error("Supabase function error:", error);
+      throw error;
     }
 
-    if (!response.ok) {
-      throw new Error(`API responded with status ${response.status}`);
-    }
-
-    const data = await response.json();
     console.log("Raw API response:", data);
 
     if (!data || !data.incidents) {
@@ -47,6 +58,73 @@ export async function fetchWeeklyIncidents(start, end) {
     return data;
   } catch (error) {
     console.error("Error in fetchWeeklyIncidents:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches weekly report content including AI-generated analysis
+ * @param {Date} start - Start date of the reporting period
+ * @param {Date} end - End date of the reporting period
+ * @returns {Promise<Object>} Object containing keyDevelopments and forecast arrays
+ */
+export async function fetchWeeklyReportContent(start, end) {
+  try {
+    if (!(start instanceof Date) || !(end instanceof Date)) {
+      throw new Error("Invalid date parameters");
+    }
+
+    const { data, error } = await supabase.functions.invoke(
+      "generate-weekly-report",
+      {
+        body: {
+          start: start.toISOString(),
+          end: end.toISOString(),
+          includeAnalysis: true,
+        },
+      }
+    );
+
+    if (error) {
+      console.error("Error fetching report content:", error);
+      throw error;
+    }
+
+    return {
+      keyDevelopments: data.keyDevelopments || [],
+      forecast: data.forecast || [],
+    };
+  } catch (error) {
+    console.error("Error in fetchWeeklyReportContent:", error);
+    return { keyDevelopments: [], forecast: [] };
+  }
+}
+
+/**
+ * Exports the weekly report as PDF
+ * @param {string} yearWeek - Year and week number (e.g., "2025-12")
+ * @returns {Promise<Blob>} PDF blob
+ */
+export async function exportWeeklyReport(yearWeek) {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "generate-weekly-report",
+      {
+        body: { yearWeek, format: "pdf" },
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    // Convert base64 to blob
+    const pdfBlob = await fetch(`data:application/pdf;base64,${data.pdf}`).then(
+      (res) => res.blob()
+    );
+    return pdfBlob;
+  } catch (error) {
+    console.error("Error exporting report:", error);
     throw error;
   }
 }

@@ -1,0 +1,8 @@
+cser	merge_status_enum	{merged,merged_into}
+cser	processing_status	{new,deduplicating,ready,processing,complete,error}
+cser	processing_status_enum	{Pending,Processing,Complete,Error}
+cser	vessel_role_enum	{Victim,Aggressor,Witness,Support,Target,Suspect,Response}
+cser	vessel_status_enum	{Underway,Anchored,Moored,Berthed,"Under Tow","Not Under Command",Other,Operating}
+public	cache_type	{weekly_report,monthly_stats,trend_data,regional_stats}
+public	email_format	{html,text,both}
+public	email_frequency	{immediate,daily,weekly,never}
