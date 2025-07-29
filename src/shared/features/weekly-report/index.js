@@ -3,9 +3,14 @@ export { default as ExecutiveBrief } from "./components/ExecutiveBrief";
 export { default as RegionalBrief } from "./components/RegionalBrief";
 export { default as IncidentDetails } from "./components/IncidentDetails";
 
-// Utils exports
-export { fetchWeeklyIncidents } from "./utils/api";
-export { fetchWeeklyReportContent } from "./utils/client-api";
+// Utils exports - using hybrid API for backward compatibility
+export {
+  fetchWeeklyIncidents,
+  fetchWeeklyReportContent,
+  getSubscriptionPreferences,
+  updateSubscriptionPreferences,
+  exportWeeklyReport,
+} from "./utils/hybrid-api";
 export {
   getCurrentReportingWeek,
   getReportingWeek,
@@ -22,4 +27,9 @@ export { getFirstSentence } from "./utils/text";
 
 // Data exports
 export { mockHistoricalTrends } from "./utils/mock-data";
-export { historicalTrends, regionalMonthlyData, regionalStats, refreshReportData } from "./utils/report-data";
+export {
+  historicalTrends,
+  regionalMonthlyData,
+  regionalStats,
+  refreshReportData,
+} from "./utils/report-data";

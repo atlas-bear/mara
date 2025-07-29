@@ -196,7 +196,7 @@ DROP TRIGGER IF EXISTS update_email_categories_updated_at ON public.email_catego
 DROP FUNCTION IF EXISTS should_send_email(UUID, TEXT);
 DROP FUNCTION IF EXISTS handle_new_user();
 DROP FUNCTION IF EXISTS initialize_user_email_preferences(UUID);
-DROP FUNCTION IF EXISTS update_updated_at_column();
+-- Note: Don't drop update_updated_at_column() as it may be used by other tables
 
 -- Drop tables (this will also drop their policies)
 DROP TABLE IF EXISTS public.user_email_preferences;
