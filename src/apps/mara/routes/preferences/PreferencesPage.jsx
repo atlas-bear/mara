@@ -9,11 +9,12 @@ function PreferencesPage() {
   const [activeTab, setActiveTab] = useState('email');
   const [testingEmail, setTestingEmail] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [manualLoading, setManualLoading] = useState(true);
 
   const {
     preferences,
     emailStats,
-    loading,
+    loading: hookLoading,
     saving,
     error,
     lastUpdated,
@@ -30,8 +31,17 @@ function PreferencesPage() {
     totalEmailsSent,
   } = useUserPreferences({ includeStats: true });
 
+  // Combine hook loading with manual loading for demo
+  const loading = hookLoading || manualLoading;
+
   useEffect(() => {
     document.title = 'MARA - User Preferences';
+    // Ensure skeleton shows for at least 1 second
+    const timer = setTimeout(() => {
+      setManualLoading(false);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Clear success message after 5 seconds
@@ -285,7 +295,7 @@ function PreferencesPage() {
         )}
 
         {/* Main Content */}
-        <div className="bg-white shadow-md rounded-lg">
+        <div className="bg-white border border-gray-200 rounded-lg">
           {/* Tabs */}
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
