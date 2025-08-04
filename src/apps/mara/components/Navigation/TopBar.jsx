@@ -103,7 +103,7 @@ const TopBar = ({ onMenuToggle }) => {
           {/* Notifications */}
           <button className="p-2 rounded-md hover:bg-gray-100 transition-colors relative">
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM10.97 4.97a.75.75 0 011.06 0l3 3a.75.75 0 010 1.06l-3 3a.75.75 0 01-1.06-1.06L13.44 8.5H3a.75.75 0 010-1.5h10.44L10.97 4.97z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9m-4.27 13a2 2 0 01-3.46 0" />
             </svg>
             {/* Notification dot */}
             <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></div>
