@@ -77,9 +77,9 @@ function IncidentPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="bg-red-50 border-l-4 border-red-400 p-4">
+      <div className="bg-gray-50 min-h-full">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -89,16 +89,16 @@ function IncidentPage() {
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Error loading incident</h3>
                 <p className="mt-2 text-sm text-red-700">{error}</p>
-                <div className="mt-4 flex space-x-4">
+                <div className="mt-4 flex space-x-3">
                   <button 
-                    onClick={() => window.location.reload()} 
-                    className="bg-red-100 text-red-800 px-4 py-2 rounded-md text-sm hover:bg-red-200"
+                    onClick={refresh} 
+                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   >
                     Try Again
                   </button>
                   <button 
                     onClick={() => navigate('/weekly-report')} 
-                    className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md text-sm hover:bg-gray-200"
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     Back to Reports
                   </button>

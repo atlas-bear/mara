@@ -188,23 +188,15 @@ function PreferencesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="bg-gray-50 min-h-full">
+      <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">User Preferences</h1>
-              <p className="text-gray-600 mt-1">
-                Manage your email notifications and account settings
-              </p>
-            </div>
-            <button
-              onClick={() => navigate('/weekly-report')}
-              className="bg-white px-4 py-2 rounded-md shadow hover:bg-gray-50"
-            >
-              ← Back to Reports
-            </button>
+        <div className="mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">User Preferences</h1>
+            <p className="text-gray-600 mt-1">
+              Manage your email notifications and account settings
+            </p>
           </div>
         </div>
 
