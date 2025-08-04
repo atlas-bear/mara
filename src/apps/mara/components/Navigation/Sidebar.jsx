@@ -92,11 +92,12 @@ const Sidebar = ({ isOpen, onToggle }) => {
 
   return (
     <>
-      {/* Overlay for mobile */}
+      {/* Overlay - visible on all screen sizes when sidebar is open */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={onToggle}
+          aria-label="Close navigation menu"
         />
       )}
       
@@ -119,7 +120,8 @@ const Sidebar = ({ isOpen, onToggle }) => {
           </div>
           <button
             onClick={onToggle}
-            className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+            className="p-2 rounded-md hover:bg-gray-100"
+            aria-label="Close navigation menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

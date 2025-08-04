@@ -53,10 +53,11 @@ const TopBar = ({ onMenuToggle }) => {
       <div className="flex items-center justify-between">
         {/* Left side - Menu button and breadcrumbs */}
         <div className="flex items-center space-x-4">
-          {/* Mobile menu button */}
+          {/* Menu toggle button - visible on all screen sizes */}
           <button
             onClick={onMenuToggle}
-            className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            aria-label="Toggle navigation menu"
           >
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
