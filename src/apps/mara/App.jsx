@@ -6,6 +6,7 @@ import FlashReportPage from './routes/flash/FlashReportPage';
 import PublicFlashReportPage from './routes/flash/PublicFlashReportPage';
 import HomePage from './routes/home/HomePage';
 import IncidentPage from './routes/incident/IncidentPage';
+import IncidentsPage from './routes/incidents/IncidentsPage';
 import PreferencesPage from './routes/preferences/PreferencesPage';
 import SystemHealthPage from './routes/system/SystemHealthPage';
 
@@ -26,6 +27,7 @@ function App() {
               <Route path="/flash/:incidentId" element={<FlashReportPage />} />
               <Route path="/flash-report/:incidentId" element={<FlashReportPage />} />
               <Route path="/incident/:incidentId" element={<IncidentPage />} />
+              <Route path="/incidents" element={<IncidentsPage />} />
               <Route path="/preferences" element={<PreferencesPage />} />
               <Route path="/system/health" element={<SystemHealthPage />} />
             </Routes>
