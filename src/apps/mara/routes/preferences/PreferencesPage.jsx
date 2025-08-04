@@ -85,19 +85,68 @@ function PreferencesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="mb-6">
-            <Skeleton height={40} width={300} className="mb-2" />
+      <div className="bg-gray-50 min-h-full">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <Skeleton height={32} width={300} className="mb-2" />
             <Skeleton height={20} width={500} />
           </div>
           
-          <div className="bg-white shadow-md rounded-lg">
-            <div className="border-b border-gray-200">
-              <Skeleton height={50} />
+          {/* Warning Message Skeleton */}
+          <div className="mb-6">
+            <Skeleton height={80} />
+          </div>
+          
+          {/* Main Content Skeleton */}
+          <div className="bg-white border border-gray-200 rounded-lg">
+            {/* Tabs Skeleton */}
+            <div className="border-b border-gray-200 px-6 py-4">
+              <div className="flex space-x-8">
+                <Skeleton height={24} width={150} />
+                <Skeleton height={24} width={120} />
+                <Skeleton height={24} width={140} />
+              </div>
             </div>
+            
+            {/* Tab Content Skeleton */}
             <div className="p-6">
-              <Skeleton count={8} className="mb-4" />
+              <div className="mb-6">
+                <Skeleton height={24} width={200} className="mb-2" />
+                <Skeleton height={16} width={400} />
+              </div>
+              
+              {/* Email Categories Skeleton */}
+              <div className="space-y-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start space-x-4 flex-1">
+                        <Skeleton height={32} width={32} />
+                        <div className="flex-1">
+                          <Skeleton height={20} width={150} className="mb-2" />
+                          <Skeleton height={16} width="100%" />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Skeleton height={16} width={80} />
+                        <Skeleton height={24} width={44} />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Skeleton height={16} width={60} className="mb-2" />
+                        <Skeleton height={40} />
+                      </div>
+                      <div>
+                        <Skeleton height={16} width={50} className="mb-2" />
+                        <Skeleton height={40} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -107,8 +156,8 @@ function PreferencesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8">
-        <div className="max-w-6xl mx-auto px-4">
+      <div className="bg-gray-50 min-h-full">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <div className="bg-red-50 border-l-4 border-red-400 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -127,10 +176,10 @@ function PreferencesPage() {
                     Try Again
                   </button>
                   <button 
-                    onClick={() => navigate('/weekly-report')} 
+                    onClick={() => navigate('/')} 
                     className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md text-sm hover:bg-gray-200"
                   >
-                    Back to Reports
+                    Back to Dashboard
                   </button>
                 </div>
               </div>

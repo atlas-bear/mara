@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 
 const SystemHealthPage = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -113,6 +116,12 @@ const SystemHealthPage = () => {
 
   useEffect(() => {
     document.title = 'MARA - System Health';
+    // Simulate loading for demo purposes
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1200);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const handleRefresh = async () => {
@@ -172,38 +181,132 @@ const SystemHealthPage = () => {
     );
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">System Health</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Monitor system status and performance metrics
-            </p>
+  if (loading) {
+    return (
+      <div className="bg-gray-50 min-h-full">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <Skeleton height={32} width={300} className="mb-2" />
+            <Skeleton height={20} width={500} />
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <svg 
-                className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
+          
+          {/* Overall Status Skeleton */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Skeleton height={24} width={250} />
+                <Skeleton height={16} width={150} />
+              </div>
+              <div className="flex items-center space-x-6">
+                <div className="text-center">
+                  <Skeleton height={32} width={60} className="mb-1" />
+                  <Skeleton height={16} width={50} />
+                </div>
+                <div className="text-center">
+                  <Skeleton height={32} width={60} className="mb-1" />
+                  <Skeleton height={16} width={80} />
+                </div>
+                <div className="text-center">
+                  <Skeleton height={32} width={80} className="mb-1" />
+                  <Skeleton height={16} width={80} />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Services Grid Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <Skeleton height={16} width={16} />
+                    <div className="flex-1">
+                      <Skeleton height={20} width={150} className="mb-2" />
+                      <Skeleton height={16} width="100%" />
+                    </div>
+                  </div>
+                  <Skeleton height={20} width={80} />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <Skeleton height={16} width={60} className="mb-1" />
+                    <Skeleton height={20} width={80} />
+                  </div>
+                  <div>
+                    <Skeleton height={16} width={80} className="mb-1" />
+                    <Skeleton height={20} width={60} />
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {[...Array(4)].map((_, j) => (
+                      <div key={j}>
+                        <Skeleton height={14} width={80} className="mb-1" />
+                        <Skeleton height={16} width={60} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <Skeleton height={12} width={120} />
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Quick Stats Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center">
+                  <Skeleton height={32} width={32} className="mr-4" />
+                  <div className="flex-1">
+                    <Skeleton height={32} width={80} className="mb-1" />
+                    <Skeleton height={16} width={100} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+  return (
+    <div className="bg-gray-50 min-h-full">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">System Health</h1>
+          <p className="text-gray-600 mt-1">
+            Monitor system status and performance metrics
+          </p>
+        </div>
+
+        {/* Refresh Button */}
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <svg 
+              className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
         {/* Overall Status */}
         <div className="mb-8">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
