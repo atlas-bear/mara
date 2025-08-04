@@ -41,6 +41,10 @@ const TopBar = ({ onMenuToggle }) => {
       if (segments[1] === 'health') {
         breadcrumbs.push({ label: 'Health', path: path });
       }
+    } else if (path.startsWith('/preferences')) {
+      // Preferences is logically under System section in navigation
+      breadcrumbs.push({ label: 'System', path: '/system' });
+      breadcrumbs.push({ label: 'Preferences', path: path });
     }
     
     return breadcrumbs;
