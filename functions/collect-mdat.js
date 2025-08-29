@@ -122,19 +122,19 @@ function processRawIncident(incident) {
     longitude: incident.geometry.coordinates[0],
     region: "west_africa",
     location: {
-      place: "Gulf of Guinea", // Default since location fields are not in new API
-      description: `Position: ${incident.geometry.coordinates[1]}°N ${incident.geometry.coordinates[0]}°E`,
+      place: incident.properties.location || "Gulf of Guinea",
+      description: incident.properties.locationDetail,
       coordinates: {
         latitude: incident.geometry.coordinates[1],
         longitude: incident.geometry.coordinates[0],
       },
     },
 
-    // Vessel information - mapped from ship object
+    // Vessel information - maintain same structure as original
     vessel: {
-      name: null, // Not available in new API structure
-      type: null, // Not available in new API structure
-      flag: null, // Not available in new API structure
+      name: shipInfo.name || null,
+      type: shipInfo.type || null,
+      flag: shipInfo.flag || null,
       imo: shipInfo.imo || null,
     },
 
@@ -143,12 +143,12 @@ function processRawIncident(incident) {
     type: "MDAT Alert",
     severity: incident.properties.eventLevel?.label,
 
-    // Status information
-    status: incident.properties.validated ? "verified" : "active",
-    isAlert: incident.properties.eventLevel?.label === "ALERT",
-    isAdvisory: incident.properties.eventLevel?.label !== "ALERT",
+    // Status information - maintain same logic as original
+    status: "active",
+    isAlert: Boolean(incident.properties.eventLevel?.label === "ALERT"),
+    isAdvisory: Boolean(incident.properties.eventLevel?.label !== "ALERT"),
 
-    // Updates parsing - if label contains "UPDATE"
+    // Updates parsing - if label contains "UPDATE" (same logic as original)
     updates: incident.properties.label.includes("UPDATE")
       ? [
           {
@@ -158,13 +158,13 @@ function processRawIncident(incident) {
         ]
       : [],
 
-    // Additional metadata
-    reportedBy: incident.properties.apps?.code || SOURCE_UPPER,
-    verifiedBy: incident.properties.validated ? SOURCE_UPPER : null,
+    // Additional metadata - maintain same structure as original
+    reportedBy: incident.properties.reporter || SOURCE_UPPER,
+    verifiedBy: incident.properties.verifier || null,
     lastUpdated:
-      incident.properties.dateCreated || incident.properties.dateStart,
+      incident.properties.lastModified || incident.properties.dateStart,
     created_at: incident.properties.dateStart,
-    modified_at: incident.properties.dateCreated || new Date().toISOString(),
+    modified_at: incident.properties.lastModified || new Date().toISOString(),
 
     // Store complete raw incident
     raw: incident,
