@@ -9,8 +9,7 @@ import { validateIncident, validateDateFormat } from "./utils/validation.js";
 const SOURCE = "mdat";
 const SOURCE_UPPER = SOURCE.toUpperCase();
 const BASE_URL =
-  process.env.SOURCE_URL_MDAT ||
-  "https://gog-mdat.org/api/occurrences/getPoints";
+  process.env.SOURCE_URL_MDAT || "https://gog-mdat.org/api/events/getPoints";
 const CACHE_KEY_INCIDENTS = `${SOURCE}-incidents`;
 const CACHE_KEY_HASH = `${SOURCE}-hash`;
 const CACHE_KEY_METRICS = `${SOURCE}-metrics`;
@@ -108,24 +107,14 @@ function generateDateRangeUrls() {
   };
 }
 
-function extractVesselInfo(incident) {
-  const vesselInfo = incident.properties?.vessel || {};
-  return {
-    name: vesselInfo.name || null,
-    type: vesselInfo.type || null,
-    flag: vesselInfo.flag || null,
-    imo: vesselInfo.imo || null,
-  };
-}
-
 function processRawIncident(incident) {
-  const vesselInfo = incident.properties?.vessel || {};
+  const shipInfo = incident.properties?.ship || {};
 
   return {
     sourceId: `${SOURCE_UPPER}-${incident.properties.serial}`,
     source: SOURCE_UPPER,
-    dateOccurred: incident.properties.gdh,
-    title: incident.properties.title,
+    dateOccurred: incident.properties.dateStart,
+    title: incident.properties.label,
     description: incident.properties.description,
 
     // Location information
@@ -133,48 +122,49 @@ function processRawIncident(incident) {
     longitude: incident.geometry.coordinates[0],
     region: "west_africa",
     location: {
-      place: incident.properties.location || "Gulf of Guinea",
-      description: incident.properties.locationDetail,
+      place: "Gulf of Guinea", // Default since location fields are not in new API
+      description: `Position: ${incident.geometry.coordinates[1]}°N ${incident.geometry.coordinates[0]}°E`,
       coordinates: {
         latitude: incident.geometry.coordinates[1],
         longitude: incident.geometry.coordinates[0],
       },
     },
 
-    // Vessel information
+    // Vessel information - mapped from ship object
     vessel: {
-      name: vesselInfo.name || null,
-      type: vesselInfo.type || null,
-      flag: vesselInfo.flag || null,
-      imo: vesselInfo.imo || null,
+      name: null, // Not available in new API structure
+      type: null, // Not available in new API structure
+      flag: null, // Not available in new API structure
+      imo: shipInfo.imo || null,
     },
 
-    // Incident classification
-    category: incident.properties.occurrenceType?.label,
+    // Incident classification - mapped from new structure
+    category: incident.properties.eventType?.label,
     type: "MDAT Alert",
-    severity: incident.properties.severity,
+    severity: incident.properties.eventLevel?.label,
 
     // Status information
-    status: "active",
-    isAlert: Boolean(incident.properties.isAlert),
-    isAdvisory: Boolean(incident.properties.isAdvisory),
+    status: incident.properties.validated ? "verified" : "active",
+    isAlert: incident.properties.eventLevel?.label === "ALERT",
+    isAdvisory: incident.properties.eventLevel?.label !== "ALERT",
 
-    // Updates parsing - if title contains "UPDATE"
-    updates: incident.properties.title.includes("UPDATE")
+    // Updates parsing - if label contains "UPDATE"
+    updates: incident.properties.label.includes("UPDATE")
       ? [
           {
             text: incident.properties.description,
-            timestamp: incident.properties.gdh,
+            timestamp: incident.properties.dateStart,
           },
         ]
       : [],
 
     // Additional metadata
-    reportedBy: incident.properties.reporter || SOURCE_UPPER,
-    verifiedBy: incident.properties.verifier || null,
-    lastUpdated: incident.properties.lastModified || incident.properties.gdh,
-    created_at: incident.properties.gdh,
-    modified_at: incident.properties.lastModified || new Date().toISOString(),
+    reportedBy: incident.properties.apps?.code || SOURCE_UPPER,
+    verifiedBy: incident.properties.validated ? SOURCE_UPPER : null,
+    lastUpdated:
+      incident.properties.dateCreated || incident.properties.dateStart,
+    created_at: incident.properties.dateStart,
+    modified_at: incident.properties.dateCreated || new Date().toISOString(),
 
     // Store complete raw incident
     raw: incident,
