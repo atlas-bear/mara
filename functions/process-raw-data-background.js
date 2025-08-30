@@ -140,25 +140,50 @@ export default async (req, context) => {
         .join(" ");
     };
 
-    // Function to format region name properly (from snake_case if needed)
+    // Function to format region name properly and map to existing regions
     const formatRegion = (region) => {
       if (!region) return "Unknown";
 
-      // First, split by underscores if they exist
-      const words = region.includes("_")
-        ? region.split("_")
-        : region.split(" ");
+      const regionLower = region.toLowerCase();
 
-      // Then capitalize each word
-      return words
-        .map(
-          (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        )
-        .join(" ");
+      // Map to existing regions in Airtable to avoid permission errors
+      const regionMapping = {
+        "pakistan coast": "Indian Ocean",
+        pakistan: "Indian Ocean",
+        "arabian sea": "Indian Ocean",
+        "gulf of aden": "Indian Ocean",
+        "red sea": "Indian Ocean",
+        "singapore strait": "Southeast Asia",
+        "malacca strait": "Southeast Asia",
+        "south china sea": "Southeast Asia",
+        "west africa": "West Africa",
+        "gulf of guinea": "West Africa",
+        mediterranean: "Europe",
+        "black sea": "Europe",
+        "baltic sea": "Europe",
+        "north sea": "Europe",
+        caribbean: "Caribbean",
+        "gulf of mexico": "Caribbean",
+      };
+
+      // Check for direct mapping first
+      if (regionMapping[regionLower]) {
+        return regionMapping[regionLower];
+      }
+
+      // Check for partial matches
+      for (const [key, value] of Object.entries(regionMapping)) {
+        if (regionLower.includes(key) || key.includes(regionLower)) {
+          return value;
+        }
+      }
+
+      // Default to Unknown if no mapping found
+      return "Unknown";
     };
 
-    // Helper function to find or create a reference record in a lookup table
-    async function findOrCreateReferenceItem(itemName, tableName) {
+    // Helper function to find existing reference records (no creation due to permission limits)
+    async function findExistingReferenceItem(itemName, tableName) {
       if (!itemName) return null;
 
       // Remove only the "(specify)" suffix while preserving the rest of the item name
@@ -175,7 +200,7 @@ export default async (req, context) => {
       const tableUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/${tableName}`;
 
       try {
-        // Try to find existing record
+        // Only try to find existing record, don't create new ones
         const response = await axios.get(tableUrl, {
           headers,
           params: {
@@ -189,24 +214,12 @@ export default async (req, context) => {
           return response.data.records[0].id;
         }
 
-        // Create new record if not found
-        const createResponse = await axios.post(
-          tableUrl,
-          {
-            fields: {
-              name: formattedName,
-            },
-          },
-          { headers }
+        console.log(
+          `No existing ${tableName} item found for: ${formattedName} (skipping due to permission limits)`
         );
-
-        console.log(`Created new ${tableName} item: ${formattedName}`);
-        return createResponse.data.id;
+        return null;
       } catch (error) {
-        console.error(
-          `Error finding/creating ${tableName} item:`,
-          error.message
-        );
+        console.error(`Error finding ${tableName} item:`, error.message);
         return null;
       }
     }
@@ -217,7 +230,7 @@ export default async (req, context) => {
 
       const itemIds = [];
       for (const item of items) {
-        const itemId = await findOrCreateReferenceItem(item, tableName);
+        const itemId = await findExistingReferenceItem(item, tableName);
         if (itemId) {
           itemIds.push(itemId);
         }
@@ -235,16 +248,16 @@ export default async (req, context) => {
       console.log(`Looking up incident type: "${incidentTypeName}"`);
 
       try {
-        // Ensure the incident type exists in the reference table
-        incidentTypeId = await findOrCreateReferenceItem(
+        // Find existing incident type in the reference table
+        incidentTypeId = await findExistingReferenceItem(
           incidentTypeName,
           "incident_type"
         );
 
         if (incidentTypeId) {
-          console.log(`Found/created incident type ID: ${incidentTypeId}`);
+          console.log(`Found existing incident type ID: ${incidentTypeId}`);
         } else {
-          console.log(`Unable to process incident type: ${incidentTypeName}`);
+          console.log(`No existing incident type found: ${incidentTypeName}`);
         }
       } catch (typeError) {
         console.error("Error handling incident type:", typeError.message);
@@ -654,7 +667,7 @@ export default async (req, context) => {
         latitude: recordToProcess.fields.latitude,
         longitude: recordToProcess.fields.longitude,
         status: "Active",
-        region: formatRegion(recordToProcess.fields.region),
+        region: "Unknown", // Use fixed value to avoid permission issues
         location_name: enrichedData.location, // Use extracted or provided location
 
         // LLM-enriched fields
