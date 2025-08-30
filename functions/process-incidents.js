@@ -225,6 +225,32 @@ export default async (req, context) => {
 
     log.info("Processing completed", summary);
 
+    // Trigger deduplication and incident processing if new records were created
+    if (totalStats.createCount > 0) {
+      try {
+        const siteUrl = process.env.URL || "https://mara-v2.netlify.app";
+        log.info(
+          `Triggering deduplication for ${totalStats.createCount} new raw_data records`
+        );
+
+        await axios.post(
+          `${siteUrl}/.netlify/functions/deduplicate-cross-source-background`
+        );
+
+        log.info("Successfully triggered cross-source deduplication");
+        summary.deduplicationTriggered = true;
+      } catch (error) {
+        log.error("Failed to trigger cross-source deduplication", {
+          error: error.message,
+        });
+        summary.deduplicationTriggered = false;
+        summary.deduplicationError = error.message;
+      }
+    } else {
+      log.info("No new records created, skipping deduplication trigger");
+      summary.deduplicationTriggered = false;
+    }
+
     return new Response(JSON.stringify(summary), {
       status: 200,
       headers: { "Content-Type": "application/json" },

@@ -53,9 +53,8 @@ schedule = "25,55 * * * *"
 schedule = "0 21 * * 1"
 background = true
 
-# Background function to deduplicate cross-source data
+# Background function to deduplicate cross-source data (triggered by process-incidents)
 [functions."deduplicate-cross-source-background"]
-schedule = "28 * * * *"
 background = true
 
 # Background processing function to process raw data

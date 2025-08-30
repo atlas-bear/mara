@@ -42,14 +42,28 @@ export default async (req, context) => {
       params: {
         view: "Process", // Use the specific view
         filterByFormula: `AND(
-          NOT({has_incident}),
           OR(
-            NOT({processing_status}),
-            {processing_status} = 'pending',
+            // New records (existing logic)
             AND(
-              {processing_status} = 'Merged',
-              {merge_status} = 'merged_into',
-              {merged_into}
+              NOT({has_incident}),
+              OR(
+                NOT({processing_status}),
+                {processing_status} = 'pending',
+                AND(
+                  {processing_status} = 'Merged',
+                  {merge_status} = 'merged_into',
+                  {merged_into}
+                )
+              )
+            ),
+            // Updated records that need reprocessing
+            AND(
+              {has_incident} = TRUE(),
+              {processing_status} = 'Complete',
+              OR(
+                IS_AFTER({updated_at}, {last_processed}),
+                IS_AFTER({modified_at}, {last_processed})
+              )
             )
           )
         )`,
@@ -1393,14 +1407,28 @@ async function checkMoreRecordsExist(rawDataUrl, headers) {
       params: {
         view: "Process", // Use the specific view
         filterByFormula: `AND(
-          NOT({has_incident}),
           OR(
-            NOT({processing_status}),
-            {processing_status} = 'pending',
+            // New records (existing logic)
             AND(
-              {processing_status} = 'Merged',
-              {merge_status} = 'merged_into',
-              {merged_into}
+              NOT({has_incident}),
+              OR(
+                NOT({processing_status}),
+                {processing_status} = 'pending',
+                AND(
+                  {processing_status} = 'Merged',
+                  {merge_status} = 'merged_into',
+                  {merged_into}
+                )
+              )
+            ),
+            // Updated records that need reprocessing
+            AND(
+              {has_incident} = TRUE(),
+              {processing_status} = 'Complete',
+              OR(
+                IS_AFTER({updated_at}, {last_processed}),
+                IS_AFTER({modified_at}, {last_processed})
+              )
             )
           )
         )`,
