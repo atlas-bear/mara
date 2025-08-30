@@ -35,48 +35,78 @@ export default async (req, context) => {
     const incidentUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident`;
     const incidentVesselUrl = `https://api.airtable.com/v0/${process.env.AT_BASE_ID_CSER}/incident_vessel`;
 
-    const unprocessedResponse = await axios({
+    // Try multiple queries to find records to process, in order of priority
+    let recordToProcess = null;
+
+    // 1. First, try to find new unprocessed records
+    console.log("Looking for new unprocessed records...");
+    const newRecordsResponse = await axios({
       method: "get",
       url: rawDataUrl,
       headers,
       params: {
-        view: "Process", // Use the specific view
-        filterByFormula: `AND(
-          OR(
-            // New records (existing logic)
-            AND(
-              NOT({has_incident}),
-              OR(
-                NOT({processing_status}),
-                {processing_status} = 'pending',
-                AND(
-                  {processing_status} = 'Merged',
-                  {merge_status} = 'merged_into',
-                  {merged_into}
-                )
-              )
-            ),
-            // Updated records that need reprocessing
-            AND(
-              {has_incident} = TRUE(),
-              {processing_status} = 'Complete',
-              OR(
-                IS_AFTER({updated_at}, {last_processed}),
-                IS_AFTER({modified_at}, {last_processed})
-              )
-            )
-          )
-        )`,
+        view: "Process",
+        filterByFormula: `NOT({has_incident})`,
         maxRecords: 1,
       },
     });
 
-    if (unprocessedResponse.data.records.length === 0) {
-      console.log("No unprocessed records found in the Process view");
-      return;
+    if (newRecordsResponse.data.records.length > 0) {
+      recordToProcess = newRecordsResponse.data.records[0];
+      console.log("Found new unprocessed record");
     }
 
-    const recordToProcess = unprocessedResponse.data.records[0];
+    // 2. If no new records, look for merged records that need linking
+    if (!recordToProcess) {
+      console.log("Looking for merged records that need linking...");
+      const mergedRecordsResponse = await axios({
+        method: "get",
+        url: rawDataUrl,
+        headers,
+        params: {
+          view: "Process",
+          filterByFormula: `AND({processing_status} = 'Merged', {merge_status} = 'merged_into', {merged_into}, NOT({has_incident}))`,
+          maxRecords: 1,
+        },
+      });
+
+      if (mergedRecordsResponse.data.records.length > 0) {
+        recordToProcess = mergedRecordsResponse.data.records[0];
+        console.log("Found merged record that needs linking");
+      }
+    }
+
+    // 3. If no new or merged records, look for updated records that need reprocessing
+    if (!recordToProcess) {
+      console.log("Looking for updated records that need reprocessing...");
+      try {
+        const updatedRecordsResponse = await axios({
+          method: "get",
+          url: rawDataUrl,
+          headers,
+          params: {
+            view: "Process",
+            filterByFormula: `AND({has_incident}, {processing_status} = 'Complete', {updated_at}, {last_processed}, IS_AFTER({updated_at}, {last_processed}))`,
+            maxRecords: 1,
+          },
+        });
+
+        if (updatedRecordsResponse.data.records.length > 0) {
+          recordToProcess = updatedRecordsResponse.data.records[0];
+          console.log("Found updated record that needs reprocessing");
+        }
+      } catch (updateError) {
+        console.log(
+          "Could not check for updated records (this is normal if fields don't exist):",
+          updateError.message
+        );
+      }
+    }
+
+    if (!recordToProcess) {
+      console.log("No records found to process");
+      return;
+    }
     console.log("Found record to process:", {
       id: recordToProcess.id,
       title: recordToProcess.fields.title,
@@ -1400,43 +1430,60 @@ async function findSimilarExistingIncident(
 // Helper function to check if more records exist to process
 async function checkMoreRecordsExist(rawDataUrl, headers) {
   try {
-    const response = await axios({
+    // Check for new unprocessed records
+    const newRecordsResponse = await axios({
       method: "get",
       url: rawDataUrl,
       headers,
       params: {
-        view: "Process", // Use the specific view
-        filterByFormula: `AND(
-          OR(
-            // New records (existing logic)
-            AND(
-              NOT({has_incident}),
-              OR(
-                NOT({processing_status}),
-                {processing_status} = 'pending',
-                AND(
-                  {processing_status} = 'Merged',
-                  {merge_status} = 'merged_into',
-                  {merged_into}
-                )
-              )
-            ),
-            // Updated records that need reprocessing
-            AND(
-              {has_incident} = TRUE(),
-              {processing_status} = 'Complete',
-              OR(
-                IS_AFTER({updated_at}, {last_processed}),
-                IS_AFTER({modified_at}, {last_processed})
-              )
-            )
-          )
-        )`,
+        view: "Process",
+        filterByFormula: `NOT({has_incident})`,
         maxRecords: 1,
       },
     });
 
-    return response.data.records.length > 0;
+    if (newRecordsResponse.data.records.length > 0) {
+      return true;
+    }
+
+    // Check for merged records that need linking
+    const mergedRecordsResponse = await axios({
+      method: "get",
+      url: rawDataUrl,
+      headers,
+      params: {
+        view: "Process",
+        filterByFormula: `AND({processing_status} = 'Merged', {merge_status} = 'merged_into', {merged_into}, NOT({has_incident}))`,
+        maxRecords: 1,
+      },
+    });
+
+    if (mergedRecordsResponse.data.records.length > 0) {
+      return true;
+    }
+
+    // Check for updated records that need reprocessing
+    try {
+      const updatedRecordsResponse = await axios({
+        method: "get",
+        url: rawDataUrl,
+        headers,
+        params: {
+          view: "Process",
+          filterByFormula: `AND({has_incident}, {processing_status} = 'Complete', {updated_at}, {last_processed}, IS_AFTER({updated_at}, {last_processed}))`,
+          maxRecords: 1,
+        },
+      });
+
+      if (updatedRecordsResponse.data.records.length > 0) {
+        return true;
+      }
+    } catch (updateError) {
+      // This is normal if the fields don't exist
+      console.log("Could not check for updated records:", updateError.message);
+    }
+
+    return false;
   } catch (error) {
     console.error("Error checking for more records", error.message);
     return false;
