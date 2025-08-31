@@ -119,3 +119,38 @@ function processDate(dateString) {
 
   return date.toISOString().slice(0, 10); // Return only the date in YYYY-MM-DD format
 }
+
+// Extract coordinates from the incident section
+export function extractCoordinates($, section) {
+  const coordinates = {};
+
+  // Look for coordinate patterns in the text content
+  const text = section.text();
+
+  // Common coordinate patterns
+  const latLonPattern =
+    /(\d+\.?\d*)[°\s]*([NS])[,\s]*(\d+\.?\d*)[°\s]*([EW])/gi;
+  const decimalPattern = /(-?\d+\.?\d+)[,\s]+(-?\d+\.?\d+)/g;
+
+  let match;
+
+  // Try latitude/longitude with N/S/E/W indicators
+  if ((match = latLonPattern.exec(text)) !== null) {
+    let lat = parseFloat(match[1]);
+    let lon = parseFloat(match[3]);
+
+    // Apply N/S and E/W modifiers
+    if (match[2].toUpperCase() === "S") lat = -lat;
+    if (match[4].toUpperCase() === "W") lon = -lon;
+
+    coordinates.latitude = lat;
+    coordinates.longitude = lon;
+  }
+  // Try decimal coordinates
+  else if ((match = decimalPattern.exec(text)) !== null) {
+    coordinates.latitude = parseFloat(match[1]);
+    coordinates.longitude = parseFloat(match[2]);
+  }
+
+  return coordinates;
+}
