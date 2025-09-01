@@ -1,10 +1,137 @@
 import { cacheOps } from "./utils/cache.js";
-import { fetchWithRetry } from "./utils/fetch.js";
 import { log } from "./utils/logger.js";
 import { generateHash } from "./utils/hash.js";
 import { standardizeIncident } from "./utils/standardizer.js";
 import { verifyEnvironmentVariables } from "./utils/environment.js";
 import { validateIncident, validateDateFormat } from "./utils/validation.js";
+
+// Dynamic import for Puppeteer to avoid issues in serverless environment
+let puppeteer;
+let StealthPlugin;
+
+async function initializePuppeteer() {
+  if (!puppeteer) {
+    try {
+      // Use dynamic imports for puppeteer modules
+      const puppeteerExtra = await import("puppeteer-extra");
+      StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+
+      puppeteerExtra.default.use(StealthPlugin());
+      puppeteer = puppeteerExtra.default;
+
+      log.info("Puppeteer initialized with stealth plugin");
+    } catch (error) {
+      log.error("Failed to initialize Puppeteer", error);
+      throw new Error("Puppeteer initialization failed: " + error.message);
+    }
+  }
+  return puppeteer;
+}
+
+// Puppeteer-based fetch function to bypass Cloudflare
+async function fetchWithPuppeteer(url) {
+  const puppeteerInstance = await initializePuppeteer();
+
+  let browser;
+  try {
+    log.info("Launching Puppeteer browser for Cloudflare bypass");
+
+    browser = await puppeteerInstance.launch({
+      headless: "new", // Use new headless mode
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-features=TranslateUI",
+        "--disable-web-security",
+        "--disable-features=VizDisplayCompositor",
+        "--single-process", // Important for serverless environments
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    // Set realistic viewport and user agent
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    );
+
+    // Set additional headers to mimic real browser
+    await page.setExtraHTTPHeaders({
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      DNT: "1",
+      Connection: "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+    });
+
+    log.info("Navigating to UKMTO website first to establish session");
+
+    // First, visit the main website to establish a session
+    await page.goto("https://www.ukmto.org/", {
+      waitUntil: "networkidle2",
+      timeout: 30000,
+    });
+
+    // Wait a bit to simulate human behavior
+    await page.waitForTimeout(2000);
+
+    log.info("Making API request through browser context");
+
+    // Now make the API request from within the browser context
+    const response = await page.evaluate(async (apiUrl) => {
+      try {
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Accept: "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return { success: true, data };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }, url);
+
+    if (!response.success) {
+      throw new Error(response.error);
+    }
+
+    log.info("Successfully fetched data via Puppeteer", {
+      dataLength: Array.isArray(response.data)
+        ? response.data.length
+        : "not array",
+    });
+
+    return { data: response.data };
+  } catch (error) {
+    log.error("Puppeteer fetch failed", error);
+    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
 
 const SOURCE = "ukmto";
 const SOURCE_UPPER = SOURCE.toUpperCase();
@@ -186,48 +313,11 @@ export const handler = async (event, context) => {
     // Debug - Pre-fetch
     debugLog("pre-fetch", { url: SOURCE_URL });
 
-    // Enhanced Cloudflare bypass using more complete browser simulation
-    const response = await fetchWithRetry(SOURCE_URL, {
-      headers: {
-        // Essential browser identification
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
-
-        // Accept headers (critical for Cloudflare)
-        Accept: "application/json, text/plain, */*",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "en-US,en;q=0.9,en-GB;q=0.8",
-
-        // Connection and caching
-        Connection: "keep-alive",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-
-        // Origin and referrer (must match real browser behavior)
-        Origin: "https://www.ukmto.org",
-        Referer: "https://www.ukmto.org/",
-
-        // Security headers (Cloudflare checks these)
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "cross-site",
-        "Sec-CH-UA":
-          '"Chromium";v="128", "Not;A=Brand";v="24", "Safari";v="18"',
-        "Sec-CH-UA-Mobile": "?0",
-        "Sec-CH-UA-Platform": '"macOS"',
-
-        // Priority and DNT
-        Priority: "u=1, i",
-        DNT: "1",
-
-        // Additional browser-like headers
-        "Upgrade-Insecure-Requests": "1",
-      },
-      // Force HTTP/2 if possible and add timeout
-      timeout: 30000,
-      // Add cookies simulation
-      withCredentials: true,
-    });
+    // Use Puppeteer with stealth plugin to bypass Cloudflare
+    log.info(
+      "Attempting to bypass Cloudflare using Puppeteer with stealth plugin"
+    );
+    const response = await fetchWithPuppeteer(SOURCE_URL);
 
     // Debug - Post-fetch
     debugLog("post-fetch", response.data);
