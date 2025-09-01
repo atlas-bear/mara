@@ -12,12 +12,12 @@ let StealthPlugin;
 async function initializePuppeteer() {
   if (!puppeteer) {
     try {
-      // Use dynamic imports for puppeteer modules
-      const puppeteerExtra = await import("puppeteer-extra");
-      StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+      // Use require for better compatibility in Netlify Functions
+      const puppeteerExtra = require("puppeteer-extra");
+      StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
-      puppeteerExtra.default.use(StealthPlugin());
-      puppeteer = puppeteerExtra.default;
+      puppeteerExtra.use(StealthPlugin());
+      puppeteer = puppeteerExtra;
 
       log.info("Puppeteer initialized with stealth plugin");
     } catch (error) {
