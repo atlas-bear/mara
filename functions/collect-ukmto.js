@@ -186,20 +186,47 @@ export const handler = async (event, context) => {
     // Debug - Pre-fetch
     debugLog("pre-fetch", { url: SOURCE_URL });
 
+    // Enhanced Cloudflare bypass using more complete browser simulation
     const response = await fetchWithRetry(SOURCE_URL, {
       headers: {
+        // Essential browser identification
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
-        Accept: "*/*",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept-Language": "en-US,en;q=0.9",
+
+        // Accept headers (critical for Cloudflare)
+        Accept: "application/json, text/plain, */*",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.9,en-GB;q=0.8",
+
+        // Connection and caching
+        Connection: "keep-alive",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+
+        // Origin and referrer (must match real browser behavior)
         Origin: "https://www.ukmto.org",
         Referer: "https://www.ukmto.org/",
+
+        // Security headers (Cloudflare checks these)
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "cross-site",
-        Priority: "u=3, i",
+        "Sec-CH-UA":
+          '"Chromium";v="128", "Not;A=Brand";v="24", "Safari";v="18"',
+        "Sec-CH-UA-Mobile": "?0",
+        "Sec-CH-UA-Platform": '"macOS"',
+
+        // Priority and DNT
+        Priority: "u=1, i",
+        DNT: "1",
+
+        // Additional browser-like headers
+        "Upgrade-Insecure-Requests": "1",
       },
+      // Force HTTP/2 if possible and add timeout
+      timeout: 30000,
+      // Add cookies simulation
+      withCredentials: true,
     });
 
     // Debug - Post-fetch
