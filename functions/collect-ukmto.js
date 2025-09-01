@@ -168,7 +168,7 @@ const debugLog = (stage, data) => {
 };
 
 // Update the handler function with these debug points
-export default async (req, context) => {
+export const handler = async (event, context) => {
   const startTime = Date.now();
 
   try {
