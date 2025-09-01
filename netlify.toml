@@ -28,24 +28,23 @@ to = "/.netlify/functions/:splat"
 status = 200
 
 # Collectors and processor run at different times to spread the load
-# TEMPORARILY DISABLED FOR DEBUGGING
-#[functions."collect-recaap"]
-#schedule = "0,30 * * * *"
+[functions."collect-recaap"]
+schedule = "0,30 * * * *"
 
-#[functions."collect-ukmto"]
-#schedule = "5,35 * * * *"
+[functions."collect-ukmto"]
+schedule = "5,35 * * * *"
 
-#[functions."collect-mdat"]
-#schedule = "15,45 * * * *"
+[functions."collect-mdat"]
+schedule = "15,45 * * * *"
 
-#[functions."collect-icc"]
-#schedule = "20,50 * * * *"
+[functions."collect-icc"]
+schedule = "20,50 * * * *"
 
-#[functions."collect-cwd"]
-#schedule = "10,40 * * * *"
+[functions."collect-cwd"]
+schedule = "10,40 * * * *"
 
-#[functions."process-incidents"]
-#schedule = "25,55 * * * *"
+[functions."process-incidents"]
+schedule = "25,55 * * * *"
 
 # PDF generation is now handled on-demand via API endpoints
 
