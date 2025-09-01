@@ -179,13 +179,7 @@ export const handler = async (event, context) => {
       NETLIFY_DEV: process.env.NETLIFY_DEV,
     });
 
-    verifyEnvironmentVariables([
-      "BRD_HOST",
-      "BRD_PORT",
-      "BRD_USER",
-      "BRD_PASSWORD",
-      "SOURCE_URL_UKMTO",
-    ]);
+    verifyEnvironmentVariables(["SOURCE_URL_UKMTO"]);
 
     log.info(`Starting ${SOURCE_UPPER} incident collection...`);
 
@@ -194,6 +188,8 @@ export const handler = async (event, context) => {
 
     const response = await fetchWithRetry(SOURCE_URL, {
       headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
         Origin: "https://www.ukmto.org",
         Referer: "https://www.ukmto.org/",
       },
@@ -272,18 +268,15 @@ export const handler = async (event, context) => {
         invalidCount: invalidIncidents.length,
         sampleErrors: invalidIncidents.slice(0, 3),
       });
-      return new Response(
-        JSON.stringify({
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
           status: "no-data",
           message: "No valid incidents found.",
           invalidCount: invalidIncidents.length,
           sampleErrors: invalidIncidents.slice(0, 3),
         }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      };
     }
 
     // Check for changes using hash
@@ -299,16 +292,13 @@ export const handler = async (event, context) => {
 
     if (cachedHash === currentHash) {
       log.info(`No new ${SOURCE_UPPER} incidents detected.`);
-      return new Response(
-        JSON.stringify({
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
           status: "no-change",
           message: "No new incidents to process.",
         }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      };
     }
 
     // Standardize valid incidents
@@ -357,8 +347,9 @@ export const handler = async (event, context) => {
       metrics: metricsValidation.metrics,
     });
 
-    return new Response(
-      JSON.stringify({
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
         status: "success",
         message: `New ${SOURCE_UPPER} incidents processed.`,
         count: standardizedIncidents.length,
@@ -366,11 +357,7 @@ export const handler = async (event, context) => {
         invalid: invalidIncidents.length,
         metrics: metricsValidation.metrics,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    };
   } catch (error) {
     log.error(`${SOURCE_UPPER} incident collection failed`, error);
 
@@ -380,16 +367,13 @@ export const handler = async (event, context) => {
       details: error.response?.data || "No additional details available",
     });
 
-    return new Response(
-      JSON.stringify({
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
         status: "error",
         message: error.message,
         details: error.response?.data || "No additional details available",
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    };
   }
 };
