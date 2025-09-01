@@ -190,6 +190,11 @@ export const handler = async (event, context) => {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        Accept: "application/json, */*",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Language": "en-US,en;q=0.9",
+        Connection: "keep-alive",
+        Host: "cd.royalnavy.mod.uk",
         Origin: "https://www.ukmto.org",
         Referer: "https://www.ukmto.org/",
       },
