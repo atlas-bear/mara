@@ -168,7 +168,7 @@ const debugLog = (stage, data) => {
 };
 
 // Update the handler function with these debug points
-export const handler = async (event, context) => {
+export default async (req, context) => {
   const startTime = Date.now();
 
   try {
@@ -272,15 +272,18 @@ export const handler = async (event, context) => {
         invalidCount: invalidIncidents.length,
         sampleErrors: invalidIncidents.slice(0, 3),
       });
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
+      return new Response(
+        JSON.stringify({
           status: "no-data",
           message: "No valid incidents found.",
           invalidCount: invalidIncidents.length,
           sampleErrors: invalidIncidents.slice(0, 3),
         }),
-      };
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Check for changes using hash
@@ -296,13 +299,16 @@ export const handler = async (event, context) => {
 
     if (cachedHash === currentHash) {
       log.info(`No new ${SOURCE_UPPER} incidents detected.`);
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
+      return new Response(
+        JSON.stringify({
           status: "no-change",
           message: "No new incidents to process.",
         }),
-      };
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Standardize valid incidents
@@ -351,9 +357,8 @@ export const handler = async (event, context) => {
       metrics: metricsValidation.metrics,
     });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
+    return new Response(
+      JSON.stringify({
         status: "success",
         message: `New ${SOURCE_UPPER} incidents processed.`,
         count: standardizedIncidents.length,
@@ -361,7 +366,11 @@ export const handler = async (event, context) => {
         invalid: invalidIncidents.length,
         metrics: metricsValidation.metrics,
       }),
-    };
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     log.error(`${SOURCE_UPPER} incident collection failed`, error);
 
@@ -371,13 +380,16 @@ export const handler = async (event, context) => {
       details: error.response?.data || "No additional details available",
     });
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
+    return new Response(
+      JSON.stringify({
         status: "error",
         message: error.message,
         details: error.response?.data || "No additional details available",
       }),
-    };
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 };

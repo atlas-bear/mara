@@ -7,7 +7,7 @@ const BATCH_SIZE = 100; // Process 100 incidents at a time
 
 /**
  * Processes a batch of incidents from the full incident array
- * 
+ *
  * @param {Array<Object>} incidents - Array of all incidents to process
  * @param {number} startIndex - Starting index for this batch
  * @param {number} batchSize - Maximum number of incidents to process in this batch
@@ -41,14 +41,14 @@ async function processIncidentBatch(incidents, startIndex, batchSize) {
 
 /**
  * Netlify function to process incident data from multiple sources
- * 
+ *
  * This function:
  * 1. Collects incidents from all source caches
  * 2. Validates each incident
  * 3. Processes them in batches to avoid time-outs
  * 4. Creates or updates Airtable records for each incident
  * 5. Tracks processed incident hashes to avoid reprocessing
- * 
+ *
  * @param {Request} req - The Netlify function request object
  * @param {Object} context - The Netlify function context
  * @returns {Response} Response with processing summary
@@ -69,11 +69,23 @@ export default async (req, context) => {
 
     // Handle POST requests (scheduled functions)
     if (req.method === "POST") {
-      const { next_run } = await req.json();
-      log.info("Scheduled function execution details", {
-        next_run,
-        currentTime: new Date().toISOString(),
-      });
+      try {
+        const body = await req.text();
+        log.info("POST request body", { body });
+
+        if (body) {
+          const { next_run } = JSON.parse(body);
+          log.info("Scheduled function execution details", {
+            next_run,
+            currentTime: new Date().toISOString(),
+          });
+        }
+      } catch (parseError) {
+        log.info("Could not parse POST body", {
+          error: parseError.message,
+          method: req.method,
+        });
+      }
     }
 
     const sources = ["icc", "cwd", "ukmto", "recaap", "mdat"];
@@ -249,7 +261,7 @@ export default async (req, context) => {
 
 /**
  * Validates that an incident has all required fields
- * 
+ *
  * @param {Object} incident - The incident object to validate
  * @throws {Error} If any required fields are missing
  */
@@ -270,7 +282,7 @@ function validateIncident(incident) {
 
 /**
  * Checks if an incident with the given sourceId already exists in Airtable
- * 
+ *
  * @param {string} sourceId - The unique identifier of the incident to check
  * @returns {Object|null} The existing Airtable record or null if none found
  */
@@ -299,7 +311,7 @@ async function checkExistingRecord(sourceId) {
 
 /**
  * Creates a new record or updates an existing one in Airtable
- * 
+ *
  * @param {Object} incident - The incident data to save
  * @param {Object|null} existingRecord - The existing Airtable record to update (null if creating new)
  * @returns {Promise<void>}
@@ -368,7 +380,7 @@ async function createOrUpdateRecord(incident, existingRecord) {
 
 /**
  * Maps a standardized incident object to Airtable fields format
- * 
+ *
  * @param {Object} incident - The standardized incident to map
  * @returns {Object} Object with fields property containing mapped Airtable fields
  */
@@ -438,12 +450,12 @@ function mapToAirtableFields(incident) {
     source: incident.source,
     original_source: incident.originalSource || incident.source,
 
-    // Vessel information
-    vessel_name: incident.vessel.name,
-    vessel_type: incident.vessel.type,
-    vessel_flag: incident.vessel.flag,
-    vessel_imo: incident.vessel.imo,
-    vessel_status: incident.vessel.status,
+    // Vessel information (safely accessed)
+    vessel_name: incident.vessel?.name,
+    vessel_type: incident.vessel?.type,
+    vessel_flag: incident.vessel?.flag,
+    vessel_imo: incident.vessel?.imo,
+    vessel_status: incident.vessel?.status,
 
     // Raw data
     raw_json: JSON.stringify(incident),
