@@ -49,28 +49,28 @@ async function processIncidentBatch(incidents, startIndex, batchSize) {
  * 4. Creates or updates Airtable records for each incident
  * 5. Tracks processed incident hashes to avoid reprocessing
  *
- * @param {Request} req - The Netlify function request object
+ * @param {Object} event - The Netlify function event object
  * @param {Object} context - The Netlify function context
- * @returns {Response} Response with processing summary
+ * @returns {Object} Response with processing summary
  */
-export default async (req, context) => {
+export const handler = async (event, context) => {
   const startTime = Date.now();
   try {
     log.info("Process-incidents function started", {
-      method: req.method,
+      method: event.httpMethod,
       timestamp: new Date().toISOString(),
     });
 
-    // Force fresh processing by clearing last-processed-hashes
-    await cacheOps.delete("last-processed-hashes");
+    // NOTE: Commented out to prevent reprocessing all incidents every time
+    // await cacheOps.delete("last-processed-hashes");
 
     // Verify required environment variables
     verifyEnvironmentVariables(["AT_BASE_ID_CSER", "AT_API_KEY"]);
 
     // Handle POST requests (scheduled functions)
-    if (req.method === "POST") {
+    if (event.httpMethod === "POST") {
       try {
-        const body = await req.text();
+        const body = event.body;
         log.info("POST request body", { body });
 
         if (body) {
@@ -83,7 +83,7 @@ export default async (req, context) => {
       } catch (parseError) {
         log.info("Could not parse POST body", {
           error: parseError.message,
-          method: req.method,
+          method: event.httpMethod,
         });
       }
     }
@@ -179,10 +179,11 @@ export default async (req, context) => {
 
     if (!hasNewData) {
       log.info("No new incidents to process", { sourceStats });
-      return new Response("No new incidents to process", {
-        status: 200,
+      return {
+        statusCode: 200,
+        body: "No new incidents to process",
         headers: { "Content-Type": "text/plain" },
-      });
+      };
     }
 
     // Process incidents in batches
@@ -237,25 +238,24 @@ export default async (req, context) => {
 
     log.info("Processing completed", summary);
 
-    return new Response(JSON.stringify(summary), {
-      status: 200,
+    return {
+      statusCode: 200,
+      body: JSON.stringify(summary),
       headers: { "Content-Type": "application/json" },
-    });
+    };
   } catch (error) {
     log.error("Critical failure in process-incidents", {
       error: error.message,
       stack: error.stack,
     });
-    return new Response(
-      JSON.stringify({
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
         status: "error",
         message: error.message,
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+      headers: { "Content-Type": "application/json" },
+    };
   }
 };
 
