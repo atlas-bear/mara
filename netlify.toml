@@ -43,8 +43,8 @@ schedule = "20,50 * * * *"
 [functions."collect-cwd"]
 schedule = "10,40 * * * *"
 
-[functions."process-incidents"]
-schedule = "25,55 * * * *"
+# [functions."process-incidents"]
+# schedule = "25,55 * * * *"
 
 # PDF generation is now handled on-demand via API endpoints
 
